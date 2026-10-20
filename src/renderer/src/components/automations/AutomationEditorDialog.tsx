@@ -208,6 +208,8 @@ export function AutomationEditorDialog({
             settings={settings}
             draft={draft}
             visibleAgents={visibleAgents}
+            isHermesTarget={false}
+            isHermesCreate={false}
             visibleCustomAgents={visibleCustomAgents}
             pickerTriggerClassName={AUTOMATION_EDITOR_PICKER_TRIGGER_CLASS}
             segmentedGroupClassName={AUTOMATION_EDITOR_SEGMENTED_GROUP_CLASS}

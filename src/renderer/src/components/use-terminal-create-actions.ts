@@ -3,11 +3,9 @@ import { toast } from 'sonner'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import { useAppStore } from '../store'
 import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
-import {
-  createWebRuntimeSessionBrowserTab,
-  createWebRuntimeSessionTerminal,
-  isWebRuntimeSessionActive
-} from '@/runtime/web-runtime-session'
+import { createWebRuntimeSessionBrowserTab } from '@/runtime/web-runtime-browser-creation'
+import { createWebRuntimeSessionTerminal } from '@/runtime/web-runtime-terminal-creation'
+import { isWebRuntimeSessionActive } from '@/runtime/web-runtime-session-environment'
 import { openMobileEmulatorTab } from '@/lib/open-mobile-emulator-tab'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
@@ -29,8 +27,7 @@ export function useTerminalCreateActions(controller: TerminalColdActivationContr
     openNewBrowserTabInActiveWorkspace,
     openNewMarkdownInActiveWorkspace,
     openNewTerminalTabInActiveWorkspace,
-    setActiveTabType,
-    setTabBarOrder
+    setActiveTabType
   } = controller
   const handleNewTab = useCallback(
     (shellOverride?: string) => {
@@ -76,15 +73,14 @@ export function useTerminalCreateActions(controller: TerminalColdActivationContr
       }
       const order = base.filter((id) => id !== newTab.id)
       order.push(newTab.id)
-      setTabBarOrder(activeWorktreeId, order)
+      useAppStore.getState().setTabBarOrder(activeWorktreeId, order)
       focusTerminalTabSurface(newTab.id)
     },
     [
       activeWorktreeId,
       createTab,
       openNewTerminalTabInActiveWorkspace,
-      setActiveTabType,
-      setTabBarOrder
+      setActiveTabType
     ]
   )
 
@@ -103,7 +99,6 @@ export function useTerminalCreateActions(controller: TerminalColdActivationContr
         worktreeId: activeWorktreeId,
         groupId: targetGroupId,
         launchSource: 'shortcut',
-        freshNewTab: true
       })
       if (!result) {
         toast.error(

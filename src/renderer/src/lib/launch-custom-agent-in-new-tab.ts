@@ -3,6 +3,7 @@ import { persistAgentLaunchTabOrder } from '@/lib/launch-agent-tab-order'
 import { translate } from '@/i18n/i18n'
 import { getAgentLaunchPlatformForRepo } from '@/lib/agent-launch-platform'
 import { getLocalProjectExecutionRuntimeContext } from '@/lib/local-preflight-context'
+import type { ResolvedProjectExecutionRuntime } from '../../../shared/project-execution-runtime'
 import { CLIENT_PLATFORM } from '@/lib/new-workspace'
 import {
   getExecutionHostIdForWorktree,
@@ -98,7 +99,9 @@ export function launchCustomAgentInNewTab(args: {
           repo,
           repo.connectionId
             ? undefined
-            : getLocalProjectExecutionRuntimeContext(store, args.worktreeId)
+            : (getLocalProjectExecutionRuntimeContext(store, args.worktreeId)?.status === 'resolved'
+                ? (getLocalProjectExecutionRuntimeContext(store, args.worktreeId) as { status: 'resolved'; runtime: ResolvedProjectExecutionRuntime }).runtime.hostPlatform as NodeJS.Platform | undefined
+                : undefined)
         )
       : worktreeUsesWslPath(store, args.worktreeId)
         ? 'linux'

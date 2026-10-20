@@ -31,8 +31,8 @@ export type AgentCatalogRowProps = {
   onSaveOverride: (value: string) => void
   onSaveArgs: (value: string) => void
   onSaveEnv: (value: Record<string, string>) => void
-  onDuplicateAsCustom: () => void
-  duplicateAsCustomDisabled: boolean
+  onDuplicateAsCustom?: () => void
+  duplicateAsCustomDisabled?: boolean
   sessionSourceHome?: AgentSessionSourceHomeControl
 }
 
@@ -54,8 +54,8 @@ export function AgentCatalogRow({
   onSaveOverride,
   onSaveArgs,
   onSaveEnv,
-  onDuplicateAsCustom,
-  duplicateAsCustomDisabled,
+  onDuplicateAsCustom = () => undefined,
+  duplicateAsCustomDisabled = false,
   sessionSourceHome
 }: AgentCatalogRowProps): React.JSX.Element {
   const envSummary = stringifyAgentDefaultEnvDraft(envOverride)

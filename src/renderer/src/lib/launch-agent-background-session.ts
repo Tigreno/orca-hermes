@@ -16,8 +16,7 @@ import {
   type EagerPtyHandle
 } from '@/components/terminal-pane/pty-dispatcher'
 import { subscribeToPtyData } from '@/components/terminal-pane/pty-data-sidecar-subscriptions'
-import { callRuntimeRpc, getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
-import { getSettingsForWorktreeRuntimeOwner } from '@/lib/worktree-runtime-owner'
+import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
 import { retireProvider } from '@/lib/retire-unowned-background-terminal'
 import { createRuntimeAgentBackgroundTerminal } from '@/lib/runtime-agent-background-create'
 import {
@@ -57,10 +56,9 @@ export async function launchAgentBackgroundSession(
     repo
   })
   const { platform: launchPlatform, isRemote } = launchHost
-  // Route by the worktree's owner host, not the focused runtime.
-  const runtimeTarget = getActiveRuntimeTarget(
-    getSettingsForWorktreeRuntimeOwner(store, worktreeId)
-  )
+  // The upstream worktree-owner routing helper was removed in this build;
+// fall back to the focused runtime target (always local in this build).
+const runtimeTarget = { kind: 'local' as 'local' | 'environment', environmentId: '' }
   if (hasExtraAgentArgs(args.extraAgentArgs) && runtimeTarget.kind === 'environment') {
     // Why: that server rebuilds the command from its own settings and would drop the extras.
     throw new Error("Extra arguments can't be applied to a paired server's workspace from here.")
@@ -75,7 +73,8 @@ export async function launchAgentBackgroundSession(
     settings: store.settings ?? {},
     platform: launchPlatform,
     isRemote,
-    extraAgentArgs: args.extraAgentArgs
+    extraAgentArgs: args.extraAgentArgs,
+    shell: undefined
   })
   const trimmedPrompt = prompt?.trim() ?? ''
   const hasPrompt = trimmedPrompt.length > 0
@@ -247,7 +246,6 @@ export async function launchAgentBackgroundSession(
         throw new Error('Runtime terminal id is invalid.')
       }
       unsubscribeData = await subscribeToRuntimeTerminalData(
-        store.settings,
         ptyId,
         `desktop:background:${tab.id}`,
         handleData

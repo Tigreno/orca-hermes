@@ -57,6 +57,8 @@ function renderSidebar(
       draft={draft}
       visibleAgents={AGENT_CATALOG}
       visibleCustomAgents={customAgents}
+      isHermesTarget={false}
+      isHermesCreate={false}
       pickerTriggerClassName=""
       segmentedGroupClassName=""
       segmentedItemClassName=""

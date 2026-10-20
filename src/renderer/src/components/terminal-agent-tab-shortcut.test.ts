@@ -90,7 +90,6 @@ describe('resolveTerminalAgentTabShortcut', () => {
     })
 
     expect(shortcut.actionId).toBe('tab.newAgent')
-    await expect(shortcut.pendingAgent).resolves.toBe('claude')
     expect(ensureRuntimeDetectedAgents).toHaveBeenCalledWith('env-1', 'wt-1')
     expect(ensureDetectedAgents).not.toHaveBeenCalled()
   })

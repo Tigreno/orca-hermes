@@ -47,13 +47,15 @@ export function AgentDefaultSetting({
   onSetCustomDefault
 }: {
   defaultAgent: TuiAgent | 'blank' | null
-  defaultCustomAgent: CustomAgentProfile | null
+  // Custom-agent default support landed in the upstream cherry-pick; kept
+  // optional here so callers without that wiring still type-check.
+  defaultCustomAgent?: CustomAgentProfile | null
   detectedIds: Set<string> | null
   enabledDetectedAgents: AgentCatalogEntry[]
   catalog: AgentCatalogEntry[]
   description: string
   onSetDefault: (agent: TuiAgent | 'blank' | null) => void
-  onSetCustomDefault: (profileId: string) => void
+  onSetCustomDefault?: (profileId: string) => void
 }): React.JSX.Element {
   const storedDefaultAgent =
     defaultAgent !== null && defaultAgent !== 'blank'
@@ -110,7 +112,7 @@ export function AgentDefaultSetting({
           )
         })}
         {defaultCustomAgent ? (
-          <DefaultAgentPill active onClick={() => onSetCustomDefault(defaultCustomAgent.id)}>
+          <DefaultAgentPill active onClick={() => onSetCustomDefault?.(defaultCustomAgent.id)}>
             {defaultCustomAgent.baseAgent ? (
               <AgentIcon agent={defaultCustomAgent.baseAgent} size={14} />
             ) : (

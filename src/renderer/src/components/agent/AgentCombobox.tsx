@@ -58,6 +58,11 @@ type AgentComboboxProps = AgentComboboxSelectionProps & {
    *  field as the last keyboard-submit step. */
   onTriggerEnter?: () => void
   allowNarrowTrigger?: boolean
+  clearSelection?: {
+    resetAgent?: () => void;
+    cleared?: boolean;
+    onClear?: () => void;
+  }
 }
 
 const BLANK_VALUE = '__none__'

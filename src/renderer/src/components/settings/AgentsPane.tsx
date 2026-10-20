@@ -39,6 +39,7 @@ import { getSettingOwnershipSummary } from './setting-ownership'
 import { translate } from '@/i18n/i18n'
 import { isPairedWebClientWindow } from '@/lib/desktop-window-chrome'
 import { getAgentsPaneSearchEntries } from './agents-search'
+import type { SettingsHostScope } from './settings-host-scope'
 import {
   buildAgentAvailabilitySettingsUpdate,
   createAgentAvailabilityUpdateQueue
@@ -70,6 +71,8 @@ export {
 type AgentsPaneProps = {
   settings: GlobalSettings
   updateSettings: (updates: Partial<GlobalSettings>) => void | Promise<void>
+  hostScope?: SettingsHostScope
+  updateSettingsOrThrow?: (updates: Partial<GlobalSettings>) => Promise<void>
   wslSupportedPlatform?: boolean
   wslAvailable?: boolean
   wslDistros?: string[]

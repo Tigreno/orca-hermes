@@ -66,6 +66,12 @@ export function useAutomationsPageLocalState(store: AutomationsPageStoreState) {
     destination: AutomationCreateDestination
   } | null>(null)
   const [editingHostStableKey, setEditingHostStableKey] = useState<string | null>(null)
+  // Stub state for Hermes-target save flow that did not land in this build.
+  // Kept as optional hook setters so the upstream editor action signature
+  // still compiles without pulling in the real Hermes state machine.
+  const [editingExternalTarget, setEditingExternalTarget] = useState<unknown | null>(null)
+  const setCreateTarget = (_value: string): void => undefined
+  const createTarget = 'orca'
   const moveCreationKeysRef = useRef(new Map<string, string>())
   const [relativeNow, setRelativeNow] = useState(() => Date.now())
   const [pageView, setPageView] = useState<AutomationsPageView>('automations')
@@ -188,6 +194,10 @@ export function useAutomationsPageLocalState(store: AutomationsPageStoreState) {
     setEditingDestination,
     editingHostStableKey,
     setEditingHostStableKey,
+    editingExternalTarget,
+    setEditingExternalTarget,
+    createTarget,
+    setCreateTarget,
     moveCreationKeysRef,
     relativeNow,
     setRelativeNow,
