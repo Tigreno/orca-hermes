@@ -3,18 +3,15 @@ import { toast } from 'sonner'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import { useAppStore } from '../store'
 import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
-import { createBrowserUuid } from '@/lib/browser-uuid'
-import { createWebRuntimeSessionBrowserTab } from '@/runtime/web-runtime-browser-creation'
-import { createWebRuntimeSessionTerminal } from '@/runtime/web-runtime-terminal-creation'
-import { isWebRuntimeSessionActive } from '@/runtime/web-runtime-session-environment'
+import {
+  createWebRuntimeSessionBrowserTab,
+  createWebRuntimeSessionTerminal,
+  isWebRuntimeSessionActive
+} from '@/runtime/web-runtime-session'
 import { openMobileEmulatorTab } from '@/lib/open-mobile-emulator-tab'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
-import { persistAgentLaunchTabOrder } from '@/lib/launch-agent-tab-order'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
-import {
-  captureAgentTabLaunchContext,
-  type AgentTabLaunchContext
-} from './agent-tab-launch-context'
+import { launchCustomAgentInNewTab } from '@/lib/launch-custom-agent-in-new-tab'
 import { buildDuplicatedBrowserTabOptions } from '@/lib/duplicate-browser-tab-options'
 import { browserWorkspaceHasRemoteOwner } from '@/runtime/remote-browser-tab-ownership'
 import { getClientCreationActionPolicy } from '@/lib/client-creation-action-policy'
@@ -32,7 +29,8 @@ export function useTerminalCreateActions(controller: TerminalColdActivationContr
     openNewBrowserTabInActiveWorkspace,
     openNewMarkdownInActiveWorkspace,
     openNewTerminalTabInActiveWorkspace,
-    setActiveTabType
+    setActiveTabType,
+    setTabBarOrder
   } = controller
   const handleNewTab = useCallback(
     (shellOverride?: string) => {
@@ -48,7 +46,7 @@ export function useTerminalCreateActions(controller: TerminalColdActivationContr
           worktreeId: activeWorktreeId,
           environmentId: runtimeEnvironmentId,
           targetGroupId,
-          shell: shellOverride,
+          command: shellOverride,
           activate: true
         })
         return
@@ -57,28 +55,55 @@ export function useTerminalCreateActions(controller: TerminalColdActivationContr
         void openNewTerminalTabInActiveWorkspace(targetGroupId)
         return
       }
-      const tabId = createBrowserUuid()
-      createTab(activeWorktreeId, undefined, shellOverride, { id: tabId })
+      const newTab = createTab(activeWorktreeId, undefined, shellOverride)
       setActiveTabType('terminal', activeWorktreeId)
-      persistAgentLaunchTabOrder(activeWorktreeId, tabId)
-      focusTerminalTabSurface(tabId)
+      const state = useAppStore.getState()
+      const currentTerminals = state.tabsByWorktree[activeWorktreeId] ?? []
+      const currentEditors = state.openFiles.filter((file) => file.worktreeId === activeWorktreeId)
+      const currentBrowsers = state.browserTabsByWorktree[activeWorktreeId] ?? []
+      const stored = state.tabBarOrderByWorktree[activeWorktreeId]
+      const termIds = currentTerminals.map((tab) => tab.id)
+      const editorIds = currentEditors.map((file) => file.id)
+      const browserIds = currentBrowsers.map((tab) => tab.id)
+      const validIds = new Set([...termIds, ...editorIds, ...browserIds])
+      const base = (stored ?? []).filter((id) => validIds.has(id))
+      const inBase = new Set(base)
+      for (const id of [...termIds, ...editorIds, ...browserIds]) {
+        if (!inBase.has(id)) {
+          base.push(id)
+          inBase.add(id)
+        }
+      }
+      const order = base.filter((id) => id !== newTab.id)
+      order.push(newTab.id)
+      setTabBarOrder(activeWorktreeId, order)
+      focusTerminalTabSurface(newTab.id)
     },
-    [activeWorktreeId, createTab, openNewTerminalTabInActiveWorkspace, setActiveTabType]
+    [
+      activeWorktreeId,
+      createTab,
+      openNewTerminalTabInActiveWorkspace,
+      setActiveTabType,
+      setTabBarOrder
+    ]
   )
 
   const handleNewAgentTab = useCallback(
-    (agent: TuiAgent, context?: AgentTabLaunchContext) => {
+    (agent: TuiAgent) => {
       if (!activeWorktreeId) {
         return
       }
-      const { groupId, focusIntent } = context ?? captureAgentTabLaunchContext(activeWorktreeId)
+      const state = useAppStore.getState()
+      const targetGroupId =
+        state.activeGroupIdByWorktree[activeWorktreeId] ??
+        state.groupsByWorktree[activeWorktreeId]?.[0]?.id
       const result = launchAgentInNewTab({
         requestId: newAgentLaunchRequestId(),
-        focusIntent,
         agent,
         worktreeId: activeWorktreeId,
-        groupId,
-        launchSource: 'shortcut'
+        groupId: targetGroupId,
+        launchSource: 'shortcut',
+        freshNewTab: true
       })
       if (!result) {
         toast.error(
@@ -89,6 +114,23 @@ export function useTerminalCreateActions(controller: TerminalColdActivationContr
           )
         )
       }
+    },
+    [activeWorktreeId]
+  )
+
+  const handleNewCustomAgentTab = useCallback(
+    (profileId: string) => {
+      if (!activeWorktreeId) {
+        return
+      }
+      const state = useAppStore.getState()
+      launchCustomAgentInNewTab({
+        profileId,
+        worktreeId: activeWorktreeId,
+        groupId:
+          state.activeGroupIdByWorktree[activeWorktreeId] ??
+          state.groupsByWorktree[activeWorktreeId]?.[0]?.id
+      })
     },
     [activeWorktreeId]
   )
@@ -208,6 +250,7 @@ export function useTerminalCreateActions(controller: TerminalColdActivationContr
   return {
     handleNewTab,
     handleNewAgentTab,
+    handleNewCustomAgentTab,
     handleNewSimulatorTab,
     handleNewBrowserTab,
     handleOpenEntry,

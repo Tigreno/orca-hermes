@@ -1,6 +1,10 @@
-import AgentCombobox from '@/components/agent/AgentCombobox'
+import AgentCombobox, { type CustomAgentComboboxEntry } from '@/components/agent/AgentCombobox'
+import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
-import { isValidAutomationSchedule } from '../../../../shared/automation-schedule-parsing'
+import {
+  isValidAutomationCronSchedule,
+  isValidAutomationSchedule
+} from '../../../../shared/automation-schedule-parsing'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { OrcaHooks } from '../../../../shared/orca-yaml-hook-types'
 import type { ProjectHostSetup } from '../../../../shared/project-types'
@@ -23,6 +27,8 @@ import type { AutomationDraft } from './AutomationEditorDialog'
 type AutomationEditorSettingsSidebarProps = {
   /** The host picker: where a create lands, or the host an edit can move the record to. */
   destination?: AutomationCreateDestinationControl
+  isHermesTarget: boolean
+  isHermesCreate: boolean
   repos: readonly Repo[]
   projectHostSetups: readonly ProjectHostSetup[]
   automationYamlHooksByRepoKey: Record<string, OrcaHooks | null>
@@ -32,6 +38,7 @@ type AutomationEditorSettingsSidebarProps = {
   settings: GlobalSettings | null
   draft: AutomationDraft
   visibleAgents: AgentCatalogEntry[]
+  visibleCustomAgents: readonly CustomAgentComboboxEntry[]
   pickerTriggerClassName: string
   segmentedGroupClassName: string
   segmentedItemClassName: string
@@ -44,6 +51,8 @@ type AutomationEditorSettingsSidebarProps = {
 
 export function AutomationEditorSettingsSidebar({
   destination,
+  isHermesTarget,
+  isHermesCreate,
   repos,
   projectHostSetups,
   automationYamlHooksByRepoKey,
@@ -53,6 +62,7 @@ export function AutomationEditorSettingsSidebar({
   settings,
   draft,
   visibleAgents,
+  visibleCustomAgents,
   pickerTriggerClassName,
   segmentedGroupClassName,
   segmentedItemClassName,
@@ -65,26 +75,65 @@ export function AutomationEditorSettingsSidebar({
   return (
     <aside className="flex w-[320px] shrink-0 flex-col overflow-auto border-l border-border/50 bg-muted/20 px-5 py-5 scrollbar-sleek">
       <div className="flex flex-col">
-        <div className="mb-4 flex flex-col gap-5">
-          <Field
-            labelClassName={AUTOMATION_EDITOR_SECTION_LABEL_CLASS}
-            label={translate(
-              'auto.components.automations.AutomationEditorDialog.57b722cbba',
-              'Agent'
-            )}
-          >
-            <AgentCombobox
-              agents={visibleAgents}
-              value={draft.agentId}
-              onValueChange={(agentId) => onDraftChange((current) => ({ ...current, agentId }))}
-              defaultAgent={settings?.defaultTuiAgent ?? null}
-              triggerClassName={`h-9 w-full min-w-0 ${pickerTriggerClassName}`}
-              allowNarrowTrigger
-            />
-          </Field>
-          <AutomationExtraAgentArgsField draft={draft} onDraftChange={onDraftChange} />
+        {/* Why: Hermes keeps project/workspace/schedule only. Collapse the
+            Orca-only knobs so switching the create target does not jump. */}
+        <div
+          className={cn(
+            'grid overflow-hidden transition-[grid-template-rows,margin] duration-200 ease-out',
+            isHermesTarget ? 'mb-0 grid-rows-[0fr]' : 'mb-4 grid-rows-[1fr]'
+          )}
+          aria-hidden={isHermesTarget}
+          inert={isHermesTarget}
+        >
+          <div className="min-h-0">
+            <div
+              className={cn(
+                'flex flex-col gap-5 transition-[opacity,transform] duration-150 ease-out',
+                isHermesTarget
+                  ? '-translate-y-1 opacity-0 delay-0'
+                  : 'translate-y-0 opacity-100 delay-200'
+              )}
+            >
+              <Field
+                labelClassName={AUTOMATION_EDITOR_SECTION_LABEL_CLASS}
+                label={translate(
+                  'auto.components.automations.AutomationEditorDialog.57b722cbba',
+                  'Agent'
+                )}
+              >
+                <AgentCombobox
+                  agents={visibleAgents}
+                  value={draft.agentId}
+                  onValueChange={(agentId) => onDraftChange((current) => ({ ...current, agentId }))}
+                  customAgents={visibleCustomAgents}
+                  customValue={draft.customAgentProfileId}
+                  onCustomValueChange={(profileId) =>
+                    onDraftChange((current) => {
+                      const profile = visibleCustomAgents.find((entry) => entry.id === profileId)
+                      return profile
+                        ? {
+                            ...current,
+                            agentId: profile.baseAgent,
+                            customAgentProfileId: profile.id,
+                            // Why: a custom profile owns its arguments, so saved extras cannot apply.
+                            extraAgentArgs: ''
+                          }
+                        : { ...current, customAgentProfileId: null }
+                    })
+                  }
+                  defaultAgent={settings?.defaultTuiAgent ?? null}
+                  triggerClassName={`h-9 w-full min-w-0 ${pickerTriggerClassName}`}
+                  allowNarrowTrigger
+                  allowBlankTerminal={false}
+                />
+              </Field>
+              {draft.customAgentProfileId ? null : (
+                <AutomationExtraAgentArgsField draft={draft} onDraftChange={onDraftChange} />
+              )}
+            </div>
+          </div>
         </div>
-        {destination ? (
+        {destination && !isHermesTarget ? (
           <div className="mb-4">
             <AutomationDestinationField
               control={destination}
@@ -116,6 +165,7 @@ export function AutomationEditorSettingsSidebar({
         <div className="mb-4">
           <AutomationWorkspaceField
             draft={draft}
+            isHermesTarget={isHermesTarget}
             worktrees={worktrees}
             repoMap={repoMap}
             pickerTriggerClassName={pickerTriggerClassName}
@@ -124,13 +174,22 @@ export function AutomationEditorSettingsSidebar({
             onDraftChange={onDraftChange}
           />
         </div>
-        <div className="mb-4">
-          <AutomationSessionField
-            draft={draft}
-            toggleGroupClassName={segmentedGroupClassName}
-            toggleItemClassName={segmentedItemClassName}
-            onDraftChange={onDraftChange}
-          />
+        <div
+          className={cn(
+            'grid overflow-hidden transition-[grid-template-rows,margin] duration-200 ease-out',
+            isHermesTarget ? 'mb-0 grid-rows-[0fr]' : 'mb-4 grid-rows-[1fr]'
+          )}
+          aria-hidden={isHermesTarget}
+          inert={isHermesTarget}
+        >
+          <div className="min-h-0">
+            <AutomationSessionField
+              draft={draft}
+              toggleGroupClassName={segmentedGroupClassName}
+              toggleItemClassName={segmentedItemClassName}
+              onDraftChange={onDraftChange}
+            />
+          </div>
         </div>
         <Field
           className="mb-4"
@@ -142,29 +201,50 @@ export function AutomationEditorSettingsSidebar({
         >
           <AutomationSchedulePicker
             draft={draft}
-            validateAdvancedSchedule={isValidAutomationSchedule}
+            validateAdvancedSchedule={
+              isHermesTarget ? isValidAutomationCronSchedule : isValidAutomationSchedule
+            }
             onDraftChange={onDraftChange}
           />
         </Field>
-        <div className="mb-4">
-          <AutomationMissedRunGraceField
-            disabled={false}
-            draft={draft}
-            pickerTriggerClassName={pickerTriggerClassName}
-            onDraftChange={onDraftChange}
-          />
-        </div>
-        <div className="mb-4">
-          <div className="flex flex-col gap-5">
-            <AutomationPrecheckFields
-              disabled={false}
+        <div
+          className={cn(
+            'grid overflow-hidden transition-[grid-template-rows,margin] duration-200 ease-out',
+            isHermesTarget ? 'mb-0 grid-rows-[0fr]' : 'mb-4 grid-rows-[1fr]'
+          )}
+          aria-hidden={isHermesTarget}
+          inert={isHermesTarget}
+        >
+          <div className="min-h-0">
+            <AutomationMissedRunGraceField
               draft={draft}
+              disabled={isHermesTarget}
               pickerTriggerClassName={pickerTriggerClassName}
               onDraftChange={onDraftChange}
             />
           </div>
         </div>
+        <div
+          className={cn(
+            'grid overflow-hidden transition-[grid-template-rows,margin] duration-200 ease-out',
+            isHermesCreate ? 'mb-0 grid-rows-[0fr]' : 'mb-4 grid-rows-[1fr]'
+          )}
+          aria-hidden={isHermesCreate}
+          inert={isHermesCreate}
+        >
+          <div className="min-h-0">
+            <div className="flex flex-col gap-5">
+              <AutomationPrecheckFields
+                draft={draft}
+                disabled={isHermesCreate}
+                pickerTriggerClassName={pickerTriggerClassName}
+                onDraftChange={onDraftChange}
+              />
+            </div>
+          </div>
+        </div>
         <AutomationSetupDecisionField
+          createTarget={isHermesTarget ? 'hermes' : 'orca'}
           draft={draft}
           repos={repos}
           projectHostSetups={projectHostSetups}

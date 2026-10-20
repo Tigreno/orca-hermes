@@ -1,6 +1,4 @@
 import { useAppStore } from '@/store'
-import { runtimeTargetForOwnerEnvironment } from '@/runtime/runtime-client-target'
-import { buildAgentStartupPlan } from '@/lib/tui-agent-startup'
 import type {
   LaunchAgentBackgroundSessionArgs,
   LaunchAgentBackgroundSessionResult
@@ -18,8 +16,8 @@ import {
   type EagerPtyHandle
 } from '@/components/terminal-pane/pty-dispatcher'
 import { subscribeToPtyData } from '@/components/terminal-pane/pty-data-sidecar-subscriptions'
-import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
-import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
+import { callRuntimeRpc, getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
+import { getSettingsForWorktreeRuntimeOwner } from '@/lib/worktree-runtime-owner'
 import { retireProvider } from '@/lib/retire-unowned-background-terminal'
 import { createRuntimeAgentBackgroundTerminal } from '@/lib/runtime-agent-background-create'
 import {
@@ -37,6 +35,7 @@ import {
 import { createBackgroundAgentStatusConsumer } from '@/lib/background-agent-status-consumer'
 import { isWslUncPath } from '../../../shared/wsl-paths'
 import { runtimeWaitExitCode, settleTabPtyBinding } from '@/lib/agent-background-session-exit'
+import { buildAutomationAgentStartupPlan } from '../../../shared/custom-agent-automation-startup'
 
 export async function launchAgentBackgroundSession(
   args: LaunchAgentBackgroundSessionArgs
@@ -49,6 +48,7 @@ export async function launchAgentBackgroundSession(
   if (!worktree) {
     throw new Error('The target workspace is no longer available.')
   }
+
   // Folder launch ownership cannot be derived from a repo row (#2989).
   const launchHost = resolveAgentBackgroundLaunchHost({
     store,
@@ -56,26 +56,25 @@ export async function launchAgentBackgroundSession(
     worktreePath: worktree.path,
     repo
   })
-  const { platform: launchPlatform, isRemote, isLocalHost } = launchHost
+  const { platform: launchPlatform, isRemote } = launchHost
   // Route by the worktree's owner host, not the focused runtime.
-  const runtimeTarget = runtimeTargetForOwnerEnvironment(
-    getRuntimeEnvironmentIdForWorktree(store, worktreeId)
+  const runtimeTarget = getActiveRuntimeTarget(
+    getSettingsForWorktreeRuntimeOwner(store, worktreeId)
   )
   if (hasExtraAgentArgs(args.extraAgentArgs) && runtimeTarget.kind === 'environment') {
     // Why: that server rebuilds the command from its own settings and would drop the extras.
     throw new Error("Extra arguments can't be applied to a paired server's workspace from here.")
   }
+  if (args.customAgentProfile && hasExtraAgentArgs(args.extraAgentArgs)) {
+    // Why: a custom profile carries its own arguments; the extras would be dropped silently.
+    throw new Error("Extra arguments can't be combined with a custom agent.")
+  }
   // Why before any tab or PTY: an invalid launch must fail the run without creating a terminal.
   const planInputs = resolveAgentStartupPlanInputs({
     agent,
-    // Why: the client's Windows shell setting describes this machine, not a remote host.
-    settings: isLocalHost
-      ? (store.settings ?? {})
-      : { ...store.settings, terminalWindowsShell: undefined },
+    settings: store.settings ?? {},
     platform: launchPlatform,
     isRemote,
-    // The window quotes by its Settings shell, which its pane's spawn also reads.
-    shell: undefined,
     extraAgentArgs: args.extraAgentArgs
   })
   const trimmedPrompt = prompt?.trim() ?? ''
@@ -83,10 +82,11 @@ export async function launchAgentBackgroundSession(
   const isFollowupPath = requireTuiAgentConfig(agent).promptInjectionMode === 'stdin-after-start'
 
   const pasteDraftAfterLaunch = hasPrompt && isFollowupPath ? trimmedPrompt : null
-  const startupPlan = buildAgentStartupPlan({
+  const startupPlan = buildAutomationAgentStartupPlan({
     ...planInputs,
     prompt: hasPrompt && !isFollowupPath ? trimmedPrompt : '',
-    allowEmptyPromptLaunch: !hasPrompt || isFollowupPath
+    allowEmptyPromptLaunch: !hasPrompt || isFollowupPath,
+    customAgentProfile: args.customAgentProfile
   })
   if (!startupPlan) {
     return null
@@ -247,6 +247,7 @@ export async function launchAgentBackgroundSession(
         throw new Error('Runtime terminal id is invalid.')
       }
       unsubscribeData = await subscribeToRuntimeTerminalData(
+        store.settings,
         ptyId,
         `desktop:background:${tab.id}`,
         handleData

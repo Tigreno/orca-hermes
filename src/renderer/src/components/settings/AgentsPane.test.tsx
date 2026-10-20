@@ -21,8 +21,8 @@ import { getCodexTerminalServerIsolationTitle } from './codex-terminal-server-is
 import { AgentAwakeSetting } from './AgentAwakeSetting'
 import { AgentRuntimeSetting } from './AgentRuntimeSetting'
 import type * as AgentRuntimeSettingModule from './AgentRuntimeSetting'
+import { AgentAvailabilityControl } from './AgentSettingsRow'
 import {
-  AgentAvailabilityControl,
   AgentPermissionsSetting,
   AgentGeneratedTabTitlesSetting,
   AgentStatusHooksSetting,
@@ -34,7 +34,6 @@ import {
 } from './AgentsPane'
 import { matchesSettingsSearch } from './settings-search'
 import { TooltipProvider } from '../ui/tooltip'
-import { resolveSettingsHostScope } from './settings-host-scope'
 
 const detectedAgentsMock = vi.hoisted(() => ({
   detectedIds: ['claude'] as TuiAgent[] | null,
@@ -105,13 +104,6 @@ function renderPane(
       React.createElement(AgentsPane, {
         settings,
         updateSettings: vi.fn(),
-        // Why: mirrors the page before the user picks a host — the default host setting.
-        hostScope: resolveSettingsHostScope({
-          choice: null,
-          defaultEnvironmentId: settings.activeRuntimeEnvironmentId,
-          savedEnvironmentIds: [],
-          catalogHydrated: false
-        }),
         ...props
       })
     )
@@ -189,7 +181,15 @@ describe('AgentsPane', () => {
     expect(detectedAgentsMock.lastTarget).toEqual({ kind: 'local' })
   })
 
-  it('waits for host launch settings before displaying remote agent controls', () => {
+  it('offers duplicate-as-custom and places custom agents below Installed', () => {
+    const markup = renderPane(getDefaultSettings('/tmp'))
+
+    expect(markup).toContain('Duplicate Claude as custom agent')
+    expect(markup.indexOf('Installed')).toBeLessThan(markup.indexOf('Custom agents'))
+    expect(markup.indexOf('Custom agents')).toBeLessThan(markup.indexOf('Available to install'))
+  })
+
+  it('scopes agent detection to the active remote server', () => {
     // Repro for the "Remote Server lists local agents" bug: with an Active
     // Server selected, the Installed list must probe that server's PATH.
     // Why the mutation: renderToStaticMarkup makes useSyncExternalStore read
@@ -207,29 +207,25 @@ describe('AgentsPane', () => {
         activeRuntimeEnvironmentId: 'env-1'
       })
 
-      expect(detectedAgentsMock.lastTarget).toBeUndefined()
-      expect(markup).toContain('Loading agent settings…')
-      expect(markup).not.toContain('Default Agent')
+      expect(detectedAgentsMock.lastTarget).toEqual({ kind: 'runtime', environmentId: 'env-1' })
+      expect(markup).toContain('on Coder')
+      expect(markup).toMatch(
+        /<button[^>]*disabled=""[^>]*aria-label="Duplicate Claude as custom agent"/
+      )
     } finally {
       initialState.runtimeEnvironments = priorRuntimeEnvironments
     }
   })
 
-  it('detects agents on the host chosen in the page, not the focused server', () => {
-    renderPane(
-      { ...getDefaultSettings('/tmp'), activeRuntimeEnvironmentId: 'env-1' },
-      { hostScope: { target: { kind: 'local' }, available: true } }
-    )
-
-    expect(detectedAgentsMock.lastTarget).toEqual({ kind: 'local' })
-  })
-
-  it('shows a retryable error when initial local detection fails', () => {
+  it('shows a retryable error when initial remote detection fails', () => {
     detectedAgentsMock.detectedIds = null
     detectedAgentsMock.isLoading = false
     detectedAgentsMock.detectionFailed = true
 
-    const markup = renderPane(getDefaultSettings('/tmp'))
+    const markup = renderPane({
+      ...getDefaultSettings('/tmp'),
+      activeRuntimeEnvironmentId: 'env-1'
+    })
 
     expect(markup).toContain('Couldn’t detect installed agents')
     expect(markup).toContain('Retry')
