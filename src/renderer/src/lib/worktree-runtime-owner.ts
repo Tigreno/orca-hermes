@@ -163,3 +163,6 @@ export function runtimeEnvironmentIdWithLegacyFallbackUnlessTwin(
     ? match.owner.endpoint.environmentId
     : null
 }
+
+// Shim for the cherry-picked custom-agent launch path; same meaning as the helper above.
+export const getRuntimeEnvironmentIdForWorktree = runtimeEnvironmentIdWithLegacyFallbackUnlessTwin

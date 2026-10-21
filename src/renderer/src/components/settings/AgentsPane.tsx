@@ -65,7 +65,8 @@ import { resolveStartupShell } from '../../../../shared/tui-agent-startup-shell'
 export {
   buildAgentAvailabilitySettingsUpdate,
   createAgentAvailabilityUpdateQueue,
-  getAgentsPaneSearchEntries
+  getAgentsPaneSearchEntries,
+  AgentPermissionsSetting
 }
 
 type AgentsPaneProps = {
@@ -167,7 +168,7 @@ export function AgentsPane({
     cmdOverride: isDetected ? cmdOverrides[agent.id] : undefined,
     argsOverride: resolveTuiAgentLaunchArgs(agent.id, agentDefaultArgs),
     envOverride: resolveTuiAgentLaunchEnv(agent.id, agentDefaultEnv),
-    onSetDefault: isDetected ? () => setBuiltInDefault(agent.id) : undefined,
+    onSetDefault: isDetected ? () => setBuiltInDefault(agent.id) : () => {},
     onSetEnabled: (enabled) => setAgentEnabled(agent.id, enabled),
     onSaveOverride: isDetected
       ? (value) => {

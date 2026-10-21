@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Check, ChevronDown, ExternalLink } from 'lucide-react'
+import { Check, ChevronDown, CopyPlus, ExternalLink } from 'lucide-react'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import { AgentIcon } from '@/lib/agent-catalog'
 import { cn } from '@/lib/utils'
@@ -84,6 +84,8 @@ export type AgentCatalogRowProps = {
   /** Absent for agents without a configurable permission mode on this host. */
   permission?: AgentRowPermission
   environmentEditor?: React.ReactNode
+  onDuplicateAsCustom?: () => void
+  duplicateAsCustomDisabled?: boolean
 }
 
 export function AgentCatalogRow({
@@ -107,7 +109,9 @@ export function AgentCatalogRow({
   sessionSourceHome,
   environmentNames,
   environmentEditor,
-  permission
+  permission,
+  onDuplicateAsCustom,
+  duplicateAsCustomDisabled
 }: AgentCatalogRowProps): React.JSX.Element {
   const envSummary = environmentNames?.join(' ') ?? stringifyAgentDefaultEnvDraft(envOverride)
   const defaultEnvSummary = stringifyAgentDefaultEnvDraft(defaultEnv)
@@ -204,6 +208,28 @@ export function AgentCatalogRow({
                 </Button>
               )}
             </div>
+            {onDuplicateAsCustom && isDetected && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={onDuplicateAsCustom}
+                disabled={duplicateAsCustomDisabled}
+                aria-label={translate(
+                  'auto.components.settings.AgentCatalogRow.duplicateAsCustom',
+                  'Duplicate {{value0}} as custom agent',
+                  { value0: label }
+                )}
+                title={translate(
+                  'auto.components.settings.AgentCatalogRow.duplicateAsCustom',
+                  'Duplicate {{value0}} as custom agent',
+                  { value0: label }
+                )}
+                className="size-7 text-muted-foreground hover:text-foreground"
+              >
+                <CopyPlus className="size-3.5" />
+              </Button>
+            )}
             <a
               href={homepageUrl}
               target="_blank"

@@ -18,6 +18,7 @@ import {
 import { subscribeToPtyData } from '@/components/terminal-pane/pty-data-sidecar-subscriptions'
 import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
 import { runtimeEnvironmentIdWithLegacyFallbackUnlessTwin } from '@/lib/worktree-runtime-owner'
+import { runtimeTargetForOwnerEnvironment } from '@/runtime/runtime-client-target'
 import { retireProvider } from '@/lib/retire-unowned-background-terminal'
 import { createRuntimeAgentBackgroundTerminal } from '@/lib/runtime-agent-background-create'
 import { subscribeToRuntimeTerminalData } from '@/runtime/runtime-terminal-stream'
@@ -54,7 +55,7 @@ export async function launchAgentBackgroundSession(
     worktreePath: worktree.path,
     repo
   })
-const { platform: launchPlatform, isRemote, isLocalHost } = launchHost
+  const { platform: launchPlatform, isRemote } = launchHost
   // Route by the worktree's owner host, not the focused runtime.
   const runtimeTarget = runtimeTargetForOwnerEnvironment(
     runtimeEnvironmentIdWithLegacyFallbackUnlessTwin(store, worktreeId)

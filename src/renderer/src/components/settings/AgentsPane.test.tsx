@@ -5,6 +5,7 @@ import { getDefaultSettings } from '../../../../shared/constants'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import { AGENT_CATALOG } from '@/lib/agent-catalog'
+import { LOCAL_SETTINGS_HOST_SCOPE } from './settings-host-scope'
 import { useAppStore } from '../../store'
 import { getAgentGeneratedTabTitlesTitle } from './agent-generated-tab-title-copy'
 import { getAgentStatusHooksTitle } from './agent-status-hooks-copy'
@@ -103,6 +104,7 @@ function renderPane(
       React.createElement(AgentsPane, {
         settings,
         updateSettings: vi.fn(),
+        hostScope: LOCAL_SETTINGS_HOST_SCOPE,
         ...props
       })
     )
