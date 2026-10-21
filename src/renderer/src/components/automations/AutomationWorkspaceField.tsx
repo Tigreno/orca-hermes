@@ -12,6 +12,10 @@ import type { AutomationDraft } from './AutomationEditorDialog'
 
 type AutomationWorkspaceFieldProps = {
   draft: AutomationDraft
+  // Whether the dialog is targeting a Hermes upstream. The upstream custom
+  // agent cherry-pick was adapted for the in-house build; the flag is a
+  // no-op here but kept on the signature so the sidebar JSX still type-checks.
+  isHermesTarget?: boolean
   worktrees: Worktree[]
   repoMap: Map<string, Repo>
   pickerTriggerClassName: string

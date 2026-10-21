@@ -11,6 +11,7 @@ import type {
   AutomationDispatchRequest,
   AutomationDispatchResult
 } from '../../../shared/automations-types'
+import { findEnabledCustomAgentProfile } from '../../../shared/custom-agent-profile'
 import { createAutomationDispatchCompletion } from './automation-dispatch-completion'
 import {
   prepareAutomationDispatchWorkspace,
@@ -74,6 +75,14 @@ export async function handleAutomationDispatchRequest({
   }
 
   try {
+    const customAgentProfile = findEnabledCustomAgentProfile(
+      state.settings?.customAgentProfiles,
+      automation.customAgentProfileId,
+      automation.agentId
+    )
+    if (automation.customAgentProfileId && !customAgentProfile) {
+      throw new Error('The selected custom agent is no longer available.')
+    }
     const worktree = await prepareAutomationDispatchWorkspace({
       state,
       automation,
@@ -98,6 +107,7 @@ export async function handleAutomationDispatchRequest({
       const reusableSession = findReusableAutomationSession({
         automationId: automation.id,
         agentId: automation.agentId,
+        customAgentProfileId: automation.customAgentProfileId,
         worktreeId: worktree.id,
         currentRunId: run.id,
         // Why: the dispatch loop only ever executes for the desktop authority,
@@ -168,6 +178,7 @@ export async function handleAutomationDispatchRequest({
     }
     const result = await launchAgentBackgroundSession({
       agent: automation.agentId,
+      ...(customAgentProfile ? { customAgentProfile } : {}),
       worktreeId: worktree.id,
       prompt: automation.prompt,
       ...(automation.extraAgentArgs ? { extraAgentArgs: automation.extraAgentArgs } : {}),

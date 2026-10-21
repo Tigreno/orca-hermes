@@ -1,5 +1,6 @@
-import { Check } from 'lucide-react'
+import { Check, Terminal } from 'lucide-react'
 import type { TuiAgent } from '../../../../shared/tui-agent'
+import type { CustomAgentProfile } from '../../../../shared/custom-agent-profile'
 import type { AgentCatalogEntry } from '@/lib/agent-catalog'
 import { AgentIcon } from '@/lib/agent-catalog'
 import { cn } from '@/lib/utils'
@@ -37,18 +38,24 @@ function DefaultAgentPill({
 
 export function AgentDefaultSetting({
   defaultAgent,
+  defaultCustomAgent,
   detectedIds,
   enabledDetectedAgents,
   catalog,
   description,
-  onSetDefault
+  onSetDefault,
+  onSetCustomDefault
 }: {
   defaultAgent: TuiAgent | 'blank' | null
+  // Custom-agent default support landed in the upstream cherry-pick; kept
+  // optional here so callers without that wiring still type-check.
+  defaultCustomAgent?: CustomAgentProfile | null
   detectedIds: Set<string> | null
   enabledDetectedAgents: AgentCatalogEntry[]
   catalog: AgentCatalogEntry[]
   description: string
   onSetDefault: (agent: TuiAgent | 'blank' | null) => void
+  onSetCustomDefault?: (profileId: string) => void
 }): React.JSX.Element {
   const storedDefaultAgent =
     defaultAgent !== null && defaultAgent !== 'blank'
@@ -67,20 +74,28 @@ export function AgentDefaultSetting({
       />
       <div className="flex flex-wrap gap-2">
         <DefaultAgentPill
-          active={defaultAgent === null}
-          onClick={() => onSetDefault(defaultAgent === null ? 'blank' : null)}
+          active={defaultAgent === null && !defaultCustomAgent}
+          onClick={() => onSetDefault(null)}
         >
-          {defaultAgent === null && <Check className="size-3.5" />}
+          {defaultAgent === null && !defaultCustomAgent ? <Check className="size-3.5" /> : null}
           {translate('auto.components.settings.AgentsPane.92033495ff', 'Auto')}
         </DefaultAgentPill>
+        <DefaultAgentPill
+          active={defaultAgent === 'blank' && !defaultCustomAgent}
+          onClick={() => onSetDefault('blank')}
+        >
+          <Terminal className="size-3.5" />
+          {translate('auto.components.settings.AgentsPane.110b74b022', 'No agent (blank terminal)')}
+          {defaultAgent === 'blank' && !defaultCustomAgent ? <Check className="size-3.5" /> : null}
+        </DefaultAgentPill>
         {defaultAgentPills.map((agent) => {
-          const isActive = defaultAgent === agent.id
+          const isActive = !defaultCustomAgent && defaultAgent === agent.id
           const isUndetected = detectedIds !== null && !detectedIds.has(agent.id)
           return (
             <DefaultAgentPill
               key={agent.id}
               active={isActive}
-              onClick={() => onSetDefault(isActive ? 'blank' : agent.id)}
+              onClick={() => onSetDefault(agent.id)}
               title={
                 isUndetected
                   ? translate(
@@ -96,6 +111,17 @@ export function AgentDefaultSetting({
             </DefaultAgentPill>
           )
         })}
+        {defaultCustomAgent ? (
+          <DefaultAgentPill active onClick={() => onSetCustomDefault?.(defaultCustomAgent.id)}>
+            {defaultCustomAgent.baseAgent ? (
+              <AgentIcon agent={defaultCustomAgent.baseAgent} size={14} />
+            ) : (
+              <Terminal className="size-3.5" />
+            )}
+            {defaultCustomAgent.name}
+            <Check className="size-3.5" />
+          </DefaultAgentPill>
+        ) : null}
       </div>
     </section>
   )

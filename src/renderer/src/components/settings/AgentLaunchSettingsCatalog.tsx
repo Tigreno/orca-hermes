@@ -139,6 +139,8 @@ export function AgentLaunchSettingsCatalog({
           'Defaults for new agents on the selected host.'
         )}
         onSetDefault={(agent) => save({ type: 'default', agent })}
+        defaultCustomAgent={null}
+        onSetCustomDefault={() => undefined}
       />
       {renderPermissions({
         mode: permissions.globalMode,
