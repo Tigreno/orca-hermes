@@ -303,6 +303,12 @@ export const electronViteConfig: UserConfig = {
         '@': resolve('src/renderer/src')
       }
     },
+    // Why: shared/ modules the renderer imports (e.g. custom-agent-profile's Windows quoting)
+    // reach @orca/process-host, a CommonJS workspace package. Vite serves linked packages
+    // verbatim in dev, so a named import off its dist/*.js fails the whole module graph.
+    optimizeDeps: {
+      include: ['@orca/process-host/windows-command-line']
+    },
     plugins: [
       react(),
       tailwindcss(),

@@ -6,6 +6,7 @@ import { isClipboardTextByteLengthOverLimit } from '../../../../shared/clipboard
 export type TabCreateMenuOptionKind =
   | 'go-to-simulator'
   | 'new-browser'
+  | 'new-custom-agent'
   | 'new-markdown'
   | 'new-simulator'
   | 'new-terminal'
@@ -18,6 +19,13 @@ export type TabCreateMenuOption = {
   keywords: readonly string[]
   label: string
   shell?: BuiltInWindowsTerminalShell
+  /** Custom-agent profile to launch; only on `new-custom-agent` options. */
+  customProfileId?: string
+}
+
+export type TabCreateMenuCustomAgentEntry = {
+  id: string
+  name: string
 }
 
 export type TabCreateMenuOptionsContext = {
@@ -28,6 +36,8 @@ export type TabCreateMenuOptionsContext = {
   simulatorIsGoTo: boolean
   terminalOnly: boolean
   windowsShellEntries?: readonly { label: string; shell: BuiltInWindowsTerminalShell }[]
+  /** Enabled custom-agent profiles; empty when none are configured. */
+  customAgents?: readonly TabCreateMenuCustomAgentEntry[]
 }
 
 export const TAB_CREATE_MENU_QUERY_MAX_BYTES = 2 * 1024
@@ -95,6 +105,30 @@ export function buildTabCreateMenuOptions(
         translate('auto.components.tab.bar.tab.create.menu.options.9630dd5494', 'shell'),
         translate('auto.components.tab.bar.tab.create.menu.options.a094576900', 'new terminal'),
         translate('auto.components.tab.bar.tab.create.menu.options.4f23f4d01d', 'new shell')
+      ]
+    })
+  }
+
+  for (const entry of context.customAgents ?? []) {
+    const label = translate(
+      'auto.components.tab.bar.tab.create.menu.options.newCustomAgentNamed',
+      'New Terminal: {{value0}}',
+      { value0: entry.name }
+    )
+    options.push({
+      id: `new-custom-agent:${entry.id}`,
+      kind: 'new-custom-agent',
+      label,
+      customProfileId: entry.id,
+      keywords: [
+        translate('auto.components.tab.bar.tab.create.menu.options.5501c2fb7a', 'terminal'),
+        translate('auto.components.tab.bar.tab.create.menu.options.newCustomAgent', 'custom agent'),
+        translate(
+          'auto.components.tab.bar.tab.create.menu.options.newCustomAgentKeyword',
+          'new agent'
+        ),
+        entry.name,
+        label
       ]
     })
   }

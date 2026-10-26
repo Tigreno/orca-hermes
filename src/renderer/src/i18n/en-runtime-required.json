@@ -1917,6 +1917,42 @@
             }
           }
         },
+        "networkAddress": {
+          "AgentCatalogRow": {
+            "duplicateAsCustom": "Duplicate {{value0}} as custom agent"
+          },
+          "CustomAgentProfileEditor": {
+            "addArgument": "Add argument",
+            "argumentNumber": "Argument {{value0}}",
+            "arguments": "Arguments",
+            "cancel": "Cancel",
+            "executable": "Executable",
+            "executablePlaceholder": "codex",
+            "name": "Name",
+            "removeArgument": "Remove argument {{value0}}",
+            "save": "Save",
+            "saving": "Saving…"
+          },
+          "CustomAgentProfilesSection": {
+            "closeEditor": "Close {{value0}} editor",
+            "create": "Create custom agent",
+            "delete": "Delete",
+            "deleteDescription": "Existing terminals keep their captured launch command. This removes the profile from future launches.",
+            "deleteNamed": "Delete {{value0}}",
+            "deleteTitle": "Delete {{value0}}?",
+            "editProfile": "Edit {{value0}}",
+            "empty": "No custom agents yet. Create one or duplicate an installed agent above.",
+            "executableRequired": "Enter an executable name or path.",
+            "finishEditing": "Finish editing the current custom agent before opening another.",
+            "invalidProfile": "The name, executable, and arguments must be literal text without control characters.",
+            "launchNamed": "Run {{value0}} in a new terminal",
+            "launchNeedsWorkspace": "Open a project before running a custom agent.",
+            "limit": "Custom agents are limited to {{value0}} profiles.",
+            "nameRequired": "Enter a name.",
+            "nameUnique": "Choose a name that is not already used by another agent.",
+            "title": "Custom agents"
+          }
+        },
         "providerAccountScope": {
           "localCredentials": "Credentials and account checks for this provider are owned by this desktop client. To use a server, change Settings > Remote Orca Servers > Advanced > Default host for new projects.",
           "localMac": "Local Mac",
@@ -2914,6 +2950,16 @@
         "symlink": "Symbolic links cannot be attached.",
         "unsupported": "Unsupported file type."
       },
+      "duplicatePairedServers": {
+        "fetchingBaseBranch": "Fetching base branch…",
+        "launchCustomAgentInNewTab": {
+          "pairedRuntimeUnsupported": "Custom agents are not yet available on paired Orca hosts.",
+          "profileDisabled": "This custom agent is disabled. Enable it in Agent settings to launch it.",
+          "profileRemoved": "This custom agent was removed. Choose another agent.",
+          "sshUnavailable": "Reconnect the SSH target before launching a custom agent.",
+          "windowsSshUnsupported": "Custom agents are not yet available over Windows SSH."
+        }
+      },
       "terminal": {
         "shortcut": {
           "capture": {
@@ -2981,6 +3027,9 @@
     }
   },
   "components": {
+    "agentCombobox": {
+      "clearSelection": "Clear agent selection"
+    },
     "native-chat": {
       "ask": {
         "asked": "Asked:",

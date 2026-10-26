@@ -5,6 +5,7 @@ import {
   GitCompare,
   Globe,
   Loader2,
+  Play,
   Search,
   Smartphone,
   TerminalSquare
@@ -157,6 +158,8 @@ function getActionPresentation(
         <FileText className="size-3.5 shrink-0" aria-hidden="true" />
       ) : option.option.kind === 'new-simulator' || option.option.kind === 'go-to-simulator' ? (
         <Smartphone className="size-3.5 shrink-0" aria-hidden="true" />
+      ) : option.option.kind === 'new-custom-agent' ? (
+        <Play className="size-3.5 shrink-0" aria-hidden="true" />
       ) : (
         <TerminalSquare className="size-3.5 shrink-0" aria-hidden="true" />
       )

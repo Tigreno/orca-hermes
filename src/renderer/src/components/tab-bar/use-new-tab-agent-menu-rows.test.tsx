@@ -88,7 +88,7 @@ it("reads a publishing host's one snapshot, holding a placeholder only until it 
   })
   const row = (agent: string) =>
     hook.result.current.state === 'settled'
-      ? hook.result.current.rows.find((r) => r.agent === agent)
+      ? hook.result.current.rows.find((r) => r.kind !== 'custom' && r.agent === agent)
       : undefined
   // Held while the workspace is shown, so the first open already knows.
   expect(mocks.subscribe).toHaveBeenCalledTimes(1)
@@ -126,7 +126,7 @@ it('shows an older host from client facts and never asks it per agent', () => {
   const hook = renderHook(() => useNewTabAgentMenuRows('one', true, { kind: 'local' }))
   expect(
     hook.result.current.state === 'settled' &&
-      hook.result.current.rows.find((r) => r.agent === 'claude')
+      hook.result.current.rows.find((r) => r.kind !== 'custom' && r.agent === 'claude')
   ).toMatchObject({
     kind: 'chat'
   })

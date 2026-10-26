@@ -46,6 +46,9 @@ export function rowTitle(row: NewTabAgentMenuRow, label: string): string {
 }
 
 export function rowLabel(row: NewTabAgentMenuRow): string {
+  if (row.kind === 'custom') {
+    return row.profile.name
+  }
   const label = getAgentCatalog().find((entry) => entry.id === row.agent)?.label ?? row.agent
   return row.kind === 'cli'
     ? `${label} ${translate('auto.components.tab.bar.QuickLaunchButton.cliTag', '(CLI)')}`
@@ -53,5 +56,8 @@ export function rowLabel(row: NewTabAgentMenuRow): string {
 }
 
 export function rowId(row: NewTabAgentMenuRow): string {
+  if (row.kind === 'custom') {
+    return `custom:${row.profile.id}`
+  }
   return `${row.kind === 'chat-unavailable' ? 'chat' : row.kind}:${row.agent}`
 }

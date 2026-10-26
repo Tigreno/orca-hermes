@@ -59,9 +59,9 @@ type AgentComboboxProps = AgentComboboxSelectionProps & {
   onTriggerEnter?: () => void
   allowNarrowTrigger?: boolean
   clearSelection?: {
-    resetAgent?: () => void;
-    cleared?: boolean;
-    onClear?: () => void;
+    resetAgent?: () => void
+    cleared?: boolean
+    onClear?: () => void
   }
 }
 

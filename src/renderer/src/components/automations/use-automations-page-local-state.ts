@@ -69,7 +69,11 @@ export function useAutomationsPageLocalState(store: AutomationsPageStoreState) {
   // Stub state for Hermes-target save flow that did not land in this build.
   // Kept as optional hook setters so the upstream editor action signature
   // still compiles without pulling in the real Hermes state machine.
-  const [editingExternalTarget, setEditingExternalTarget] = useState<unknown | null>(null)
+  const [editingExternalTarget, setEditingExternalTarget] = useState<{
+    manager: ExternalAutomationManager
+    job: ExternalAutomationJob
+    scope: ExternalAutomationScope
+  } | null>(null)
   const setCreateTarget = (_value: string): void => undefined
   const createTarget = 'orca'
   const moveCreationKeysRef = useRef(new Map<string, string>())

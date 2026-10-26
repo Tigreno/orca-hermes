@@ -1,6 +1,8 @@
 import React, { useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
+import { launchCustomAgentInNewTab } from '@/lib/launch-custom-agent-in-new-tab'
+import { getDefaultCustomAgentProfile } from '../../../../shared/custom-agent-profile'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import { captureNativeChatComposerFocusIntent } from '@/components/native-chat/use-native-chat-composer-reveal-focus'
 import { newAgentPromptOutcome } from '@/lib/new-agent-prompt-outcome'
@@ -76,6 +78,17 @@ export function useTabAgentMenuLaunch({
   const runLaunch = useCallback(
     (row: NewTabAgentMenuRow) => {
       if (disabled || row.kind === 'chat-unavailable') {
+        return
+      }
+      if (row.kind === 'custom') {
+        const launched = launchCustomAgentInNewTab({
+          profileId: row.profile.id,
+          worktreeId,
+          groupId
+        })
+        if (launched) {
+          onFocusTerminal(launched.tabId)
+        }
         return
       }
       const { agent } = row
@@ -175,6 +188,10 @@ export function ProjectedAgentMenuItems({
   runLaunch: (row: NewTabAgentMenuRow) => void
 }): React.JSX.Element {
   const defaultAgent = useAppStore((s) => s.settings?.defaultTuiAgent)
+  // A custom default already claims the new-agent shortcut, so the built-in row must not show it too.
+  const hasCustomDefault = useAppStore(
+    (s) => getDefaultCustomAgentProfile(s.settings?.customAgentProfiles) !== null
+  )
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
   const newAgentShortcut = useOptionalShortcutLabel('tab.newAgent')
@@ -238,6 +255,27 @@ export function ProjectedAgentMenuItems({
         </DropdownMenuItem>
       ) : null}
       {rows.map((row, index) => {
+        if (row.kind === 'custom') {
+          return (
+            <DropdownMenuItem
+              key={rowId(row)}
+              variant="launch"
+              disabled={disabled}
+              onSelect={() => runLaunch(row)}
+              title={rowTitle(row, row.profile.name)}
+            >
+              {row.profile.baseAgent ? (
+                <AgentIcon agent={row.profile.baseAgent} size={14} />
+              ) : (
+                <SquareTerminal className="size-3.5 shrink-0" aria-hidden="true" />
+              )}
+              <span className="flex-1">{row.profile.name}</span>
+              {row.isDefault && newAgentShortcut !== null ? (
+                <DropdownMenuShortcut>{newAgentShortcut}</DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
+          )
+        }
         const { agent } = row
         const label = getCatalogEntry(agent)?.label ?? agent
         // Chat rows come first; the rows that open a terminal start their own group.
@@ -254,7 +292,10 @@ export function ProjectedAgentMenuItems({
           )
         }
         const showsDefaultAgentShortcut =
-          newAgentShortcut !== null && defaultAgent !== 'blank' && agent === defaultAgent
+          newAgentShortcut !== null &&
+          defaultAgent !== 'blank' &&
+          agent === defaultAgent &&
+          !hasCustomDefault
         const rowContent = (
           <>
             <AgentIcon agent={agent} size={14} />

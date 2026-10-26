@@ -29,8 +29,8 @@ import type { CtrlTabOrderMode } from './tab-types'
 import type { TerminalColorOverrides } from './terminal-color-overrides'
 import type { TerminalQuickCommand } from './terminal-quick-command-types'
 import type { TuiAgent } from './tui-agent'
-import type { ZcodePlanSite } from './zcode-plan-sites'
 import type { CustomAgentProfile } from './custom-agent-profile'
+import type { UsageAccountSettings } from './usage-account-settings'
 import type {
   AgentDashboardMode,
   BranchPrefixStrategy,
@@ -46,8 +46,9 @@ import type { WorktreeVisibilityDefaults } from './repo-types'
 
 export type { WorktreeVisibilityDefaults } from './repo-types'
 
-/** MiniMax account region used to select the quota endpoint. */
-export type MiniMaxEndpoint = 'overseas' | 'cn'
+// Re-exported so existing importers keep one entry point; the shape lives in its
+// own file because this one is at the max-lines ceiling.
+export type { MiniMaxEndpoint } from './usage-account-settings'
 
 export type GlobalSettings = GlobalSettingsBase & {
   workspaceDir: string
@@ -392,158 +393,145 @@ export type GlobalSettings = GlobalSettingsBase & {
   /** Persisted Linear team selection (tasks view). Same nullable-array pattern as
    *  defaultRepoSelection: null = sticky-all, string[] = frozen subset of team IDs. */
   defaultLinearTeamSelection: string[] | null
-  /** Session cookie for OpenCode Go rate-limit fetching. Stored encrypted. */
-  opencodeSessionCookie: string
-  /** Optional OpenCode Go workspace ID override; when set, skips the workspaces lookup and fetches usage directly. */
-  opencodeWorkspaceId: string
-  /** Optional MiniMax group id. When empty, the usage fetcher extracts minimax_group_id_v2 from the cookie. */
-  minimaxGroupId: string
-  /** Comma-separated MiniMax model names to show in the status bar usage window. */
-  minimaxUsageModels: string
-  /** MiniMax account region; defaults to overseas for existing users. */
-  minimaxEndpoint: MiniMaxEndpoint
-  /** GLM Coding Plan site whose API key is saved in AI Provider Accounts; defaults to the international Z.AI console. */
-  zcodePlanSite?: ZcodePlanSite
-  /** Extract OAuth credentials from the local Gemini CLI for rate-limit fetching. Off by default (explicit opt-in). */
-  geminiCliOAuthEnabled: boolean
-  /** Per-agent CLI command overrides. A missing key means use the catalog default binary name. */
-  agentCmdOverrides: Partial<Record<TuiAgent, string>>
-  /** Named terminal launch profiles with an executable and literal arguments. */
-  customAgentProfiles?: CustomAgentProfile[]
-  /** Custom CODEX_HOME for Codex session-history discovery (defaults to ~/.codex).
-   *  History-only: does not change which account/config/hooks Orca uses. */
-  codexSessionSourceHome?: {
-    /** Absolute host path; empty/undefined falls back to ~/.codex. */
-    host?: string
-    /** Per-WSL-distro absolute Linux path; missing distro falls back to <wslHome>/.codex. */
-    wsl?: Record<string, string>
+} & UsageAccountSettings & {
+    /** Per-agent CLI command overrides. A missing key means use the catalog default binary name. */
+    agentCmdOverrides: Partial<Record<TuiAgent, string>>
+    /** Named terminal launch profiles with an executable and literal arguments. */
+    customAgentProfiles?: CustomAgentProfile[]
+    /** Custom CODEX_HOME for Codex session-history discovery (defaults to ~/.codex).
+     *  History-only: does not change which account/config/hooks Orca uses. */
+    codexSessionSourceHome?: {
+      /** Absolute host path; empty/undefined falls back to ~/.codex. */
+      host?: string
+      /** Per-WSL-distro absolute Linux path; missing distro falls back to <wslHome>/.codex. */
+      wsl?: Record<string, string>
+    }
+    /** Per-agent default CLI arguments appended after the binary/path and before prompts. */
+    agentDefaultArgs?: Partial<Record<TuiAgent, string>>
+    /** Per-agent launch environment defaults used when yolo mode is exposed as env. */
+    agentDefaultEnv?: Partial<Record<TuiAgent, Record<string, string>>>
+    /** One-shot guard for adding yolo-mode default args to untouched agent launch profiles. */
+    agentYoloDefaultsMigrated?: boolean
+    /** Why: disabling must persist so startup doesn't reinstall global agent hook entries the user just removed. */
+    agentStatusHooksEnabled: boolean
+    /** A local agent-state-rules.json that replaces downloaded and bundled rules, for testing a rule
+     *  change. */
+    agentStateRulesPath?: string | null
+    /** Off: rules are never downloaded and a cached download is ignored, so the bundled rules (or a
+     *  local override) apply. Absent reads as on. */
+    agentStateRulesLiveUpdates?: boolean
+    /** Pre-trust the worktree or folder Orca starts an agent in, so its "trust this folder?" prompt is skipped. Defaults on. */
+    agentWorkspaceTrustEnabled: boolean
+    /** Why: Codex's shared server runs every tab's hooks with the first tab's env; off opts new terminals back into it. Absent reads as on. */
+    codexTerminalServerIsolation?: boolean
+    /** Off hides the banner on a typed `codex` that joined Codex's shared server. Absent reads as on. */
+    codexSharedServerWarning?: boolean
+    /** Dismissed freshness tuples: no write authority, just suppress re-nudging the same official placement/revision. */
+    dismissedSkillFreshnessNudges?: string[]
+    /** Why: generated tab titles are subjective, so they stay opt-in and manual renames win. */
+    tabAutoGenerateTitle: boolean
+    /** Why: pinned tabs can still be closed via keyboard/native-menu; this gates that behind a confirmation. Defaults on. */
+    confirmClosePinnedTab: boolean
+    /** Why: preview tabs reuse one slot per group, so browsing replaces the open file; off makes every open its own tab. Defaults on. */
+    editorPreviewTabsEnabled: boolean
+    /** When true, Orca requests local awake assertions while hook-reported agents are working. */
+    keepComputerAwakeWhileAgentsRun: boolean
+    /** Optional for mixed-version compatibility; the legacy boolean maps true to Auto. */
+    computerAwakeMode?: ComputerAwakeMode
+    /** macOS Option key: compose layout chars (@ German, € French) vs act as Meta/Esc for readline.
+     *  'auto' (default) = layout-aware via navigator.keyboard.getLayoutMap() (US → Meta, else compose);
+     *  'false' = compose; 'true' = Meta on both Option keys; 'left'/'right' = only that key is Meta.
+     *  See docs/terminal-option-key-layout-aware-default.md. */
+    terminalMacOptionAsAlt: 'auto' | 'true' | 'false' | 'left' | 'right'
+    /** One-shot migration guard for the 'auto' rollout. Old default 'true' was ambiguous (explicit vs default);
+     *  on first upgrade launch, reset a persisted 'true' to 'auto' so non-US keyboards aren't broken by the stale default. */
+    terminalMacOptionAsAltMigrated: boolean
+    /** Whether macOS terminal input maps the physical JIS Yen (¥) key to backslash, per common terminal expectation. */
+    terminalJISYenToBackslash: boolean
+    experimentalMobile: boolean
+    /** Why: iOS Simulator is default-on for capable macOS hosts; this is the durable off switch (hides UI, blocks CLI attach). */
+    mobileEmulatorEnabled?: boolean
+    /** Preferred iOS Simulator UDID for UI auto-attach and agent CLI attach. */
+    mobileEmulatorDefaultDeviceUdid?: string | null
+    /** Explicit Android SDK root for when auto-discovery (ANDROID_HOME / default path) fails; null (default) auto-discovers. */
+    androidSdkPath?: string | null
+    /** Auto-restore window (ms) for a phone-fit PTY after the last mobile subscriber leaves.
+     *  `null` (default) holds phone size indefinitely; a finite value schedules restore.
+     *  Clamped on read to [5_000ms, 60min]. See docs/mobile-fit-hold.md. */
+    mobileAutoRestoreFitMs: number | null
+    /** Preferred mobile pairing path for new QR codes. Missing/'automatic' = Anywhere (Relay + local);
+     *  explicit 'local-only' = same-network only. */
+    mobilePairingConnectionMode?: 'automatic' | 'local-only'
+    /** Explicit custom address restored when generating future mobile pairing codes. */
+    mobilePairingCustomAddress?: string | null
+    /** Saved custom addresses available in both mobile pairing pickers. */
+    mobilePairingCustomAddresses?: string[]
+    /** Name this runtime reports to paired clients; empty uses the host's detected name. */
+    machineName: string
+    /** Experimental: floating animated pet in the bottom-right corner. Opt-in cosmetic;
+     *  off never mounts the overlay, and toggling takes effect instantly (renderer-side). */
+    experimentalPet: boolean
+    /** Legacy persisted key from before the sidekick -> pet rename; read only during migration, new writes use experimentalPet. */
+    experimentalSidekick?: boolean
+    /** Experimental: left-sidebar Agents view — threaded feed of agent completions, blocking/unread state, worktree creation. */
+    experimentalActivity: boolean
+    /** Experimental: pop-out Kanban dashboard for monitoring and opening agent terminals across worktrees. */
+    experimentalAgentDashboardPopout?: boolean
+    /** Set after the one-time legacy Agents tab introduction has been acknowledged. */
+    agentsSidebarIntroShown?: boolean
+    /** True when the profile previously opted into the legacy Agents view. */
+    agentsSidebarMigratedFromExperimental?: boolean
+    /** How the Agent Dashboard opens: an in-window companion board or a separate pop-out window. Defaults to in-window. */
+    experimentalAgentDashboardMode?: AgentDashboardMode
+    /** Includes stale quiet agents as a fourth Agent Dashboard column. */
+    experimentalAgentDashboardShowIdle?: boolean
+    /** One-shot migration guard for defaulting the Agents view off; later explicit opt-ins persist normally. */
+    experimentalActivityDefaultedOffForAllUsers?: boolean
+    /** Experimental: persistent terminal-pane attention ring for bell + agent-completion events. Opt-in while tuning signal/noise. */
+    experimentalTerminalAttention: boolean
+    /** Experimental: automatically sleep completed, resumable background agent terminals. */
+    experimentalAgentHibernation?: boolean
+    /** Milliseconds a completed agent must stay idle before hibernation can be considered. */
+    agentHibernationIdleMs?: number
+    /** Experimental: opt-in preview of the updated worktree-card layout and metadata behavior. */
+    experimentalNewWorktreeCardStyle?: boolean
+    /** Experimental: per-workspace on-demand environment recipes and setup surface. */
+    experimentalEphemeralVms?: boolean
+    /** Experimental (Windows): add WSL distros as hosts, each running its own Orca server. */
+    experimentalWslHosts?: boolean
+    /** Compact worktree cards: hide the metadata row when title and branch say the same thing. */
+    compactWorktreeCards: boolean
+    /** Legacy persisted key from the Experimental rollout; new writes use compactWorktreeCards. */
+    experimentalCompactWorktreeCards?: boolean
+    /** Active non-local runtime environment for client-routed RPC; null keeps local desktop behavior. */
+    activeRuntimeEnvironmentId?: string | null
+    /** GitHub Project mode state (pinned/recent/active project, last view per project).
+     *  Optional for pre-feature profiles; the persistence merge hydrates the default. */
+    githubProjects?: GitHubProjectSettings
+    /** AI commit-message config (agent, model, per-model thinking, prompt suffix). Optional to avoid migrating existing profiles. */
+    commitMessageAi?: CommitMessageAiSettings
+    /** Source-control AI generation settings for commit messages and hosted-review drafts. */
+    sourceControlAi?: SourceControlAiSettings
+    /** GitLab project preferences (pinned + recent paths). Optional for pre-GitLab profiles; persistence merge fills the default. */
+    gitlabProjects?: GitLabProjectSettings
+    /** Anonymous product-telemetry state; optional until the one-shot Store.load() migration populates it.
+     *  Holds only consent + identity, not volatile counters — those would amplify the debounced settings write. */
+    telemetry?: {
+      /** New users: true at install. Existing users: null until they resolve the first-launch banner. */
+      optedIn: boolean | null
+      /** Anonymous UUID v4. Generated on first run. Stable across launches; not surfaced in the UI. */
+      installId: string
+      /** Cohort marker: true for pre-existing profiles (gates the opt-in banner), false for fresh installs. */
+      existedBeforeTelemetryRelease: boolean
+    }
+    /** One-shot cohort marker for the tab-switch keybinding swap. 'pending' =
+     *  pre-existing install (seed pins old chords, then flips to 'done'); 'done' = fresh install. */
+    tabSwitchKeybindingSeed?: 'pending' | 'done'
+    /** Local voice/dictation config. Optional for pre-voice profiles; getDefaultSettings() hydrates defaults via the persistence merge. */
+    voice?: VoiceSettings
+    /** Transcript full-text search consent + retention. Absent means off; nothing indexes until the user opts in. */
+    aiVaultSearch?: AiVaultSearchSettings
   }
-  /** Per-agent default CLI arguments appended after the binary/path and before prompts. */
-  agentDefaultArgs?: Partial<Record<TuiAgent, string>>
-  /** Per-agent launch environment defaults used when yolo mode is exposed as env. */
-  agentDefaultEnv?: Partial<Record<TuiAgent, Record<string, string>>>
-  /** One-shot guard for adding yolo-mode default args to untouched agent launch profiles. */
-  agentYoloDefaultsMigrated?: boolean
-  /** Why: disabling must persist so startup doesn't reinstall global agent hook entries the user just removed. */
-  agentStatusHooksEnabled: boolean
-  /** A local agent-state-rules.json that replaces downloaded and bundled rules, for testing a rule
-   *  change. */
-  agentStateRulesPath?: string | null
-  /** Off: rules are never downloaded and a cached download is ignored, so the bundled rules (or a
-   *  local override) apply. Absent reads as on. */
-  agentStateRulesLiveUpdates?: boolean
-  /** Pre-trust the worktree or folder Orca starts an agent in, so its "trust this folder?" prompt is skipped. Defaults on. */
-  agentWorkspaceTrustEnabled: boolean
-  /** Why: Codex's shared server runs every tab's hooks with the first tab's env; off opts new terminals back into it. Absent reads as on. */
-  codexTerminalServerIsolation?: boolean
-  /** Off hides the banner on a typed `codex` that joined Codex's shared server. Absent reads as on. */
-  codexSharedServerWarning?: boolean
-  /** Dismissed freshness tuples: no write authority, just suppress re-nudging the same official placement/revision. */
-  dismissedSkillFreshnessNudges?: string[]
-  /** Why: generated tab titles are subjective, so they stay opt-in and manual renames win. */
-  tabAutoGenerateTitle: boolean
-  /** Why: pinned tabs can still be closed via keyboard/native-menu; this gates that behind a confirmation. Defaults on. */
-  confirmClosePinnedTab: boolean
-  /** Why: preview tabs reuse one slot per group, so browsing replaces the open file; off makes every open its own tab. Defaults on. */
-  editorPreviewTabsEnabled: boolean
-  /** When true, Orca requests local awake assertions while hook-reported agents are working. */
-  keepComputerAwakeWhileAgentsRun: boolean
-  /** Optional for mixed-version compatibility; the legacy boolean maps true to Auto. */
-  computerAwakeMode?: ComputerAwakeMode
-  /** macOS Option key: compose layout chars (@ German, € French) vs act as Meta/Esc for readline.
-   *  'auto' (default) = layout-aware via navigator.keyboard.getLayoutMap() (US → Meta, else compose);
-   *  'false' = compose; 'true' = Meta on both Option keys; 'left'/'right' = only that key is Meta.
-   *  See docs/terminal-option-key-layout-aware-default.md. */
-  terminalMacOptionAsAlt: 'auto' | 'true' | 'false' | 'left' | 'right'
-  /** One-shot migration guard for the 'auto' rollout. Old default 'true' was ambiguous (explicit vs default);
-   *  on first upgrade launch, reset a persisted 'true' to 'auto' so non-US keyboards aren't broken by the stale default. */
-  terminalMacOptionAsAltMigrated: boolean
-  /** Whether macOS terminal input maps the physical JIS Yen (¥) key to backslash, per common terminal expectation. */
-  terminalJISYenToBackslash: boolean
-  experimentalMobile: boolean
-  /** Why: iOS Simulator is default-on for capable macOS hosts; this is the durable off switch (hides UI, blocks CLI attach). */
-  mobileEmulatorEnabled?: boolean
-  /** Preferred iOS Simulator UDID for UI auto-attach and agent CLI attach. */
-  mobileEmulatorDefaultDeviceUdid?: string | null
-  /** Explicit Android SDK root for when auto-discovery (ANDROID_HOME / default path) fails; null (default) auto-discovers. */
-  androidSdkPath?: string | null
-  /** Auto-restore window (ms) for a phone-fit PTY after the last mobile subscriber leaves.
-   *  `null` (default) holds phone size indefinitely; a finite value schedules restore.
-   *  Clamped on read to [5_000ms, 60min]. See docs/mobile-fit-hold.md. */
-  mobileAutoRestoreFitMs: number | null
-  /** Preferred mobile pairing path for new QR codes. Missing/'automatic' = Anywhere (Relay + local);
-   *  explicit 'local-only' = same-network only. */
-  mobilePairingConnectionMode?: 'automatic' | 'local-only'
-  /** Explicit custom address restored when generating future mobile pairing codes. */
-  mobilePairingCustomAddress?: string | null
-  /** Saved custom addresses available in both mobile pairing pickers. */
-  mobilePairingCustomAddresses?: string[]
-  /** Name this runtime reports to paired clients; empty uses the host's detected name. */
-  machineName: string
-  /** Experimental: floating animated pet in the bottom-right corner. Opt-in cosmetic;
-   *  off never mounts the overlay, and toggling takes effect instantly (renderer-side). */
-  experimentalPet: boolean
-  /** Legacy persisted key from before the sidekick -> pet rename; read only during migration, new writes use experimentalPet. */
-  experimentalSidekick?: boolean
-  /** Experimental: left-sidebar Agents view — threaded feed of agent completions, blocking/unread state, worktree creation. */
-  experimentalActivity: boolean
-  /** Experimental: pop-out Kanban dashboard for monitoring and opening agent terminals across worktrees. */
-  experimentalAgentDashboardPopout?: boolean
-  /** Set after the one-time legacy Agents tab introduction has been acknowledged. */
-  agentsSidebarIntroShown?: boolean
-  /** True when the profile previously opted into the legacy Agents view. */
-  agentsSidebarMigratedFromExperimental?: boolean
-  /** How the Agent Dashboard opens: an in-window companion board or a separate pop-out window. Defaults to in-window. */
-  experimentalAgentDashboardMode?: AgentDashboardMode
-  /** Includes stale quiet agents as a fourth Agent Dashboard column. */
-  experimentalAgentDashboardShowIdle?: boolean
-  /** One-shot migration guard for defaulting the Agents view off; later explicit opt-ins persist normally. */
-  experimentalActivityDefaultedOffForAllUsers?: boolean
-  /** Experimental: persistent terminal-pane attention ring for bell + agent-completion events. Opt-in while tuning signal/noise. */
-  experimentalTerminalAttention: boolean
-  /** Experimental: automatically sleep completed, resumable background agent terminals. */
-  experimentalAgentHibernation?: boolean
-  /** Milliseconds a completed agent must stay idle before hibernation can be considered. */
-  agentHibernationIdleMs?: number
-  /** Experimental: opt-in preview of the updated worktree-card layout and metadata behavior. */
-  experimentalNewWorktreeCardStyle?: boolean
-  /** Experimental: per-workspace on-demand environment recipes and setup surface. */
-  experimentalEphemeralVms?: boolean
-  /** Experimental (Windows): add WSL distros as hosts, each running its own Orca server. */
-  experimentalWslHosts?: boolean
-  /** Compact worktree cards: hide the metadata row when title and branch say the same thing. */
-  compactWorktreeCards: boolean
-  /** Legacy persisted key from the Experimental rollout; new writes use compactWorktreeCards. */
-  experimentalCompactWorktreeCards?: boolean
-  /** Active non-local runtime environment for client-routed RPC; null keeps local desktop behavior. */
-  activeRuntimeEnvironmentId?: string | null
-  /** GitHub Project mode state (pinned/recent/active project, last view per project).
-   *  Optional for pre-feature profiles; the persistence merge hydrates the default. */
-  githubProjects?: GitHubProjectSettings
-  /** AI commit-message config (agent, model, per-model thinking, prompt suffix). Optional to avoid migrating existing profiles. */
-  commitMessageAi?: CommitMessageAiSettings
-  /** Source-control AI generation settings for commit messages and hosted-review drafts. */
-  sourceControlAi?: SourceControlAiSettings
-  /** GitLab project preferences (pinned + recent paths). Optional for pre-GitLab profiles; persistence merge fills the default. */
-  gitlabProjects?: GitLabProjectSettings
-  /** Anonymous product-telemetry state; optional until the one-shot Store.load() migration populates it.
-   *  Holds only consent + identity, not volatile counters — those would amplify the debounced settings write. */
-  telemetry?: {
-    /** New users: true at install. Existing users: null until they resolve the first-launch banner. */
-    optedIn: boolean | null
-    /** Anonymous UUID v4. Generated on first run. Stable across launches; not surfaced in the UI. */
-    installId: string
-    /** Cohort marker: true for pre-existing profiles (gates the opt-in banner), false for fresh installs. */
-    existedBeforeTelemetryRelease: boolean
-  }
-  /** One-shot cohort marker for the tab-switch keybinding swap. 'pending' =
-   *  pre-existing install (seed pins old chords, then flips to 'done'); 'done' = fresh install. */
-  tabSwitchKeybindingSeed?: 'pending' | 'done'
-  /** Local voice/dictation config. Optional for pre-voice profiles; getDefaultSettings() hydrates defaults via the persistence merge. */
-  voice?: VoiceSettings
-  /** Transcript full-text search consent + retention. Absent means off; nothing indexes until the user opts in. */
-  aiVaultSearch?: AiVaultSearchSettings
-}
 
 // Re-exported so existing importers keep one entry point; the shape lives in its
 // own file because this one is at the max-lines ceiling.

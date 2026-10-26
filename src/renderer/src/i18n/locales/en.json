@@ -1288,14 +1288,22 @@
       },
       "duplicatePairedServers": {
         "ambiguousSameServer": "{{value0}} and {{value1}} are the same server paired twice. Remove one in Settings > Remote Orca Servers.",
-"fetchingBaseBranch": "Fetching base branch…",
-"launchCustomAgentInNewTab": {
+        "fetchingBaseBranch": "Fetching base branch…",
+        "launchCustomAgentInNewTab": {
+          "profileRemoved": "This custom agent was removed. Choose another agent.",
+          "profileDisabled": "This custom agent is disabled. Enable it in Agent settings to launch it.",
+          "pairedRuntimeUnsupported": "Custom agents are not yet available on paired Orca hosts.",
+          "sshUnavailable": "Reconnect the SSH target before launching a custom agent.",
+          "windowsSshUnsupported": "Custom agents are not yet available over Windows SSH."
+        }
+      },
+      "launchCustomAgentInNewTab": {
         "profileRemoved": "This custom agent was removed. Choose another agent.",
         "profileDisabled": "This custom agent is disabled. Enable it in Agent settings to launch it.",
         "pairedRuntimeUnsupported": "Custom agents are not yet available on paired Orca hosts.",
         "sshUnavailable": "Reconnect the SSH target before launching a custom agent.",
         "windowsSshUnsupported": "Custom agents are not yet available over Windows SSH."
-}      }
+      }
     },
     "hooks": {
       "useAutomationDispatchEvents": {
@@ -3949,7 +3957,10 @@
                   "1baeb07c17": "ios simulator",
                   "8a580f88cf": "iphone",
                   "7ecdc5ef08": "ipad",
-                  "14965cc123": "mobile"
+                  "14965cc123": "mobile",
+                  "newCustomAgentNamed": "New Terminal: {{value0}}",
+                  "newCustomAgent": "custom agent",
+                  "newCustomAgentKeyword": "new agent"
                 }
               }
             }
@@ -7274,7 +7285,11 @@
           "codexSessionSourceTooltip": "Orca runs Codex in an isolated home. Point this at your existing Codex home to import that session history. Empty uses ~/.codex.",
           "storedDefaultUndetected": "Saved as your default, but not detected right now",
           "noAgentsDetected": "No agents detected. If one is installed, the probe may have timed out.",
-          "duplicateCommandError": "This command override contains shell syntax. Create the custom agent manually."
+          "duplicateCommandError": "This command override contains shell syntax. Create the custom agent manually.",
+          "110b74b022": "No agent (blank terminal)",
+          "d7625cf8b2": "Default agent",
+          "cea7d97be1": "Collapse command override",
+          "dc4a2ffdc0": "Expand command override"
         },
         "AppIconSelector": {
           "d5a112dc9b": "Next icon",
@@ -13253,38 +13268,75 @@
           "tailscale": "Tailscale · {{address}}",
           "lan": "Local network · {{address}}",
           "loopback": "This computer · {{address}}",
-"AgentCatalogRow": {
+          "AgentCatalogRow": {
+            "duplicateAsCustom": "Duplicate {{value0}} as custom agent"
+          },
+          "CustomAgentProfilesSection": {
+            "launchNamed": "Run {{value0}} in a new terminal",
+            "launchNeedsWorkspace": "Open a project before running a custom agent.",
+            "nameRequired": "Enter a name.",
+            "nameUnique": "Choose a name that is not already used by another agent.",
+            "executableRequired": "Enter an executable name or path.",
+            "invalidProfile": "The name, executable, and arguments must be literal text without control characters.",
+            "limit": "Custom agents are limited to {{value0}} profiles.",
+            "title": "Custom agents",
+            "closeEditor": "Close {{value0}} editor",
+            "editProfile": "Edit {{value0}}",
+            "create": "Create custom agent",
+            "empty": "No custom agents yet. Create one or duplicate an installed agent above.",
+            "deleteNamed": "Delete {{value0}}",
+            "deleteTitle": "Delete {{value0}}?",
+            "deleteDescription": "Existing terminals keep their captured launch command. This removes the profile from future launches.",
+            "delete": "Delete",
+            "finishEditing": "Finish editing the current custom agent before opening another."
+          },
+          "CustomAgentProfileEditor": {
+            "name": "Name",
+            "executable": "Executable",
+            "arguments": "Arguments",
+            "addArgument": "Add argument",
+            "argumentNumber": "Argument {{value0}}",
+            "removeArgument": "Remove argument {{value0}}",
+            "cancel": "Cancel",
+            "saving": "Saving…",
+            "save": "Save",
+            "executablePlaceholder": "codex"
+          }
+        },
+        "AgentCatalogRow": {
           "duplicateAsCustom": "Duplicate {{value0}} as custom agent"
         },
         "CustomAgentProfilesSection": {
+          "limit": "Custom agents are limited to {{value0}} profiles.",
           "nameRequired": "Enter a name.",
           "nameUnique": "Choose a name that is not already used by another agent.",
           "executableRequired": "Enter an executable name or path.",
           "invalidProfile": "The name, executable, and arguments must be literal text without control characters.",
-          "limit": "Custom agents are limited to {{value0}} profiles.",
+          "finishEditing": "Finish editing the current custom agent before opening another.",
           "title": "Custom agents",
-          "closeEditor": "Close {{value0}} editor",
-          "editProfile": "Edit {{value0}}",
           "create": "Create custom agent",
           "empty": "No custom agents yet. Create one or duplicate an installed agent above.",
+          "closeEditor": "Close {{value0}} editor",
+          "editProfile": "Edit {{value0}}",
+          "launchNamed": "Run {{value0}} in a new terminal",
+          "launchNeedsWorkspace": "Open a project before running a custom agent.",
           "deleteNamed": "Delete {{value0}}",
           "deleteTitle": "Delete {{value0}}?",
           "deleteDescription": "Existing terminals keep their captured launch command. This removes the profile from future launches.",
-          "delete": "Delete",
-          "finishEditing": "Finish editing the current custom agent before opening another."
+          "delete": "Delete"
         },
         "CustomAgentProfileEditor": {
           "name": "Name",
           "executable": "Executable",
+          "executablePlaceholder": "codex",
           "arguments": "Arguments",
           "addArgument": "Add argument",
           "argumentNumber": "Argument {{value0}}",
           "removeArgument": "Remove argument {{value0}}",
           "cancel": "Cancel",
           "saving": "Saving…",
-          "save": "Save",
-          "executablePlaceholder": "codex"
-}        }
+          "save": "Save"
+        }
       },
       "right": {
         "sidebar": {
@@ -17701,6 +17753,9 @@
           "useFreshSessions": "Use fresh sessions",
           "helper": "Added to this host's default arguments for each fresh session.",
           "detailLabel": "Extra arguments"
+        },
+        "automation-hermes-save": {
+          "unimplemented": "Saving to a Hermes target is not yet available in this build."
         }
       },
       "agent": {

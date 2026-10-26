@@ -76,12 +76,7 @@ export function useTerminalCreateActions(controller: TerminalColdActivationContr
       useAppStore.getState().setTabBarOrder(activeWorktreeId, order)
       focusTerminalTabSurface(newTab.id)
     },
-    [
-      activeWorktreeId,
-      createTab,
-      openNewTerminalTabInActiveWorkspace,
-      setActiveTabType
-    ]
+    [activeWorktreeId, createTab, openNewTerminalTabInActiveWorkspace, setActiveTabType]
   )
 
   const handleNewAgentTab = useCallback(
@@ -98,7 +93,7 @@ export function useTerminalCreateActions(controller: TerminalColdActivationContr
         agent,
         worktreeId: activeWorktreeId,
         groupId: targetGroupId,
-        launchSource: 'shortcut',
+        launchSource: 'shortcut'
       })
       if (!result) {
         toast.error(

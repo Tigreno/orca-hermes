@@ -74,12 +74,7 @@ export function renderAgentComboboxItem({
   label: string
 }): ReactNode {
   const row = (
-    <CommandItem
-      key={key}
-      value={itemValue}
-      onSelect={onSelect}
-      className="items-center gap-2 px-3 py-1.5"
-    >
+    <CommandItem key={key} value={itemValue} onSelect={onSelect} className="items-center">
       <Check
         className={cn('size-4 shrink-0 text-foreground', isChecked ? 'opacity-100' : 'opacity-0')}
       />

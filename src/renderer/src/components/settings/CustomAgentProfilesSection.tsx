@@ -1,9 +1,10 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { Plus, Terminal, Trash2 } from 'lucide-react'
+import { Play, Plus, Terminal, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { AgentCatalogEntry } from '@/lib/agent-catalog'
 import { AgentIcon } from '@/lib/agent-catalog'
 import { translate } from '@/i18n/i18n'
+import { launchCustomAgentInNewTab } from '@/lib/launch-custom-agent-in-new-tab'
 import {
   CUSTOM_AGENT_PROFILES_MAX,
   isCustomAgentProfileEnabled,
@@ -34,13 +35,15 @@ type CustomAgentProfilesSectionProps = {
   profiles: readonly CustomAgentProfile[]
   catalog: readonly AgentCatalogEntry[]
   onProfilesChange: (profiles: CustomAgentProfile[]) => void | Promise<void>
+  /** Workspace a profile launches into; null while Settings is open without one. */
+  launchWorktreeId?: string | null
 }
 
 export const CustomAgentProfilesSection = forwardRef<
   CustomAgentProfilesSectionHandle,
   CustomAgentProfilesSectionProps
 >(function CustomAgentProfilesSection(
-  { profiles, catalog, onProfilesChange },
+  { profiles, catalog, onProfilesChange, launchWorktreeId = null },
   ref
 ): React.JSX.Element {
   const [editor, setEditor] = useState<CustomAgentEditorState | null>(null)
@@ -230,14 +233,19 @@ export const CustomAgentProfilesSection = forwardRef<
                   void persistProfiles(setDefaultCustomAgentProfile(profiles, profile.id))
                 }
                 secondAction={
-                  <DeleteProfileAction
-                    profile={profile}
-                    disabled={Boolean(editor) || saving}
-                    onDelete={() =>
-                      persistProfiles(profiles.filter((candidate) => candidate.id !== profile.id))
-                    }
-                    onDeleted={() => requestAnimationFrame(() => createButtonRef.current?.focus())}
-                  />
+                  <div className="flex items-center gap-1">
+                    <LaunchProfileAction profile={profile} worktreeId={launchWorktreeId} />
+                    <DeleteProfileAction
+                      profile={profile}
+                      disabled={Boolean(editor) || saving}
+                      onDelete={() =>
+                        persistProfiles(profiles.filter((candidate) => candidate.id !== profile.id))
+                      }
+                      onDeleted={() =>
+                        requestAnimationFrame(() => createButtonRef.current?.focus())
+                      }
+                    />
+                  </div>
                 }
                 detailsOpen={isEditing}
                 toggleDetailsLabel={
@@ -278,6 +286,41 @@ export const CustomAgentProfilesSection = forwardRef<
     </section>
   )
 })
+
+function LaunchProfileAction({
+  profile,
+  worktreeId
+}: {
+  profile: CustomAgentProfile
+  worktreeId: string | null
+}): React.JSX.Element {
+  const label = translate(
+    'auto.components.settings.CustomAgentProfilesSection.launchNamed',
+    'Run {{value0}} in a new terminal',
+    { value0: profile.name }
+  )
+  const handleLaunch = (): void => {
+    if (!worktreeId) {
+      toast.error(
+        translate(
+          'auto.components.settings.CustomAgentProfilesSection.launchNeedsWorkspace',
+          'Open a project before running a custom agent.'
+        )
+      )
+      return
+    }
+    launchCustomAgentInNewTab({ profileId: profile.id, worktreeId })
+  }
+  return (
+    <AgentRowAction
+      label={label}
+      disabled={!worktreeId || !isCustomAgentProfileEnabled(profile)}
+      onClick={handleLaunch}
+    >
+      <Play className="size-3.5" />
+    </AgentRowAction>
+  )
+}
 
 function DeleteProfileAction({
   profile,

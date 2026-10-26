@@ -1,12 +1,16 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AgentCatalogEntry } from '@/lib/agent-catalog'
 import type { launchCustomAgentInNewTab as LaunchCustomAgentInNewTab } from './launch-custom-agent-in-new-tab'
 
 const mocks = vi.hoisted(() => ({
   createTab: vi.fn(),
   getAgentLaunchPlatformForRepo: vi.fn((): NodeJS.Platform => 'linux'),
+  nodePlatformFromProjectRuntime: vi.fn((): NodeJS.Platform | undefined => undefined),
   getExecutionHostIdForWorktree: vi.fn(),
   getRuntimeEnvironmentIdForWorktree: vi.fn(),
+  launchAgentInNewTab: vi.fn(),
   queueTabStartupCommand: vi.fn(),
+  resolveAgentLaunchExecutionContext: vi.fn(),
   setActiveTabType: vi.fn(),
   setTabBarOrder: vi.fn(),
   toastError: vi.fn()
@@ -65,9 +69,24 @@ const store = {
   setTabBarOrder: mocks.setTabBarOrder
 }
 
+// oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the launcher reads only `id` and `cmd` off a catalog entry.
+const catalog = [
+  { id: 'codex', cmd: 'codex' },
+  { id: 'claude', cmd: 'claude' },
+  { id: 'hermes', cmd: 'hermes' }
+] as AgentCatalogEntry[]
+
 vi.mock('@/store', () => ({ useAppStore: { getState: () => store } }))
+vi.mock('@/lib/agent-catalog', () => ({ getAgentCatalog: () => catalog }))
 vi.mock('@/lib/agent-launch-platform', () => ({
-  getAgentLaunchPlatformForRepo: mocks.getAgentLaunchPlatformForRepo
+  getAgentLaunchPlatformForRepo: mocks.getAgentLaunchPlatformForRepo,
+  nodePlatformFromProjectRuntime: mocks.nodePlatformFromProjectRuntime
+}))
+vi.mock('@/lib/launch-agent-in-new-tab', () => ({
+  launchAgentInNewTab: mocks.launchAgentInNewTab
+}))
+vi.mock('@/lib/launch-agent-execution-context', () => ({
+  resolveAgentLaunchExecutionContext: mocks.resolveAgentLaunchExecutionContext
 }))
 vi.mock('@/lib/new-workspace', () => ({ CLIENT_PLATFORM: 'win32' }))
 vi.mock('@/lib/worktree-runtime-owner', () => ({
@@ -91,29 +110,62 @@ describe('launchCustomAgentInNewTab', () => {
     vi.clearAllMocks()
     mocks.createTab.mockReturnValue({ id: 'tab-1' })
     mocks.getAgentLaunchPlatformForRepo.mockReturnValue('linux')
+    mocks.nodePlatformFromProjectRuntime.mockReturnValue(undefined)
     mocks.getExecutionHostIdForWorktree.mockReturnValue('local')
     mocks.getRuntimeEnvironmentIdForWorktree.mockReturnValue(null)
+    mocks.launchAgentInNewTab.mockReturnValue({
+      surface: { kind: 'local-terminal', tabId: 'agent-tab-1' },
+      startupPlan: {},
+      pasteDraftAfterLaunch: false
+    })
+    mocks.resolveAgentLaunchExecutionContext.mockReturnValue({
+      worktreeSshConnectionId: null,
+      resolvedLaunchPlatform: 'linux',
+      isRemote: false,
+      queuedShell: undefined
+    })
     store.settings.terminalWindowsShell = 'powershell.exe'
     store.sshConnectionStates.clear()
     store.sshStateByEnvironment.clear()
     store.folderWorkspaces = []
   })
 
-  it('launches a Codex variant with exact profile argv', () => {
-    launchCustomAgentInNewTab({ profileId: 'codex-luna', worktreeId: 'wt-1' })
+  it('launches a Codex variant through the agent pipeline with exact profile argv', () => {
+    expect(launchCustomAgentInNewTab({ profileId: 'codex-luna', worktreeId: 'wt-1' })).toEqual({
+      tabId: 'agent-tab-1'
+    })
 
-    expect(mocks.createTab).toHaveBeenCalledWith('wt-1', undefined, undefined, {
-      launchAgent: 'codex',
+    expect(mocks.launchAgentInNewTab).toHaveBeenCalledWith({
+      requestId: expect.any(String),
+      agent: 'codex',
+      worktreeId: 'wt-1',
+      agentArgs: "'--model' 'luna'",
       quickCommandLabel: 'Codex Luna',
-      viewMode: 'terminal'
+      requestedSurface: 'terminal',
+      launchPlatform: 'linux'
     })
-    expect(mocks.queueTabStartupCommand).toHaveBeenCalledWith('tab-1', {
-      command: "'codex' '--model' 'luna'",
-      launchAgent: 'codex'
-    })
+    expect(mocks.createTab).not.toHaveBeenCalled()
   })
 
-  it('launches a generic profile without claiming built-in identity', () => {
+  it('keeps the group the user launched from', () => {
+    launchCustomAgentInNewTab({ profileId: 'codex-luna', worktreeId: 'wt-1', groupId: 'group-2' })
+
+    expect(mocks.launchAgentInNewTab).toHaveBeenCalledWith(
+      expect.objectContaining({ groupId: 'group-2', agent: 'codex' })
+    )
+  })
+
+  it('reports nothing to focus when the agent launch published the tab on a host', () => {
+    mocks.launchAgentInNewTab.mockReturnValue({
+      surface: { kind: 'host-published' },
+      startupPlan: {},
+      pasteDraftAfterLaunch: false
+    })
+
+    expect(launchCustomAgentInNewTab({ profileId: 'codex-luna', worktreeId: 'wt-1' })).toBeNull()
+  })
+
+  it('launches a generic profile as a plain terminal without built-in identity', () => {
     expect(launchCustomAgentInNewTab({ profileId: 'dhimanex', worktreeId: 'wt-1' })).toEqual({
       tabId: 'tab-1'
     })
@@ -124,18 +176,15 @@ describe('launchCustomAgentInNewTab', () => {
     expect(mocks.queueTabStartupCommand).toHaveBeenCalledWith('tab-1', {
       command: "'dhimanex' '--fast'"
     })
+    expect(mocks.launchAgentInNewTab).not.toHaveBeenCalled()
   })
 
-  it('does not claim stale identity after the executable changes', () => {
+  it('binds the agent whose program the executable now names, not the stale one', () => {
     launchCustomAgentInNewTab({ profileId: 'repointed', worktreeId: 'wt-1' })
 
-    expect(mocks.createTab).toHaveBeenCalledWith('wt-1', undefined, undefined, {
-      quickCommandLabel: 'Repointed',
-      viewMode: 'terminal'
-    })
-    expect(mocks.queueTabStartupCommand).toHaveBeenCalledWith('tab-1', {
-      command: "'claude'"
-    })
+    expect(mocks.launchAgentInNewTab).toHaveBeenCalledWith(
+      expect.objectContaining({ agent: 'claude', agentArgs: '' })
+    )
   })
 
   it('queues the one-shot argv environment for native Windows', () => {
@@ -155,11 +204,10 @@ describe('launchCustomAgentInNewTab', () => {
       targetId: 'folder-host',
       remotePlatform: 'linux'
     })
-    launchCustomAgentInNewTab({ profileId: 'codex-luna', worktreeId: 'folder:docs' })
+    launchCustomAgentInNewTab({ profileId: 'dhimanex', worktreeId: 'folder:docs' })
 
     expect(mocks.queueTabStartupCommand).toHaveBeenCalledWith('tab-1', {
-      command: "'codex' '--model' 'luna'",
-      launchAgent: 'codex'
+      command: "'dhimanex' '--fast'"
     })
   })
 
@@ -170,24 +218,23 @@ describe('launchCustomAgentInNewTab', () => {
         folderPath: '\\\\wsl.localhost\\Ubuntu\\home\\dhiman\\project'
       }
     ]
-    launchCustomAgentInNewTab({ profileId: 'codex-luna', worktreeId: 'folder:wsl-folder' })
+    launchCustomAgentInNewTab({ profileId: 'dhimanex', worktreeId: 'folder:wsl-folder' })
 
     expect(mocks.queueTabStartupCommand).toHaveBeenCalledWith('tab-1', {
-      command: "'codex' '--model' 'luna'",
-      launchAgent: 'codex'
+      command: "'dhimanex' '--fast'"
     })
   })
 
-  it('fails closed on paired hosts and Windows SSH', () => {
+  it('fails closed on paired hosts and Windows SSH for a plain program', () => {
     mocks.getExecutionHostIdForWorktree.mockReturnValue('runtime:server')
-    expect(launchCustomAgentInNewTab({ profileId: 'codex-luna', worktreeId: 'wt-1' })).toBeNull()
+    expect(launchCustomAgentInNewTab({ profileId: 'dhimanex', worktreeId: 'wt-1' })).toBeNull()
 
     mocks.getExecutionHostIdForWorktree.mockReturnValue('ssh:windows-host')
     store.sshConnectionStates.set('windows-host', {
       targetId: 'windows-host',
       remotePlatform: 'win32'
     })
-    expect(launchCustomAgentInNewTab({ profileId: 'codex-luna', worktreeId: 'wt-1' })).toBeNull()
+    expect(launchCustomAgentInNewTab({ profileId: 'dhimanex', worktreeId: 'wt-1' })).toBeNull()
     expect(mocks.createTab).not.toHaveBeenCalled()
   })
 
@@ -196,10 +243,12 @@ describe('launchCustomAgentInNewTab', () => {
       launchCustomAgentInNewTab({ profileId: 'removed-profile', worktreeId: 'wt-1' })
     ).toBeNull()
     expect(mocks.createTab).not.toHaveBeenCalled()
+    expect(mocks.launchAgentInNewTab).not.toHaveBeenCalled()
   })
 
   it('does not launch a disabled profile', () => {
     expect(launchCustomAgentInNewTab({ profileId: 'disabled', worktreeId: 'wt-1' })).toBeNull()
     expect(mocks.createTab).not.toHaveBeenCalled()
+    expect(mocks.launchAgentInNewTab).not.toHaveBeenCalled()
   })
 })

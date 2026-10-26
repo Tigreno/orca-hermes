@@ -1,12 +1,55 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentStatusEntry } from '../../../shared/agent-status-types'
 import type { AutomationRun } from '../../../shared/automations-types'
+import type { Tab } from '../../../shared/tab-types'
+import type { TerminalLayoutSnapshot } from '../../../shared/terminal-tab-types'
 import { findReusableAutomationSession } from './automation-session-reuse'
+import type { AppState } from '@/store/types'
 
 const leafId = '11111111-1111-4111-8111-111111111111'
 const paneKey = `tab-1:${leafId}`
 const splitLeafId = '22222222-2222-4222-8222-222222222222'
 const splitPaneKey = `tab-1:${splitLeafId}`
+
+type SessionState = Pick<
+  AppState,
+  'agentStatusByPaneKey' | 'ptyIdsByTabId' | 'terminalLayoutsByTabId' | 'unifiedTabsByWorktree'
+>
+
+function terminalTab(entityId: string): Tab {
+  return {
+    id: entityId,
+    entityId,
+    groupId: 'group-1',
+    worktreeId: 'wt-1',
+    contentType: 'terminal',
+    label: entityId,
+    customLabel: null,
+    color: null,
+    sortOrder: 0,
+    createdAt: 1
+  }
+}
+
+function layout(ptyIdsByLeafId: Record<string, string>): TerminalLayoutSnapshot {
+  return { root: null, activeLeafId: null, expandedLeafId: null, ptyIdsByLeafId }
+}
+
+/** The store slice the reuse lookup reads. */
+function state(overrides: Partial<SessionState> = {}): SessionState {
+  return {
+    agentStatusByPaneKey: { [paneKey]: status() },
+    ptyIdsByTabId: { 'tab-1': ['pty-1'], 'tab-old': ['pty-old'] },
+    terminalLayoutsByTabId: {
+      'tab-1': layout({ [leafId]: 'pty-1' }),
+      'tab-old': layout({})
+    },
+    unifiedTabsByWorktree: {
+      'wt-1': [terminalTab('tab-1'), terminalTab('tab-old')]
+    },
+    ...overrides
+  }
+}
 
 function run(overrides: Partial<AutomationRun>): AutomationRun {
   return {
@@ -58,20 +101,7 @@ describe('automation session reuse in the renderer store', () => {
         run({ id: 'run-old', terminalSessionId: 'tab-old', createdAt: 1 }),
         run({ id: 'run-new', terminalSessionId: 'tab-1', createdAt: 2 })
       ],
-      state: {
-        agentStatusByPaneKey: { [paneKey]: status() },
-        ptyIdsByTabId: { 'tab-1': ['pty-1'], 'tab-old': ['pty-old'] },
-        terminalLayoutsByTabId: {
-          'tab-1': { ptyIdsByLeafId: { [leafId]: 'pty-1' } },
-          'tab-old': { ptyIdsByLeafId: {} }
-        },
-        unifiedTabsByWorktree: {
-          'wt-1': [
-            { contentType: 'terminal', entityId: 'tab-1' },
-            { contentType: 'terminal', entityId: 'tab-old' }
-          ]
-        }
-      } as never
+      state: state()
     }
 
     expect(findReusableAutomationSession(args)).toEqual({ tabId: 'tab-1', ptyId: 'pty-1', paneKey })
@@ -95,23 +125,21 @@ describe('automation session reuse in the renderer store', () => {
           createdAt: 2
         })
       ],
-      state: {
+      state: state({
         agentStatusByPaneKey: {
           [splitPaneKey]: status({ paneKey: splitPaneKey })
         },
         ptyIdsByTabId: { 'tab-1': ['pty-left', 'pty-right'] },
         terminalLayoutsByTabId: {
-          'tab-1': {
-            ptyIdsByLeafId: {
-              [leafId]: 'pty-left',
-              [splitLeafId]: 'pty-right'
-            }
-          }
+          'tab-1': layout({
+            [leafId]: 'pty-left',
+            [splitLeafId]: 'pty-right'
+          })
         },
         unifiedTabsByWorktree: {
-          'wt-1': [{ contentType: 'terminal', entityId: 'tab-1' }]
+          'wt-1': [terminalTab('tab-1')]
         }
-      } as never
+      })
     })
 
     expect(session).toEqual({ tabId: 'tab-1', ptyId: 'pty-right', paneKey: splitPaneKey })
@@ -124,23 +152,21 @@ describe('automation session reuse in the renderer store', () => {
       worktreeId: 'wt-1',
       currentRunId: 'run-current',
       runs: [run({ id: 'run-new', terminalSessionId: 'tab-1', createdAt: 2 })],
-      state: {
+      state: state({
         agentStatusByPaneKey: {
           [splitPaneKey]: status({ paneKey: splitPaneKey })
         },
         ptyIdsByTabId: { 'tab-1': ['pty-1', 'pty-right'] },
         terminalLayoutsByTabId: {
-          'tab-1': {
-            ptyIdsByLeafId: {
-              [leafId]: 'pty-1',
-              [splitLeafId]: 'pty-right'
-            }
-          }
+          'tab-1': layout({
+            [leafId]: 'pty-1',
+            [splitLeafId]: 'pty-right'
+          })
         },
         unifiedTabsByWorktree: {
-          'wt-1': [{ contentType: 'terminal', entityId: 'tab-1' }]
+          'wt-1': [terminalTab('tab-1')]
         }
-      } as never
+      })
     })
 
     expect(session).toBeNull()
@@ -153,14 +179,14 @@ describe('automation session reuse in the renderer store', () => {
       worktreeId: 'wt-1',
       currentRunId: 'run-current',
       runs: [run({ id: 'run-new', terminalSessionId: 'tab-1', createdAt: 2 })],
-      state: {
+      state: state({
         agentStatusByPaneKey: { [paneKey]: status() },
         ptyIdsByTabId: { 'tab-1': ['pty-other'] },
-        terminalLayoutsByTabId: { 'tab-1': { ptyIdsByLeafId: { [leafId]: 'pty-1' } } },
+        terminalLayoutsByTabId: { 'tab-1': layout({ [leafId]: 'pty-1' }) },
         unifiedTabsByWorktree: {
-          'wt-1': [{ contentType: 'terminal', entityId: 'tab-1' }]
+          'wt-1': [terminalTab('tab-1')]
         }
-      } as never
+      })
     })
 
     expect(session).toBeNull()

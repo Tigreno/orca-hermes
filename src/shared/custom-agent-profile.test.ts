@@ -200,5 +200,4 @@ describe('custom agent profiles', () => {
       })
     ).toBeNull()
   })
-
 })

@@ -92,6 +92,7 @@ export function AgentsPane({
 }: AgentsPaneProps): React.JSX.Element {
   const customProfilesRef = useRef<CustomAgentProfilesSectionHandle | null>(null)
   const updateSettingsOrThrow = useAppStore((state) => state.updateSettingsOrThrow)
+  const activeWorktreeId = useAppStore((state) => state.activeWorktreeId)
   const activeServerEnvironmentId = settings.activeRuntimeEnvironmentId?.trim() || null
   const agentDetectionTarget = useMemo<AgentDetectionTarget>(
     () =>
@@ -293,6 +294,7 @@ export function AgentsPane({
             ref={customProfilesRef}
             profiles={customAgentProfiles}
             catalog={catalog}
+            launchWorktreeId={activeWorktreeId}
             onProfilesChange={(profiles) =>
               updateSettingsOrThrow({ customAgentProfiles: profiles })
             }

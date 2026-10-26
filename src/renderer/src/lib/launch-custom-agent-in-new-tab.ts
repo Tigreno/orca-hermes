@@ -1,9 +1,16 @@
 import { toast } from 'sonner'
+import { getAgentCatalog } from '@/lib/agent-catalog'
+import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
+import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
+import { resolveAgentLaunchExecutionContext } from '@/lib/launch-agent-execution-context'
+import { resolveCustomAgentProfileBaseAgent } from '@/lib/custom-agent-profile-base-agent'
 import { persistAgentLaunchTabOrder } from '@/lib/launch-agent-tab-order'
 import { translate } from '@/i18n/i18n'
-import { getAgentLaunchPlatformForRepo } from '@/lib/agent-launch-platform'
+import {
+  getAgentLaunchPlatformForRepo,
+  nodePlatformFromProjectRuntime
+} from '@/lib/agent-launch-platform'
 import { getLocalProjectExecutionRuntimeContext } from '@/lib/local-preflight-context'
-import type { ResolvedProjectExecutionRuntime } from '../../../shared/project-execution-runtime'
 import { CLIENT_PLATFORM } from '@/lib/new-workspace'
 import {
   getExecutionHostIdForWorktree,
@@ -15,11 +22,13 @@ import { repoIsRemote } from '../../../shared/agent-launch-remote'
 import {
   buildCustomAgentLaunch,
   isCustomAgentProfileEnabled,
-  normalizeCustomAgentProfiles
+  normalizeCustomAgentProfiles,
+  type CustomAgentProfile
 } from '../../../shared/custom-agent-profile'
 import { parseExecutionHostId } from '../../../shared/execution-host'
-import { resolveStartupShell } from '../../../shared/tui-agent-startup-shell'
+import { quoteStartupArg, resolveStartupShell } from '../../../shared/tui-agent-startup-shell'
 import { resolveLocalWindowsAgentStartupShell } from '../../../shared/windows-terminal-shell'
+import type { TuiAgent } from '../../../shared/tui-agent'
 
 export function launchCustomAgentInNewTab(args: {
   profileId: string
@@ -47,6 +56,19 @@ export function launchCustomAgentInNewTab(args: {
       )
     )
     return null
+  }
+
+  // Why first: a variant of a built-in agent has to run through the agent pipeline, otherwise its
+  // pane gets no agent identity and the workspace tree never shows the agent. Only a plain program
+  // name that Orca does not know falls through to the raw-terminal launch below.
+  const baseAgent = resolveCustomAgentProfileBaseAgent(profile, getAgentCatalog())
+  if (baseAgent) {
+    return launchProfileThroughAgentPipeline({
+      profile,
+      agent: baseAgent,
+      worktreeId: args.worktreeId,
+      ...(args.groupId ? { groupId: args.groupId } : {})
+    })
   }
 
   const environmentId = getRuntimeEnvironmentIdForWorktree(store, args.worktreeId)
@@ -92,16 +114,13 @@ export function launchCustomAgentInNewTab(args: {
     .allWorktrees?.()
     .find((entry: { id: string }) => entry.id === args.worktreeId)
   const repo = worktree ? store.repos?.find((entry) => entry.id === worktree.repoId) : null
+  const localProjectRuntime = getLocalProjectExecutionRuntimeContext(store, args.worktreeId)
   const platform =
     sshPlatform ??
     (repo
       ? getAgentLaunchPlatformForRepo(
           repo,
-          repo.connectionId
-            ? undefined
-            : (getLocalProjectExecutionRuntimeContext(store, args.worktreeId)?.status === 'resolved'
-                ? (getLocalProjectExecutionRuntimeContext(store, args.worktreeId) as { status: 'resolved'; runtime: ResolvedProjectExecutionRuntime }).runtime.hostPlatform as NodeJS.Platform | undefined
-                : undefined)
+          repo.connectionId ? undefined : nodePlatformFromProjectRuntime(localProjectRuntime)
         )
       : worktreeUsesWslPath(store, args.worktreeId)
         ? 'linux'
@@ -118,16 +137,51 @@ export function launchCustomAgentInNewTab(args: {
   const launch = buildCustomAgentLaunch(profile, shell)
 
   const tab = store.createTab(args.worktreeId, args.groupId, undefined, {
-    ...(profile.baseAgent ? { launchAgent: profile.baseAgent } : {}),
     quickCommandLabel: profile.name,
     viewMode: 'terminal'
   })
   store.queueTabStartupCommand(tab.id, {
     command: launch.command,
-    ...(launch.env ? { env: launch.env } : {}),
-    ...(profile.baseAgent ? { launchAgent: profile.baseAgent } : {})
+    ...(launch.env ? { env: launch.env } : {})
   })
   store.setActiveTabType('terminal', args.worktreeId)
   persistAgentLaunchTabOrder(args.worktreeId, tab.id)
   return { tabId: tab.id }
+}
+
+/**
+ * A profile that names a built-in agent is that agent with extra flags: hand it to the agent
+ * launch, which binds the pane's agent identity (terminal handle, launch token, status hooks) and
+ * keeps the profile's argv exactly — `agentArgs` replaces the agent's configured defaults.
+ */
+function launchProfileThroughAgentPipeline(args: {
+  profile: CustomAgentProfile
+  agent: TuiAgent
+  worktreeId: string
+  groupId?: string
+}): { tabId: string } | null {
+  const executionContext = resolveAgentLaunchExecutionContext(useAppStore.getState(), {
+    worktreeId: args.worktreeId
+  })
+  if (!executionContext) {
+    return null
+  }
+  const shell =
+    executionContext.queuedShell ?? resolveStartupShell(executionContext.resolvedLaunchPlatform)
+  // Why quoted here: the agent launch re-tokenizes this text for the same shell before appending.
+  const agentArgs = args.profile.args.map((arg) => quoteStartupArg(arg, shell)).join(' ')
+  const launched = launchAgentInNewTab({
+    requestId: newAgentLaunchRequestId(),
+    agent: args.agent,
+    worktreeId: args.worktreeId,
+    ...(args.groupId ? { groupId: args.groupId } : {}),
+    agentArgs,
+    quickCommandLabel: args.profile.name,
+    requestedSurface: 'terminal',
+    launchPlatform: executionContext.resolvedLaunchPlatform
+  })
+  if (!launched || launched.surface.kind === 'host-published') {
+    return null
+  }
+  return { tabId: launched.surface.tabId }
 }
