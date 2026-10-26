@@ -1,0 +1,156 @@
+# Local (fork-friendly) Windows installer build.
+#
+# Why this exists: every other Windows build workflow in this repo is gated on
+# `github.repository == 'stablyai/orca'` — release-cut.yml, dev-channel-win-build.yml,
+# dev-channel-win-publish.yml — because they cut tags, mint App tokens, and publish
+# into the upstream release repos. On a fork those jobs skip silently, so a fork
+# has no way to produce a Windows installer at all.
+#
+# This workflow is the fork's escape hatch: manual dispatch only, builds from any
+# branch or SHA in the repo, publishes nothing, and hands back the artifacts.
+#
+# What it deliberately does NOT do:
+#   - No signing. SignPath runs after packaging in CI and needs secrets this
+#     workflow does not use, so the installer is unsigned. Windows SmartScreen
+#     will warn on it; that is expected, not a build failure.
+#   - No publish. `--publish never` plus upload-artifact instead of a GitHub
+#     release, so no tag is created and no release repo is touched.
+#   - No orcad deployment template. That is enforced only when
+#     ORCA_REQUIRE_ORCAD_TEMPLATE=1, which the release path sets. This build
+#     simply does not ship the template.
+#
+# Why the toolchain needs no setup step: the windows-2022 image ships Rust
+# (rustup/cargo) and the MSVC toolchain that the Rust crates and the N-API
+# modules need. `pnpm run build:release` -> build:native -> build:native-for-platform
+# -> build-windows-cli-launcher.mjs compiles native/windows-cli-launcher and
+# native/windows-agent-hook through cargo for the MSVC target, and
+# config/scripts/windows-rust-executable-build.mjs refuses to package off-Windows.
+#
+# Usage: Actions -> "Build Windows installer (local)" -> Run workflow -> pick a ref.
+
+name: Build Windows installer (local)
+
+run-name: Build Windows installer from ${{ inputs.ref || github.ref_name }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or SHA to build
+        required: false
+        type: string
+        default: ''
+      upload_artifacts:
+        description: Upload the installer and its update manifest as workflow artifacts
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-windows-local-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Why windows-2022 and not windows-latest: this is the same image the real
+    # release job builds on, so the packaging hooks see the environment they
+    # were written against.
+    runs-on: windows-2022
+    timeout-minutes: 90
+    env:
+      ORCA_BACKGROUND_LAUNCH: '1'
+      NODE_OPTIONS: --max-old-space-size=4096
+    steps:
+      - name: Checkout the requested ref
+        uses: actions/checkout@v6
+        with:
+          # An empty input means "the ref this workflow was dispatched from".
+          ref: ${{ inputs.ref || github.ref }}
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/setup@v2
+        with:
+          install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            mobile/pnpm-lock.yaml
+
+      # Same key shape as the release-cut and dev-channel Windows legs, so a
+      # cache written by either is reusable here.
+      - name: Cache electron-builder downloads
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\electron-builder\Cache
+          key: electron-builder-win-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            electron-builder-win-
+
+      # Why retried: pnpm install triggers electron's postinstall, which pulls
+      # the Electron binary from GitHub release assets, and that CDN returns
+      # transient 504s often enough to lose a build to it.
+      - name: Install dependencies
+        uses: nick-fields/retry@v4
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: pnpm install --frozen-lockfile
+
+      # Why here: electron-builder's beforePack requires out/mobile-web, and the
+      # bundle build resolves React Native and Expo from mobile/node_modules.
+      - uses: ./.github/actions/install-mobile-dependencies
+
+      # Why not build:desktop: this runs typecheck first, which packaging does
+      # not need — the release path builds with build:release, which skips it.
+      - name: Build app
+        run: pnpm build:release
+
+      - name: Package Windows installer
+        shell: pwsh
+        run: |
+          node config/scripts/ensure-native-runtime.mjs --runtime=electron
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm exec electron-builder --config config/electron-builder.config.cjs --win --publish never
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path 'dist/win-unpacked/Orca.exe')) {
+            throw 'electron-builder --win did not produce dist/win-unpacked/Orca.exe'
+          }
+
+      # Why: a packaging run that exits 0 but leaves a missing or empty artifact
+      # is exactly the case the updater breaks on — the picker offers a download
+      # and the update 404s. Assert every artifact by name and size.
+      - name: Verify artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for required in orca-windows-setup.exe orca-windows-setup.exe.blockmap latest.yml; do
+            if [[ ! -s "dist/$required" ]]; then
+              echo "::error::Missing or empty artifact: dist/$required"
+              exit 1
+            fi
+          done
+          ls -la dist/*.exe dist/*.blockmap dist/latest.yml
+
+      - name: Upload the installer
+        if: inputs.upload_artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: orca-windows
+          path: |
+            dist/orca-windows-setup.exe
+            dist/orca-windows-setup.exe.blockmap
+            dist/latest.yml
+          if-no-files-found: error
+          retention-days: 14
