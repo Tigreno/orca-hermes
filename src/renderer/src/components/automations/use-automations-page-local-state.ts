@@ -36,10 +36,14 @@ export function useAutomationsPageLocalState(store: AutomationsPageStoreState) {
       automationId: null,
       rowKey: null,
       ownerKey: null,
+      authority: null,
+      navigation: null,
+      reloadToken: -1,
       runs: [],
       notice: null
     })
   const [runHistoryReloadToken, setRunHistoryReloadToken] = useState(0)
+  const [runHistoryAcquisitionToken, setRunHistoryAcquisitionToken] = useState(0)
   const [failedAuthorityKeys, setFailedAuthorityKeys] = useState<ReadonlySet<string>>(
     () => new Set()
   )
@@ -66,16 +70,6 @@ export function useAutomationsPageLocalState(store: AutomationsPageStoreState) {
     destination: AutomationCreateDestination
   } | null>(null)
   const [editingHostStableKey, setEditingHostStableKey] = useState<string | null>(null)
-  // Stub state for Hermes-target save flow that did not land in this build.
-  // Kept as optional hook setters so the upstream editor action signature
-  // still compiles without pulling in the real Hermes state machine.
-  const [editingExternalTarget, setEditingExternalTarget] = useState<{
-    manager: ExternalAutomationManager
-    job: ExternalAutomationJob
-    scope: ExternalAutomationScope
-  } | null>(null)
-  const setCreateTarget = (_value: string): void => undefined
-  const createTarget = 'orca'
   const moveCreationKeysRef = useRef(new Map<string, string>())
   const [relativeNow, setRelativeNow] = useState(() => Date.now())
   const [pageView, setPageView] = useState<AutomationsPageView>('automations')
@@ -94,6 +88,7 @@ export function useAutomationsPageLocalState(store: AutomationsPageStoreState) {
 
   const selectAutomationId = useCallback(
     (automationId: string | null): void => {
+      setRunHistoryAcquisitionToken((token) => token + 1)
       setSelectedAutomationRunPageId(null)
       setSelectedRowKey(null)
       setSelectedId(automationId)
@@ -103,6 +98,7 @@ export function useAutomationsPageLocalState(store: AutomationsPageStoreState) {
   const selectExternalKey = useCallback((externalKey: string | null): void => {
     setSelectedExternalKey(externalKey)
   }, [])
+  const [targetEdited, setTargetEdited] = useState(false)
   const [draftAtOpen, setDraftAtOpen] = useState<AutomationDraft | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<AutomationListRow | null>(null)
   const [externalDeleteTarget, setExternalDeleteTarget] = useState<{
@@ -163,6 +159,8 @@ export function useAutomationsPageLocalState(store: AutomationsPageStoreState) {
     automationHostTargetKey,
     setAutomationHostTargetKey,
     selectedAutomationRuns,
+    runHistoryAcquisitionToken,
+    setRunHistoryAcquisitionToken,
     setSelectedAutomationRuns,
     runHistoryReloadToken,
     setRunHistoryReloadToken,
@@ -198,10 +196,6 @@ export function useAutomationsPageLocalState(store: AutomationsPageStoreState) {
     setEditingDestination,
     editingHostStableKey,
     setEditingHostStableKey,
-    editingExternalTarget,
-    setEditingExternalTarget,
-    createTarget,
-    setCreateTarget,
     moveCreationKeysRef,
     relativeNow,
     setRelativeNow,
@@ -222,6 +216,8 @@ export function useAutomationsPageLocalState(store: AutomationsPageStoreState) {
     selectedExternalKeyRef,
     selectAutomationId,
     selectExternalKey,
+    targetEdited,
+    setTargetEdited,
     draftAtOpen,
     setDraftAtOpen,
     deleteTarget,

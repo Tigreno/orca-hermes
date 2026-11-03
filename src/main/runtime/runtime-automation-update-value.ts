@@ -19,6 +19,7 @@ export function copyRuntimeAutomationUpdateValues(
     'agentId',
     'extraAgentArgs',
     'customAgentProfileId',
+    'launchSetupPatch',
     'runContext',
     'sourceContext',
     'baseBranch',

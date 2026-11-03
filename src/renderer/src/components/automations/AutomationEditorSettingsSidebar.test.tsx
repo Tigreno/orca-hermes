@@ -47,6 +47,8 @@ function renderSidebar(
 ) {
   return render(
     <AutomationEditorSettingsSidebar
+      surface="terminal"
+      chatSupported={false}
       repos={[]}
       projectHostSetups={[]}
       automationYamlHooksByRepoKey={{}}
@@ -57,8 +59,6 @@ function renderSidebar(
       draft={draft}
       visibleAgents={AGENT_CATALOG}
       visibleCustomAgents={customAgents}
-      isHermesTarget={false}
-      isHermesCreate={false}
       pickerTriggerClassName=""
       segmentedGroupClassName=""
       segmentedItemClassName=""

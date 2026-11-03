@@ -105,7 +105,9 @@ describe('automation search row fields', () => {
   })
 
   it('indexes external jobs by provider, target host, and workdir', () => {
-    const [entry] = buildExternalAutomationListEntries([makeScopedExternalManager()])
+    const manager = makeScopedExternalManager()
+    manager.manager.jobs[0]!.workdir = '/srv/sweep-project'
+    const [entry] = buildExternalAutomationListEntries([manager])
     if (!entry) {
       throw new Error('fixture produced no external entry')
     }
@@ -114,6 +116,7 @@ describe('automation search row fields', () => {
     expect(fields.agent).toBe('OpenClaw')
     expect(fields.host).toBe('This computer')
     expect(fields.prompt).toBe('Sweep')
+    expect(fields.project).toBe('/srv/sweep-project')
   })
 })
 
@@ -157,14 +160,14 @@ describe('automation search row index', () => {
   })
 
   it('fingerprints identical content identically across a refresh tick', () => {
-    const build = (): ReturnType<typeof buildAutomationSearchRowSources> =>
+    const build = (nextRunAt: number): ReturnType<typeof buildAutomationSearchRowSources> =>
       buildAutomationSearchRowSources(
-        [makeAutomationListRow({ automation: makeAutomation({ nextRunAt: Date.now() }) })],
+        [makeAutomationListRow({ automation: makeAutomation({ nextRunAt }) })],
         { repoMap }
       )
     // Why: nextRunAt churns on every tick and must not invalidate the index.
-    expect(buildAutomationListSearchRowFingerprint(build())).toBe(
-      buildAutomationListSearchRowFingerprint(build())
+    expect(buildAutomationListSearchRowFingerprint(build(100))).toBe(
+      buildAutomationListSearchRowFingerprint(build(200))
     )
   })
 

@@ -91,16 +91,62 @@ function status(overrides: Partial<AgentStatusEntry> = {}): AgentStatusEntry {
 }
 
 describe('automation session reuse in the renderer store', () => {
-  it('selects the latest completed live session for the same automation and workspace', () => {
+  it.each(['wt-1', 'folder:dup'])(
+    'uses exact live ownership with retained history, including legacy local and encoded remote panes (%s)',
+    (worktreeId) => {
+      const physical = { hostId: 'local', repoId: 'repo-1', path: '/repo' } as const
+      const context = {
+        kind: 'workspace-run',
+        projectId: 'removed-project',
+        projectHostSetupId: 'replaced-setup',
+        ...physical
+      } as const
+      function select(
+        hostId: 'local' | 'ssh:old' | 'runtime:server',
+        ptyId: string,
+        liveHost?: string,
+        runContext?: AutomationRun['runContext']
+      ) {
+        return findReusableAutomationSession({
+          automationId: 'auto-1',
+          agentId: 'claude',
+          worktreeId,
+          currentRunId: 'current',
+          target: { ...physical, hostId },
+          runs: [run({ workspaceId: worktreeId, terminalPtyId: ptyId, runContext })],
+          // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: selection reads only these inventory/status fields.
+          state: {
+            agentStatusByPaneKey: { [paneKey]: status({ agentType: 'unknown' }) },
+            ptyIdsByTabId: { 'tab-1': [ptyId] },
+            terminalLayoutsByTabId: { 'tab-1': { ptyIdsByLeafId: { [leafId]: ptyId } } },
+            unifiedTabsByWorktree: {
+              [worktreeId]: [
+                { contentType: 'terminal', entityId: 'tab-1', executionHostId: liveHost }
+              ]
+            }
+          } as never
+        })
+      }
+      expect(select('local', 'pty-1')).not.toBeNull()
+      expect(select('local', 'pty-1', 'local', context)).not.toBeNull()
+      expect(select('ssh:old', 'ssh:old@@pty-1', 'ssh:old')).not.toBeNull()
+      expect(select('runtime:server', 'remote:server@@term_1', 'runtime:server')).not.toBeNull()
+      expect(select('ssh:old', 'pty-1', 'local', context)).toBeNull()
+      expect(select('local', 'pty-1', 'ssh:old', context)).toBeNull()
+      expect(select('local', 'ssh:broken')).toBeNull()
+      expect(select('local', 'remote:foreign')).toBeNull()
+      expect(select('local', 'pty-1', 'local', { ...context, path: '/other' })).toBeNull()
+    }
+  )
+
+  it('does not reuse a live session for a custom agent profile run', () => {
     const args = {
       automationId: 'auto-1',
       agentId: 'claude' as const,
       worktreeId: 'wt-1',
+      target: { hostId: 'local' as const, repoId: 'repo-1', path: '/repo' },
       currentRunId: 'run-current',
-      runs: [
-        run({ id: 'run-old', terminalSessionId: 'tab-old', createdAt: 1 }),
-        run({ id: 'run-new', terminalSessionId: 'tab-1', createdAt: 2 })
-      ],
+      runs: [run({ id: 'run-new', terminalSessionId: 'tab-1', createdAt: 2 })],
       state: state()
     }
 
@@ -115,6 +161,7 @@ describe('automation session reuse in the renderer store', () => {
       automationId: 'auto-1',
       agentId: 'claude',
       worktreeId: 'wt-1',
+      target: { hostId: 'local', repoId: 'repo-1', path: '/repo' },
       currentRunId: 'run-current',
       runs: [
         run({
@@ -150,6 +197,7 @@ describe('automation session reuse in the renderer store', () => {
       automationId: 'auto-1',
       agentId: 'claude',
       worktreeId: 'wt-1',
+      target: { hostId: 'local', repoId: 'repo-1', path: '/repo' },
       currentRunId: 'run-current',
       runs: [run({ id: 'run-new', terminalSessionId: 'tab-1', createdAt: 2 })],
       state: state({
@@ -177,6 +225,7 @@ describe('automation session reuse in the renderer store', () => {
       automationId: 'auto-1',
       agentId: 'claude',
       worktreeId: 'wt-1',
+      target: { hostId: 'local', repoId: 'repo-1', path: '/repo' },
       currentRunId: 'run-current',
       runs: [run({ id: 'run-new', terminalSessionId: 'tab-1', createdAt: 2 })],
       state: state({

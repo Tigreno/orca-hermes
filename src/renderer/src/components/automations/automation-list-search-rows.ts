@@ -67,8 +67,7 @@ export function buildAutomationSearchFields(
       automation.customAgentProfileId,
       context.customAgentProfiles
     ),
-    // The row's own host: a lookup by automation id would give two hosts' rows
-    // one label, so a search for host B could only ever match host A's row.
+    // Use the row’s own host; bare-ID lookup would give colliding authorities the same search label.
     host: row.hostLabel,
     prompt: automation.prompt
   }

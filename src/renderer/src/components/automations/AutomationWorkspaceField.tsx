@@ -12,10 +12,6 @@ import type { AutomationDraft } from './AutomationEditorDialog'
 
 type AutomationWorkspaceFieldProps = {
   draft: AutomationDraft
-  // Whether the dialog is targeting a Hermes upstream. The upstream custom
-  // agent cherry-pick was adapted for the in-house build; the flag is a
-  // no-op here but kept on the signature so the sidebar JSX still type-checks.
-  isHermesTarget?: boolean
   worktrees: Worktree[]
   repoMap: Map<string, Repo>
   pickerTriggerClassName: string
@@ -96,8 +92,7 @@ export function AutomationWorkspaceField({
           />
         ) : (
           <CreateFromPicker
-            // Why: branch search state belongs to the selected project,
-            // so repo switches should reset it before the next paint.
+            // Reset project-specific branch search before paint when the project changes.
             key={draft.projectId}
             repoId={draft.projectId}
             repoMap={repoMap}

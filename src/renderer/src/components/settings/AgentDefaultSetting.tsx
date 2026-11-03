@@ -44,13 +44,16 @@ export function AgentDefaultSetting({
   catalog,
   description,
   onSetDefault,
-  onSetCustomDefault
+  onSetCustomDefault,
+  defaultOpensAsChat = false
 }: {
   defaultAgent: TuiAgent | 'blank' | null
   // Custom-agent default support landed in the upstream cherry-pick; kept
   // optional here so callers without that wiring still type-check.
   defaultCustomAgent?: CustomAgentProfile | null
   detectedIds: Set<string> | null
+  /** The saved default opens as a chat on this host without its CLI. */
+  defaultOpensAsChat?: boolean
   enabledDetectedAgents: AgentCatalogEntry[]
   catalog: AgentCatalogEntry[]
   description: string
@@ -90,7 +93,8 @@ export function AgentDefaultSetting({
         </DefaultAgentPill>
         {defaultAgentPills.map((agent) => {
           const isActive = !defaultCustomAgent && defaultAgent === agent.id
-          const isUndetected = detectedIds !== null && !detectedIds.has(agent.id)
+          const isUndetected =
+            detectedIds !== null && !detectedIds.has(agent.id) && !(isActive && defaultOpensAsChat)
           return (
             <DefaultAgentPill
               key={agent.id}
