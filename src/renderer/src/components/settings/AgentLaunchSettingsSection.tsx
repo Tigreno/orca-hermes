@@ -265,8 +265,7 @@ function LocalAgentLaunchSettings({
             void updateSettings({
               customAgentProfiles: setDefaultCustomAgentProfile(customAgentProfiles, profileId)
             }),
-          onProfilesChange: (profiles) =>
-            updateSettingsOrThrow({ customAgentProfiles: profiles }),
+          onProfilesChange: (profiles) => updateSettingsOrThrow({ customAgentProfiles: profiles }),
           onDuplicateAsCustom: duplicateAsCustom,
           duplicateDisabled: customAgentProfiles.length >= CUSTOM_AGENT_PROFILES_MAX,
           afterDetectedAgents: (

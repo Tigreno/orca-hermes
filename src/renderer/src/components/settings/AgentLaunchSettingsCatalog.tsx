@@ -309,9 +309,7 @@ export function AgentLaunchSettingsCatalog({
       local && isDetected && agent.id === 'codex'
         ? buildCodexSessionSourceHomeControl(local.settings, local.updateSettings)
         : undefined,
-    onDuplicateAsCustom: customAgents
-      ? () => customAgents.onDuplicateAsCustom(agent)
-      : undefined,
+    onDuplicateAsCustom: customAgents ? () => customAgents.onDuplicateAsCustom(agent) : undefined,
     duplicateAsCustomDisabled: customAgents?.duplicateDisabled
   })
   const rowProps = (

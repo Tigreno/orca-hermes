@@ -31,7 +31,10 @@ import {
   reserveAgentBackgroundSessionIdentity
 } from '@/lib/adopt-agent-background-session-tab'
 import { createBackgroundAgentStatusConsumer } from '@/lib/background-agent-status-consumer'
-import { runtimeWaitExitCode, settleTabPtyBinding } from '@/lib/agent-background-session-exit'
+import {
+  createBackgroundSessionExitHandler,
+  runtimeWaitExitCode
+} from '@/lib/agent-background-session-exit'
 import { buildAutomationAgentStartupPlan } from '../../../shared/custom-agent-automation-startup'
 import { isWslUncPath } from '../../../shared/wsl-paths'
 
@@ -121,25 +124,19 @@ export async function launchAgentBackgroundSession(
   // Capture local/SSH incarnation and actual launch config for later steps; runtime terminals supply neither.
   let spawned: { incarnationId?: string; launchConfig?: typeof startupPlan.launchConfig } = {}
   let tab: ReturnType<typeof store.createTab> | null = null
-  let exitHandled = false,
-    eagerPtyBuffer: EagerPtyHandle | null = null
+  let eagerPtyBuffer: EagerPtyHandle | null = null
   let terminalOwnership: ReturnType<typeof bindAutomationTerminal> = null
   let unsubscribeExit = (): void => {},
     unsubscribeData = (): void => {},
     releaseRuntimeObservers = (): void => {}
-  const handleExit = (exitPtyId: string, code: number): void => {
-    if (exitHandled) {
-      return
-    }
-    exitHandled = true
-    unsubscribeExit()
-    unsubscribeData()
-    if (tab) {
-      settleTabPtyBinding(tab.id, exitPtyId, code)
-    }
-    useAppStore.getState().clearAgentLaunchConfig(paneKey)
-    onExit?.(exitPtyId, code)
-  }
+  const sessionExit = createBackgroundSessionExitHandler({
+    tabId: () => tab?.id ?? null,
+    onExit,
+    unsubscribeExit: () => unsubscribeExit(),
+    unsubscribeData: () => unsubscribeData(),
+    clearLaunchConfig: () => useAppStore.getState().clearAgentLaunchConfig(paneKey)
+  })
+  const handleExit = sessionExit.handleExit
   // Main owns local/SSH status scanning; runtime bytes still need renderer-side writes.
   const mainOwnsAgentStatusWrites = isMainTerminalSideEffectAuthorityForPty({
     settings: store.settings,
@@ -229,7 +226,7 @@ export async function launchAgentBackgroundSession(
       runtimeTerminalHandle,
       executionFacts,
       onRetire: () => {
-        exitHandled = true
+        sessionExit.markHandled()
         store.clearAgentLaunchConfig(paneKey)
       },
       ...(title ? { title } : {})
@@ -306,7 +303,7 @@ export async function launchAgentBackgroundSession(
     }
   } catch (error) {
     // Creation and subscription are separate RPCs; failure between them must clean up the invisible runtime terminal.
-    exitHandled = true
+    sessionExit.markHandled()
     terminalOwnership?.release()
     const createdTab = tab
     runBestEffortAgentBackgroundCleanups(unsubscribeExit, unsubscribeData)

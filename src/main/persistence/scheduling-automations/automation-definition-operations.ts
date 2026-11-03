@@ -46,6 +46,7 @@ import {
   sshTargetGenerationForConnection,
   type AutomationStorageAuthority
 } from './automation-owner-projection'
+import { retainAutomationOptionalFields } from './automation-definition-field-retention'
 
 export type AutomationDefinitionOperations = {
   state: PersistedState
@@ -268,14 +269,7 @@ export function updateAutomation(
       : current.nextRunAt,
     updatedAt: Date.now()
   }
-  if (retainContexts && !Object.hasOwn(current, 'sourceContext')) {
-    delete merged.sourceContext
-  }
-  if (extraAgentArgs === undefined) {
-    delete merged.extraAgentArgs
-  } else {
-    merged.extraAgentArgs = extraAgentArgs
-  }
+  retainAutomationOptionalFields(merged, current, { extraAgentArgs, retainContexts })
   assertAutomationExtraAgentArgs(merged)
   if (customAgentProfileId === null) {
     delete merged.customAgentProfileId

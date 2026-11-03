@@ -1,10 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import { ArrowRight, ChevronsUpDown, Terminal, X } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Command, CommandEmpty, CommandInput, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { AgentIcon, type AgentCatalogEntry } from '@/lib/agent-catalog'
+import type { AgentCatalogEntry } from '@/lib/agent-catalog'
 import {
   agentPickerBlankTerminalMatches,
   getAgentPickerCommandValue,
@@ -13,13 +12,10 @@ import {
 import { cn } from '@/lib/utils'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import * as state from './agent-combobox-command-state'
-import {
-  AgentDefaultContextMenu,
-  AgentIconLabel,
-  renderAgentComboboxItem
-} from './agent-combobox-items'
+import { AgentDefaultContextMenu } from './agent-combobox-items'
+import { AgentComboboxSearchItems } from './agent-combobox-search-items'
+import { AgentComboboxClearButton, AgentComboboxTriggerContent } from './agent-combobox-trigger'
 import { translate } from '@/i18n/i18n'
-import { rowLabel } from '@/components/tab-bar/tab-agent-row-presentation'
 import {
   SurfaceAgentItems,
   surfaceCommandValues,
@@ -324,43 +320,15 @@ export default function AgentCombobox({
               )}
               data-agent-combobox-root="true"
             >
-              <span className={cn('inline-flex min-w-0 flex-1', canClear && 'pr-8')}>
-                {selectionCleared ? (
-                  <span className="truncate text-muted-foreground">
-                    {translate(
-                      'components.agentSessionContinuation.selectAgent',
-                      'Select an Agent'
-                    )}
-                  </span>
-                ) : selectedCustomAgent ? (
-                  <AgentIconLabel
-                    icon={<AgentIcon agent={selectedCustomAgent.baseAgent} size={14} />}
-                    label={selectedCustomAgent.label}
-                  />
-                ) : selectedAgent ? (
-                  <AgentIconLabel
-                    icon={<AgentIcon agent={selectedAgent.id} size={14} />}
-                    label={
-                      picksCli
-                        ? rowLabel({ kind: 'cli', agent: selectedAgent.id })
-                        : selectedAgent.label
-                    }
-                  />
-                ) : (
-                  <AgentIconLabel
-                    icon={<Terminal className="size-3.5" />}
-                    label={
-                      allowBlankTerminal
-                        ? blankText
-                        : translate(
-                            'components.agentSessionContinuation.selectAgent',
-                            'Select an Agent'
-                          )
-                    }
-                  />
-                )}
-              </span>
-              <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" />
+              <AgentComboboxTriggerContent
+                canClear={canClear}
+                selectionCleared={selectionCleared}
+                selectedCustomAgent={selectedCustomAgent}
+                selectedAgent={selectedAgent}
+                picksCli={picksCli}
+                allowBlankTerminal={allowBlankTerminal}
+                blankText={blankText}
+              />
             </Button>
           </PopoverTrigger>
         </AgentDefaultContextMenu>
@@ -398,46 +366,32 @@ export default function AgentCombobox({
                   'No agents match your search.'
                 )}
               </CommandEmpty>
-              {blankMatchesQuery
-                ? renderAgentComboboxItem({
-                    key: BLANK_VALUE,
-                    itemValue: BLANK_VALUE,
-                    isChecked: value === null && !selectionCleared,
-                    isDefault: defaultAgent === 'blank',
-                    onSelect: handleSelectBlank,
-                    onSetDefault: onSetDefault ? () => onSetDefault('blank') : undefined,
-                    icon: <Terminal className="size-3.5" />,
-                    label: blankText
-                  })
-                : null}
-              {surfaceRows ? (
-                <SurfaceAgentItems
-                  surfaceRows={{ ...surfaceRows, onPick: handleSurfacePick }}
-                  rows={surfaceList}
-                  value={value}
-                  armedValue={arming.armedValue}
-                  defaultAgent={defaultAgent}
-                  onSetDefault={onSetDefault}
-                />
-              ) : null}
-              {(surfaceRows ? [] : filteredAgents).map((agent) => {
-                const profileId = agent.profileId
-                return renderAgentComboboxItem({
-                  key: agent.id,
-                  itemValue: agent.id,
-                  isChecked: profileId
-                    ? customValue === profileId
-                    : !customValue && value === agent.baseAgent,
-                  isDefault: !profileId && defaultAgent === agent.baseAgent,
-                  onSelect: profileId
-                    ? () => handleSelectCustom(profileId)
-                    : () => handleSelectAgent(agent.baseAgent),
-                  onSetDefault:
-                    !profileId && onSetDefault ? () => onSetDefault(agent.baseAgent) : undefined,
-                  icon: <AgentIcon agent={agent.baseAgent} />,
-                  label: agent.label
-                })
-              })}
+              <AgentComboboxSearchItems
+                blankMatchesQuery={blankMatchesQuery}
+                blankValue={BLANK_VALUE}
+                blankText={blankText}
+                value={value}
+                selectionCleared={selectionCleared}
+                defaultAgent={defaultAgent}
+                onSetDefault={onSetDefault}
+                onSelectBlank={handleSelectBlank}
+                agents={surfaceRows ? [] : filteredAgents}
+                customValue={customValue}
+                onSelectAgent={handleSelectAgent}
+                onSelectCustom={handleSelectCustom}
+                surfaceItems={
+                  surfaceRows ? (
+                    <SurfaceAgentItems
+                      surfaceRows={{ ...surfaceRows, onPick: handleSurfacePick }}
+                      rows={surfaceList}
+                      value={value}
+                      armedValue={arming.armedValue}
+                      defaultAgent={defaultAgent}
+                      onSetDefault={onSetDefault}
+                    />
+                  ) : null
+                }
+              />
             </CommandList>
             {onOpenManageAgents ? (
               <div className="border-t border-border">
@@ -458,31 +412,14 @@ export default function AgentCombobox({
         </PopoverContent>
       </Popover>
       {canClear && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              disabled={disabled}
-              className="absolute right-8 top-1/2 -translate-y-1/2"
-              aria-label={translate(
-                'components.agentCombobox.clearSelection',
-                'Clear agent selection'
-              )}
-              onClick={() => {
-                clearSelection.onClear()
-                closePicker()
-                triggerRef.current?.focus()
-              }}
-            >
-              <X />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="top" sideOffset={4}>
-            {translate('components.agentCombobox.clearSelection', 'Clear agent selection')}
-          </TooltipContent>
-        </Tooltip>
+        <AgentComboboxClearButton
+          disabled={disabled}
+          onClear={() => {
+            clearSelection.onClear()
+            closePicker()
+            triggerRef.current?.focus()
+          }}
+        />
       )}
     </div>
   )

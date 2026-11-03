@@ -32,10 +32,7 @@ import {
 } from '../agent/use-agent-launch-picker-inventory'
 import { agentMenuShortcutLabels } from './agent-menu-shortcut-labels'
 import { useNewTabAgentMenuRows } from './use-new-tab-agent-menu-rows'
-import {
-  isInstalledAgentMenuRow,
-  type NewTabAgentMenuRow
-} from '@/lib/new-tab-agent-menu-rows'
+import { isInstalledAgentMenuRow, type NewTabAgentMenuRow } from '@/lib/new-tab-agent-menu-rows'
 
 const rowAgent = (row: NewTabAgentMenuRow | undefined) =>
   row && isInstalledAgentMenuRow(row) ? row.agent : undefined
@@ -239,9 +236,9 @@ it('keeps desktop preferences for a host that predates host launch settings', as
     useNewTabAgentMenuRows('wt', true, { kind: 'runtime', environmentId: 'alpha' })
   )
   await act(async () => {})
-  expect(
-    hook.result.current.state === 'settled' && hook.result.current.rows.map(rowAgent)
-  ).toEqual(['opencode', 'claude'])
+  expect(hook.result.current.state === 'settled' && hook.result.current.rows.map(rowAgent)).toEqual(
+    ['opencode', 'claude']
+  )
   expect(rpc.call).not.toHaveBeenCalled()
 })
 
@@ -251,9 +248,9 @@ it('falls back to desktop preferences when the first read fails', async () => {
     useNewTabAgentMenuRows('wt', true, { kind: 'runtime', environmentId: 'alpha' })
   )
   await act(async () => {})
-  expect(
-    hook.result.current.state === 'settled' && hook.result.current.rows.map(rowAgent)
-  ).toEqual(['opencode', 'claude'])
+  expect(hook.result.current.state === 'settled' && hook.result.current.rows.map(rowAgent)).toEqual(
+    ['opencode', 'claude']
+  )
 })
 
 it('stops waiting on a stalled host, then applies its late answer', async () => {
