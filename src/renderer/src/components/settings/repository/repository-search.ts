@@ -48,6 +48,31 @@ export function getRepositoryPaneSearchEntries(
       ]
     },
     {
+      title: translate(
+        'components.RepositoryBitrix24ProjectSection.title',
+        'Default Bitrix24 project'
+      ),
+      description: translate(
+        'components.RepositoryBitrix24ProjectSection.searchDescription',
+        'Default the Tasks list to one Bitrix24 project for this repo.'
+      ),
+      keywords: [
+        repo.displayName,
+        ...translateSearchKeyword(
+          'components.RepositoryBitrix24ProjectSection.keywordBitrix24',
+          'bitrix24'
+        ),
+        ...translateSearchKeyword(
+          'components.RepositoryBitrix24ProjectSection.keywordDefaultProject',
+          'default project'
+        ),
+        ...translateSearchKeyword(
+          'components.RepositoryBitrix24ProjectSection.keywordWorkgroup',
+          'workgroup'
+        )
+      ]
+    },
+    {
       title: translate('auto.components.settings.repository.search.7e1e456a95', 'Display Name'),
       description: translate(
         'auto.components.settings.repository.search.883aad2801',

@@ -1,6 +1,12 @@
-export type TaskProvider = 'github' | 'gitlab' | 'linear' | 'jira'
+export type TaskProvider = 'github' | 'gitlab' | 'linear' | 'jira' | 'bitrix24'
 
-export const TASK_PROVIDERS: readonly TaskProvider[] = ['github', 'gitlab', 'linear', 'jira']
+export const TASK_PROVIDERS: readonly TaskProvider[] = [
+  'github',
+  'gitlab',
+  'linear',
+  'jira',
+  'bitrix24'
+]
 
 const TASK_PROVIDER_SET = new Set<TaskProvider>(TASK_PROVIDERS)
 
@@ -98,6 +104,10 @@ function isTaskProviderAvailable(
   }
   // Disconnected Jira must remain visible as its own first-time setup entry point.
   if (provider === 'jira') {
+    return true
+  }
+  // Same for Bitrix24: the source tab is where users discover webhook setup.
+  if (provider === 'bitrix24') {
     return true
   }
   return availability.linearConnected

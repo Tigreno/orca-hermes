@@ -41,6 +41,10 @@ export type TaskProviderErrorCode =
   | 'jira.incompleteProjectPage'
   | 'jira.projectListLimit'
   | 'jira.invalidCloudId'
+  | 'bitrix24.notConnected'
+  | 'bitrix24.invalidWebhook'
+  | 'bitrix24.missingScope'
+  | 'bitrix24.invalidTaskId'
 
 export function taskProviderFailure(
   errorCode: TaskProviderErrorCode,

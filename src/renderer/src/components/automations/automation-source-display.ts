@@ -58,6 +58,8 @@ function getProviderLabel(provider: TaskSourceContext['provider']): string {
       return 'Linear'
     case 'jira':
       return 'Jira'
+    case 'bitrix24':
+      return 'Bitrix24'
   }
 }
 
@@ -75,6 +77,8 @@ function getSourceIdentityLabel(sourceContext: TaskSourceContext): string | null
         return identity.workspaceName ?? identity.workspaceId ?? null
       case 'jira':
         return identity.siteUrl ?? identity.siteId ?? null
+      case 'bitrix24':
+        return identity.portalHost ?? null
     }
   }
   return sourceContext.accountLabel ?? sourceContext.repoId ?? null

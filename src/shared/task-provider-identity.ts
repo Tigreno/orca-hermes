@@ -29,11 +29,19 @@ export type JiraTaskProviderIdentity = {
   projectKey?: string | null
 }
 
+export type Bitrix24TaskProviderIdentity = {
+  provider: 'bitrix24'
+  portalHost?: string | null
+  userId?: string | null
+  groupId?: string | null
+}
+
 export type TaskProviderIdentity =
   | GitHubTaskProviderIdentity
   | GitLabTaskProviderIdentity
   | LinearTaskProviderIdentity
   | JiraTaskProviderIdentity
+  | Bitrix24TaskProviderIdentity
 
 export function normalizeTaskProviderIdentity(
   provider: TaskProvider,
@@ -79,6 +87,13 @@ export function normalizeTaskProviderIdentity(
         siteUrl: normalizeNonEmptyString(raw.siteUrl),
         projectKey: normalizeNonEmptyString(raw.projectKey)
       }
+    case 'bitrix24':
+      return {
+        provider,
+        portalHost: normalizeNonEmptyString(raw.portalHost),
+        userId: normalizeNonEmptyString(raw.userId),
+        groupId: normalizeNonEmptyString(raw.groupId)
+      }
   }
 }
 
@@ -112,6 +127,8 @@ export function isStoredTaskProviderIdentity(provider: TaskProvider, identity: u
       )
     case 'jira':
       return ['siteId', 'siteUrl', 'projectKey'].every((key) => isNullableOptionalString(raw[key]))
+    case 'bitrix24':
+      return ['portalHost', 'userId', 'groupId'].every((key) => isNullableOptionalString(raw[key]))
   }
 }
 
@@ -119,7 +136,8 @@ const TASK_PROVIDER_IDENTITY_FIELDS: Record<TaskProvider, readonly string[]> = {
   github: ['owner', 'repo', 'host'],
   gitlab: ['projectId', 'namespace', 'project', 'webUrl'],
   linear: ['workspaceId', 'workspaceName', 'teamId', 'teamKey'],
-  jira: ['siteId', 'siteUrl', 'projectKey']
+  jira: ['siteId', 'siteUrl', 'projectKey'],
+  bitrix24: ['portalHost', 'userId', 'groupId']
 }
 
 export function areTaskProviderIdentitiesEqual(
@@ -157,6 +175,8 @@ export function taskProviderIdentityCachePart(
       return [identity.workspaceId, identity.teamId ?? identity.teamKey].filter(Boolean).join('/')
     case 'jira':
       return [identity.siteId ?? identity.siteUrl, identity.projectKey].filter(Boolean).join('/')
+    case 'bitrix24':
+      return [identity.portalHost, identity.userId, identity.groupId].filter(Boolean).join('/')
   }
 }
 

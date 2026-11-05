@@ -5,6 +5,7 @@ import { sanitizeRepoIcon } from '../../../../shared/repo-icon'
 import { normalizeRepoBadgeColor } from '../../../../shared/repo-badge-color'
 import { normalizeGhAccountBinding } from '../../../../shared/github/account-binding'
 import { normalizeJiraProjectReference } from '../../../../shared/jira/jira-project-reference'
+import { normalizeBitrix24ProjectReference } from '../../../../shared/bitrix24/project-reference'
 import {
   findRepoForHost,
   getRepoHostIdentityForParts,
@@ -29,6 +30,14 @@ export function sanitizeRepoUpdate(updates: RepoUpdate): RepoUpdate {
       delete sanitized.defaultJiraProject
     } else {
       sanitized.defaultJiraProject = reference
+    }
+  }
+  if ('defaultBitrix24Project' in sanitized) {
+    const reference = normalizeBitrix24ProjectReference(sanitized.defaultBitrix24Project)
+    if (reference === undefined) {
+      delete sanitized.defaultBitrix24Project
+    } else {
+      sanitized.defaultBitrix24Project = reference
     }
   }
   if ('badgeColor' in sanitized) {

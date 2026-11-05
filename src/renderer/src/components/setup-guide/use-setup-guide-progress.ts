@@ -21,6 +21,7 @@ import {
   type FeatureWallSetupProgress
 } from '../feature-wall/feature-wall-setup-progress'
 import { deriveIntegrationConnectionStatus } from '../feature-wall/use-integration-connection-status'
+import { useBitrix24ConnectionStatus } from '@/hooks/use-bitrix24-connection-status'
 import { useSetupGuideBrowserMilestoneProgress } from './setup-guide-browser-milestone-progress'
 import {
   getComputerUsePermissionSetupState,
@@ -60,6 +61,7 @@ export function useSetupGuideProgress(
   const jiraStatusChecked = useAppStore((s) => s.jiraStatusChecked)
   const jiraStatusContextKey = useAppStore((s) => s.jiraStatusContextKey)
   const checkJiraConnection = useAppStore((s) => s.checkJiraConnection)
+  const bitrix24Connection = useBitrix24ConnectionStatus()
   const repos = useAppStore((s) => s.repos)
   const activeRepoId = useAppStore((s) => s.activeRepoId)
   const expectedPreflightContextKey = useAppStore((s) =>
@@ -245,6 +247,8 @@ export function useSetupGuideProgress(
     jiraStatus,
     jiraStatusChecked,
     jiraStatusContextKey,
+    bitrix24Status: bitrix24Connection.status ?? { connected: false },
+    bitrix24Checking: bitrix24Connection.checking,
     providerRuntimeContextKey
   })
   const hasConnectedTaskSource = taskSourceStatus.trackerConnected

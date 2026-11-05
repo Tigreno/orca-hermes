@@ -130,7 +130,21 @@ const COPY: Record<TaskProviderErrorCode, () => string> = {
     translate(
       'taskProviders.errors.jira.invalidCloudId',
       'The site did not report a valid Atlassian cloud ID.'
-    )
+    ),
+  'bitrix24.notConnected': () =>
+    translate('taskProviders.errors.bitrix24.notConnected', 'Not connected to Bitrix24.'),
+  'bitrix24.invalidWebhook': () =>
+    translate(
+      'taskProviders.errors.bitrix24.invalidWebhook',
+      'Enter a Bitrix24 incoming webhook URL like https://portal/rest/user/token/'
+    ),
+  'bitrix24.missingScope': () =>
+    translate(
+      'taskProviders.errors.bitrix24.missingScope',
+      'The Bitrix24 webhook is missing required scopes.'
+    ),
+  'bitrix24.invalidTaskId': () =>
+    translate('taskProviders.errors.bitrix24.invalidTaskId', 'Bitrix24 task ID is required.')
 }
 
 const LEGACY_CODES: Record<string, TaskProviderErrorCode> = {
@@ -177,7 +191,9 @@ const LEGACY_CODES: Record<string, TaskProviderErrorCode> = {
   'Jira returned an incomplete project page.': 'jira.incompleteProjectPage',
   'Jira project list exceeded the page limit. Select a project with JQL instead.':
     'jira.projectListLimit',
-  'The site did not report a valid Atlassian cloud ID.': 'jira.invalidCloudId'
+  'The site did not report a valid Atlassian cloud ID.': 'jira.invalidCloudId',
+  'Not connected to Bitrix24.': 'bitrix24.notConnected',
+  'Bitrix24 task ID is required.': 'bitrix24.invalidTaskId'
 }
 
 function isTaskProviderErrorCode(code: unknown): code is TaskProviderErrorCode {

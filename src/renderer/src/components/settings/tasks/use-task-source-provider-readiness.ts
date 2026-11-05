@@ -6,6 +6,7 @@ import {
 } from '@/hooks/useInstalledAgentSkills'
 import { useActiveProjectSkillRuntime } from '@/hooks/useActiveProjectSkillRuntime'
 import { useLinearProviderConnected } from '@/hooks/useLinearProviderConnected'
+import { useBitrix24ConnectionStatus } from '@/hooks/use-bitrix24-connection-status'
 import { LINEAR_AGENT_SKILL_NAMES } from '@/lib/agent-feature-skill-names'
 import { getLocalPreflightContext } from '@/lib/local-preflight-context'
 import { localPreflightContextKey } from '@/lib/local-preflight-context-key'
@@ -29,6 +30,7 @@ export function useTaskSourceProviderReadiness(
   const jiraStatusChecked = useAppStore((s) => s.jiraStatusChecked)
   const jiraStatusContextKey = useAppStore((s) => s.jiraStatusContextKey)
   const linearConnected = useLinearProviderConnected()
+  const bitrix24Connection = useBitrix24ConnectionStatus()
   const linearStatusChecked = useAppStore((s) => s.linearStatusChecked)
   const linearStatusContextKey = useAppStore((s) => s.linearStatusContextKey)
   const providerRuntimeContextKey = getProviderRuntimeContextKey(settings)
@@ -61,6 +63,8 @@ export function useTaskSourceProviderReadiness(
   const jiraConnected = !jiraChecking && jiraStatus.connected === true
   const linearChecking =
     linearStatusContextKey !== providerRuntimeContextKey || !linearStatusChecked
+  const bitrix24Checking = bitrix24Connection.checking
+  const bitrix24Connected = !bitrix24Checking && bitrix24Connection.status?.connected === true
   // Normalization returns a new array, so memoize by provider contents.
   const visibleProvidersKey = visibleProviders.join(',')
 
@@ -91,9 +95,16 @@ export function useTaskSourceProviderReadiness(
         connected: jiraConnected,
         checking: jiraChecking,
         visible: visible.has('jira')
+      },
+      bitrix24: {
+        connected: bitrix24Connected,
+        checking: bitrix24Checking,
+        visible: visible.has('bitrix24')
       }
     }
   }, [
+    bitrix24Checking,
+    bitrix24Connected,
     githubConnected,
     gitlabConnected,
     jiraChecking,

@@ -38,6 +38,8 @@ function statusFacts(overrides: Partial<StatusFacts> = {}): StatusFacts {
     jiraStatus: { connected: false },
     jiraStatusChecked: true,
     jiraStatusContextKey: 'local#0',
+    bitrix24Status: { connected: false },
+    bitrix24Checking: false,
     providerRuntimeContextKey: 'local#0',
     ...overrides
   }

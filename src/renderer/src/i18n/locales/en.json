@@ -3275,7 +3275,10 @@
           "linearViewNotFound": "Saved Linear view was not found.",
           "linearViewRestoreFailed": "Failed to restore saved Linear view."
         },
-        "shownCount_one": "{{count}} shown"
+        "shownCount_one": "{{count}} shown",
+        "bitrix24Project": "{{project}} · {{portal}}",
+        "bitrix24AllPortal": "All portal tasks",
+        "bitrix24": "Bitrix24"
       },
       "Terminal": {
         "73768427cf": "Close",
@@ -9360,7 +9363,9 @@
           "integrationsHint": "Credentials for all providers also live under",
           "integrationsLink": "Integrations",
           "skillHint": ". After Linear is connected, usage examples stay under Settings → Linear.",
-          "incompleteBannerBodyWithLinear": "Hide providers you do not use, or expand a card and finish its steps. For Linear: API access, the agent skill, and Show in Tasks."
+          "incompleteBannerBodyWithLinear": "Hide providers you do not use, or expand a card and finish its steps. For Linear: API access, the agent skill, and Show in Tasks.",
+          "bitrix24": "Bitrix24",
+          "bitrix24Description": "Connect a Bitrix24 portal webhook and show its project tasks in Tasks."
         },
         "TerminalAppearanceSection": {
           "a14a427ae4": "Thickness of the pane divider line.",
@@ -21098,6 +21103,105 @@
       "formatOnSave": {
         "failed": "Could not format {{file}}. Saving without formatting: {{reason}}"
       }
+    },
+    "bitrix24ConnectDialog": {
+      "failed": "Connection failed",
+      "title": "Connect Bitrix24",
+      "description": "Paste an incoming webhook URL from your Bitrix24 portal. Orca stores it on this desktop and uses it to read tasks.",
+      "webhookLabel": "Incoming webhook URL",
+      "hint": "Create it in Bitrix24 under Developer resources → Other → Incoming webhook. Required scopes: task, tasks, sonet_group.",
+      "cancel": "Cancel",
+      "connecting": "Connecting...",
+      "connect": "Connect",
+      "webhookPlaceholder": "https://portal.bitrix24.ru/rest/1/token/"
+    },
+    "bitrix24ProjectPicker": {
+      "search": "Search Bitrix24 projects",
+      "empty": "No projects found. Enter an ID manually.",
+      "manualPlaceholder": "Bitrix24 project ID",
+      "apply": "Use ID",
+      "manual": "Enter project ID manually",
+      "manualName": "Project {{id}}"
+    },
+    "Bitrix24IntegrationCard": {
+      "connectedDescription": "Connected to {{portal}} as user {{userId}}.",
+      "checking": "Checking Bitrix24 access before showing setup actions.",
+      "description": "Browse tasks and start workspaces from a Bitrix24 project.",
+      "statusConnected": "Connected",
+      "statusNotConnected": "Not connected",
+      "reconnect": "Reconnect Bitrix24",
+      "connect": "Connect Bitrix24",
+      "scope": "Stored on this desktop: {{host}}",
+      "userLabel": "User ID {{id}}",
+      "verified": "Verified",
+      "testing": "Testing...",
+      "test": "Test",
+      "disconnect": "Disconnect Bitrix24",
+      "credentials": "Bitrix24 uses an incoming webhook. The token is stored locally and never leaves this desktop."
+    },
+    "RepositoryBitrix24ProjectSection": {
+      "title": "Default Bitrix24 project",
+      "searchDescription": "Default the Tasks list to one Bitrix24 project for this repo.",
+      "keywordBitrix24": "bitrix24",
+      "keywordDefaultProject": "default project",
+      "keywordWorkgroup": "workgroup",
+      "saveFailed": "Could not save the default Bitrix24 project.",
+      "runtimeUpdate": "Update this runtime to save a default Bitrix24 project.",
+      "description": "Show only this Bitrix24 project’s tasks on the repo Tasks page.",
+      "none": "No default project",
+      "connect": "Connect Bitrix24 in Integrations to choose a project.",
+      "portalChanged": "This project belongs to another Bitrix24 portal. Select it again after connecting the current portal.",
+      "projectMissing": "This project is not in the visible list. Tasks still load for its project ID."
+    },
+    "bitrix24TaskList": {
+      "startWorkspace": "Start workspace",
+      "openInBitrix24": "Open in Bitrix24",
+      "connectTitle": "Connect Bitrix24",
+      "connectDescription": "Browse tasks from your Bitrix24 projects and start workspaces from them.",
+      "connectAction": "Connect Bitrix24",
+      "id": "ID",
+      "title": "Title",
+      "status": "Status",
+      "updated": "Updated",
+      "emptyTitle": "No Bitrix24 tasks",
+      "emptyInProject": "Nothing matches in {{name}}.",
+      "emptyDescription": "Nothing matches the current filter.",
+      "startFailed": "Could not start a workspace from this task.",
+      "loadingMore": "Loading...",
+      "loadMore": "Load more"
+    },
+    "bitrix24TaskDetail": {
+      "title": "Bitrix24 task",
+      "description": "Read task details and start a workspace.",
+      "loading": "Loading task...",
+      "id": "Task #{{id}}",
+      "responsible": "Responsible",
+      "creator": "Creator",
+      "deadline": "Deadline",
+      "updated": "Updated",
+      "descriptionTitle": "Description",
+      "noDescription": "No description.",
+      "startWorkspace": "Start workspace",
+      "openInBitrix24": "Open in Bitrix24"
+    },
+    "bitrix24Filters": {
+      "mine": "My tasks",
+      "all": "All tasks",
+      "completed": "Completed",
+      "search": "Search title",
+      "clearSearch": "Clear search",
+      "refresh": "Refresh tasks"
+    },
+    "bitrix24": {
+      "status": {
+        "new": "New",
+        "pending": "Pending",
+        "inProgress": "In progress",
+        "awaitingControl": "Awaiting control",
+        "completed": "Completed",
+        "deferred": "Deferred",
+        "declined": "Declined"
+      }
     }
   },
   "dashboardPopout": {
@@ -23308,6 +23412,12 @@
         "incompleteProjectPage": "Jira returned an incomplete project page.",
         "projectListLimit": "Jira project list exceeded the page limit. Select a project with JQL instead.",
         "invalidCloudId": "The site did not report a valid Atlassian cloud ID."
+      },
+      "bitrix24": {
+        "notConnected": "Not connected to Bitrix24.",
+        "invalidWebhook": "Enter a Bitrix24 incoming webhook URL like https://portal/rest/user/token/",
+        "missingScope": "The Bitrix24 webhook is missing required scopes.",
+        "invalidTaskId": "Bitrix24 task ID is required."
       }
     }
   },

@@ -47,9 +47,10 @@ export type WorkspaceIntentWorkItem = {
   type: 'issue' | 'pr' | 'mr'
   number: number
   title: string
-  provider?: 'github' | 'gitlab' | 'linear' | 'jira'
+  provider?: 'github' | 'gitlab' | 'linear' | 'jira' | 'bitrix24'
   linearIdentifier?: string
   jiraIdentifier?: string
+  bitrix24Identifier?: string
 }
 
 export type WorkspaceIntentName = {
@@ -156,7 +157,7 @@ function compactWords(input: string, maxWords = 4): string {
 }
 
 function compactWorkItemTitle(title: string, item: WorkspaceIntentWorkItem): string {
-  const identifier = item.linearIdentifier ?? item.jiraIdentifier
+  const identifier = item.linearIdentifier ?? item.jiraIdentifier ?? item.bitrix24Identifier
   let withoutPrefix = title
     .trim()
     .replace(/^(?:issue|pr|pull request|mr|merge request)\s*[#!]?\d+\s*[:-]\s*/i, '')
@@ -180,6 +181,9 @@ function workItemIdentity(item: WorkspaceIntentWorkItem): string {
   }
   if (item.jiraIdentifier) {
     return item.jiraIdentifier.toUpperCase()
+  }
+  if (item.bitrix24Identifier) {
+    return item.bitrix24Identifier
   }
   if (item.type === 'pr') {
     return `PR ${item.number}`

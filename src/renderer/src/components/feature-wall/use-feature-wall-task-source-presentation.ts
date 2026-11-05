@@ -3,6 +3,7 @@ import type { FeatureWallWorkflow } from '../../../../shared/feature-wall-workfl
 import { useAppStore } from '@/store'
 import { getLocalPreflightContext, localPreflightContextKey } from '@/lib/local-preflight-context'
 import { getProviderRuntimeContextKey } from '@/lib/provider-runtime-context'
+import { useBitrix24ConnectionStatus } from '@/hooks/use-bitrix24-connection-status'
 import { deriveIntegrationConnectionStatus } from './use-integration-connection-status'
 
 export type FeatureWallTaskSourcePresentation = {
@@ -30,6 +31,7 @@ export function useFeatureWallTaskSourcePresentation(
   const jiraStatusChecked = useAppStore((s) => s.jiraStatusChecked)
   const jiraStatusContextKey = useAppStore((s) => s.jiraStatusContextKey)
   const checkJiraConnection = useAppStore((s) => s.checkJiraConnection)
+  const bitrix24Connection = useBitrix24ConnectionStatus()
   const settings = useAppStore((s) => s.settings)
   const expectedPreflightContextKey = useAppStore((s) =>
     localPreflightContextKey(getLocalPreflightContext(s))
@@ -84,6 +86,8 @@ export function useFeatureWallTaskSourcePresentation(
     jiraStatus,
     jiraStatusChecked,
     jiraStatusContextKey,
+    bitrix24Status: bitrix24Connection.status ?? { connected: false },
+    bitrix24Checking: bitrix24Connection.checking,
     providerRuntimeContextKey
   })
 

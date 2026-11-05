@@ -1,6 +1,7 @@
 import { useAppStore } from '@/store'
 import { getLocalPreflightContext, localPreflightContextKey } from '@/lib/local-preflight-context'
 import { getProviderRuntimeContextKey } from '@/lib/provider-runtime-context'
+import { useBitrix24ConnectionStatus } from '@/hooks/use-bitrix24-connection-status'
 
 export type IntegrationStepState = 'active' | 'done' | 'upcoming'
 
@@ -23,7 +24,7 @@ export function deriveIntegrationStepStates(input: {
 
 export function deriveIntegrationFlowState(input: {
   reviewConnected: boolean
-  trackerProviderName: 'Linear' | 'Jira' | null
+  trackerProviderName: 'Linear' | 'Jira' | 'Bitrix24' | null
   codeHostTaskProviderName: 'GitHub' | 'GitLab' | null
   trackerChecking: boolean
 }): {
@@ -82,6 +83,8 @@ type ProviderStatusFacts = {
   jiraStatus: { connected?: boolean }
   jiraStatusChecked: boolean
   jiraStatusContextKey: string | null
+  bitrix24Status: { connected?: boolean }
+  bitrix24Checking: boolean
   providerRuntimeContextKey: string
 }
 
@@ -93,9 +96,9 @@ export type IntegrationConnectionStatus = {
   // Any usable task source, including code-host issues, satisfies this legacy-named field.
   trackerConnected: boolean
   // Dedicated trackers only; code hosts use reviewProviderName.
-  trackerProviderName: 'Linear' | 'Jira' | null
+  trackerProviderName: 'Linear' | 'Jira' | 'Bitrix24' | null
   // Include all usable sources, trackers first, for complete connection summaries.
-  taskSourceNames: ('Linear' | 'Jira' | 'GitHub' | 'GitLab')[]
+  taskSourceNames: ('Linear' | 'Jira' | 'Bitrix24' | 'GitHub' | 'GitLab')[]
   // True while the code-host check is unresolved, stale or loading.
   reviewChecking: boolean
   trackerChecking: boolean
@@ -156,6 +159,7 @@ export function deriveIntegrationConnectionStatus(
   const linearConnected =
     !linearChecking && linearStatusCurrent && facts.linearStatus.connected === true
   const jiraConnected = !jiraChecking && jiraStatusCurrent && facts.jiraStatus.connected === true
+  const bitrix24Connected = !facts.bitrix24Checking && facts.bitrix24Status.connected === true
 
   const reviewProviderName = githubConnected
     ? 'GitHub'
@@ -169,16 +173,24 @@ export function deriveIntegrationConnectionStatus(
             ? 'Gitea'
             : null
   const codeHostTaskProviderName = githubConnected ? 'GitHub' : gitlabConnected ? 'GitLab' : null
-  const trackerProviderName = linearConnected ? 'Linear' : jiraConnected ? 'Jira' : null
+  const trackerProviderName = linearConnected
+    ? 'Linear'
+    : jiraConnected
+      ? 'Jira'
+      : bitrix24Connected
+        ? 'Bitrix24'
+        : null
   const taskSourceNames: IntegrationConnectionStatus['taskSourceNames'] = [
     ...(linearConnected ? (['Linear'] as const) : []),
     ...(jiraConnected ? (['Jira'] as const) : []),
+    ...(bitrix24Connected ? (['Bitrix24'] as const) : []),
     ...(githubConnected ? (['GitHub'] as const) : []),
     ...(gitlabConnected ? (['GitLab'] as const) : [])
   ]
   const hasUsableTaskSource = taskSourceNames.length > 0
   // Parent readiness needs one task source; the code-host acknowledgement waits for trackers to choose accurate copy.
-  const trackerChecking = trackerProviderName === null && (linearChecking || jiraChecking)
+  const trackerChecking =
+    trackerProviderName === null && (linearChecking || jiraChecking || facts.bitrix24Checking)
 
   return {
     reviewConnected:
@@ -211,6 +223,7 @@ export function useIntegrationConnectionStatus(): IntegrationConnectionStatus {
   const jiraStatusChecked = useAppStore((s) => s.jiraStatusChecked)
   const jiraStatusContextKey = useAppStore((s) => s.jiraStatusContextKey)
   const settings = useAppStore((s) => s.settings)
+  const bitrix24Connection = useBitrix24ConnectionStatus()
   const expectedPreflightContextKey = useAppStore((s) =>
     localPreflightContextKey(getLocalPreflightContext(s))
   )
@@ -230,6 +243,8 @@ export function useIntegrationConnectionStatus(): IntegrationConnectionStatus {
     jiraStatus,
     jiraStatusChecked,
     jiraStatusContextKey,
+    bitrix24Status: bitrix24Connection.status ?? { connected: false },
+    bitrix24Checking: bitrix24Connection.checking,
     providerRuntimeContextKey
   })
 }

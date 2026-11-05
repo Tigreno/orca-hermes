@@ -6,6 +6,7 @@ import { RuntimeEmulatorCommands } from './orca-runtime-emulator'
 import { RuntimeBrowserScreencastController } from './runtime-browser-screencast-controller'
 import { createRuntimeBrowserCommands } from './runtime-browser-commands-factory'
 import { RuntimeJiraCommands } from './runtime-jira-commands'
+import { RuntimeBitrix24Commands } from './runtime-bitrix24-commands'
 import type { RpcBinarySender } from './rpc/rpc-binary-sender'
 
 type PublicMethods<T> = Pick<T, keyof T>
@@ -25,6 +26,7 @@ type BrowserSurface = Omit<PublicMethods<RuntimeBrowserCommands>, 'browserScreen
 
 export type RuntimeEdgeCommandSurface = BrowserSurface &
   PublicMethods<RuntimeJiraCommands> &
+  PublicMethods<RuntimeBitrix24Commands> &
   PublicMethods<RuntimeEmulatorCommands>
 
 type ScreencastDependencies = ConstructorParameters<typeof RuntimeBrowserScreencastController>[0]
@@ -145,6 +147,7 @@ function bindBrowserMethods<T extends object>(
 
 export class RuntimeEdgeCommandController {
   private readonly jira: RuntimeJiraCommands
+  private readonly bitrix24: RuntimeBitrix24Commands
   private readonly browser: RuntimeBrowserCommands
   private readonly screencasts: RuntimeBrowserScreencastController
   private readonly emulator: RuntimeEmulatorCommands
@@ -158,6 +161,7 @@ export class RuntimeEdgeCommandController {
     getBrowserCommands?: () => RuntimeBrowserCommands
   }) {
     this.jira = new RuntimeJiraCommands(args.jiraHost)
+    this.bitrix24 = new RuntimeBitrix24Commands()
     this.browser = createRuntimeBrowserCommands(args.browserHost)
     this.screencasts = new RuntimeBrowserScreencastController({
       ...args.screencast,
@@ -167,6 +171,7 @@ export class RuntimeEdgeCommandController {
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the bound name lists are checked against the classes above; spreading loses their key types.
     this.surface = {
       ...bindPrefixedMethods(this.jira, 'jira'),
+      ...bindPrefixedMethods(this.bitrix24, 'bitrix24'),
       ...bindBrowserMethods(this.browser, BROWSER_COMMAND_NAMES),
       ...bindPrefixedMethods(this.emulator, 'emulator'),
       browserScreencast: (params, options) => this.screencasts.start(params, options)

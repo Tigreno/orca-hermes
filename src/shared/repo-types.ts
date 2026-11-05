@@ -7,6 +7,7 @@ import type { GitRemoteIdentity } from './git/remotes/git-remote-identity'
 import type { RepoSourceControlAiOverrides } from './source-control/ai/settings/source-control-ai-settings-types'
 import type { RepoProjectHostSetupMethod } from './project-types'
 import type { JiraProjectReference } from './jira/jira-project-reference'
+import type { Bitrix24ProjectReference } from './bitrix24/project-reference'
 import type { OrcadRetainedMarker } from './orcad-retained-marker'
 import type { EditorFormatter } from './editor-formatter'
 
@@ -64,6 +65,8 @@ export type Repo = {
   issueSourcePreference?: IssueSourcePreference
   /** Host-owned Jira project default; users can override it in each composer. */
   defaultJiraProject?: JiraProjectReference | null
+  /** Bitrix24 workgroup whose tasks this repo's Tasks page shows. */
+  defaultBitrix24Project?: Bitrix24ProjectReference | null
   /** Bind host/login only; resolve a short-lived gh token at spawn and inject into that child’s environment. */
   ghAccount?: GhAccountBinding
   /** Controls Orca's fork-default-branch sync offer for repos with upstream metadata. */

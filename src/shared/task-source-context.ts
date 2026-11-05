@@ -18,6 +18,7 @@ import type { GlobalSettings } from './global-settings-types'
 import type { Repo } from './repo-types'
 
 export type {
+  Bitrix24TaskProviderIdentity,
   GitHubTaskProviderIdentity,
   GitLabTaskProviderIdentity,
   JiraTaskProviderIdentity,
@@ -152,6 +153,13 @@ export function haveConflictingTaskSourceAccounts(
     const right = b.providerIdentity?.provider === 'jira' ? b.providerIdentity.siteId : null
     return Boolean(left && right && left !== right)
   }
+  if (a.provider === 'bitrix24') {
+    const left =
+      a.providerIdentity?.provider === 'bitrix24' ? bitrix24AccountKey(a.providerIdentity) : null
+    const right =
+      b.providerIdentity?.provider === 'bitrix24' ? bitrix24AccountKey(b.providerIdentity) : null
+    return Boolean(left && right && left !== right)
+  }
   const left = a.accountLabel?.trim()
   const right = b.accountLabel?.trim()
   return Boolean(left && right && left !== right)
@@ -238,6 +246,8 @@ function normalizeTaskProvider(value: unknown): TaskProvider | null {
     case 'linear':
     case 'jira':
       return value
+    case 'bitrix24':
+      return value
     default:
       return null
   }
@@ -250,6 +260,13 @@ function normalizeNonEmptyString(value: unknown): string | null {
 
 function isNullableOptionalString(value: unknown): boolean {
   return value === undefined || value === null || typeof value === 'string'
+}
+
+function bitrix24AccountKey(identity: {
+  portalHost?: string | null
+  userId?: string | null
+}): string {
+  return [identity.portalHost, identity.userId].filter(Boolean).join('/')
 }
 
 function encodeCachePart(value: string): string {

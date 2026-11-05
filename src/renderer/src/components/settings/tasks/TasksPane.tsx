@@ -8,6 +8,7 @@ import {
   normalizeVisibleTaskProviders,
   resolveVisibleTaskProvider
 } from '../../../../../shared/task-providers'
+import { Bitrix24Icon } from '@/components/icons/Bitrix24Icon'
 import { JiraIcon } from '@/components/icons/JiraIcon'
 import { LinearIcon } from '@/components/icons/LinearIcon'
 import { Button } from '@/components/ui/button'
@@ -90,6 +91,18 @@ const PROVIDER_META: Record<
       )
     },
     Icon: ({ className }) => <JiraIcon className={className} />
+  },
+  bitrix24: {
+    get label() {
+      return translate('auto.components.settings.TasksPane.bitrix24', 'Bitrix24')
+    },
+    get description() {
+      return translate(
+        'auto.components.settings.TasksPane.bitrix24Description',
+        'Connect a Bitrix24 portal webhook and show its project tasks in Tasks.'
+      )
+    },
+    Icon: ({ className }) => <Bitrix24Icon className={className} />
   }
 }
 

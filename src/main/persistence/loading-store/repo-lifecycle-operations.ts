@@ -166,6 +166,7 @@ export class RepoLifecycleOperations {
         | 'upstream'
         | 'gitRemoteIdentity'
         | 'defaultJiraProject'
+        | 'defaultBitrix24Project'
         | 'hookSettings'
         | 'editorFormatter'
         | 'worktreeBaseRef'

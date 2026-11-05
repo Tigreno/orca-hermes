@@ -357,6 +357,8 @@ export type GlobalSettings = GlobalSettingsBase & {
   visibleTaskProviders: TaskProvider[]
   /** Why: one-shot guard to make Jira visible for existing profiles once, without re-adding after a later opt-out. */
   visibleTaskProvidersDefaultedForJira: boolean
+  /** Why: same one-shot guard for Bitrix24. */
+  visibleTaskProvidersDefaultedForBitrix24: boolean
   /** Repo selection: null includes all present/future repos; arrays freeze a subset, dropping ineligible ids on load and treating empty as null. */
   defaultRepoSelection: string[] | null
   /** Linear team selection: null includes all; arrays freeze selected team IDs, matching defaultRepoSelection. */
@@ -383,13 +385,10 @@ export type GlobalSettings = GlobalSettingsBase & {
    *  into ~/.codex, and removes nothing already linked (#24511). Absent means on (#10770). */
   codexShareHistoryAcrossAccounts?: boolean
   /** Custom CODEX_HOME for Codex session-history discovery (defaults to ~/.codex).
-   *  History-only: does not change which account/config/hooks Orca uses. */
-  codexSessionSourceHome?: {
-    /** Absolute host path; empty/undefined falls back to ~/.codex. */
-    host?: string
-    /** Per-WSL-distro absolute Linux path; missing distro falls back to <wslHome>/.codex. */
-    wsl?: Record<string, string>
-  }
+   *  History-only: does not change which account/config/hooks Orca uses.
+   *  `host` is an absolute host path; empty/undefined falls back to ~/.codex.
+   *  `wsl` maps a distro to an absolute Linux path; missing distro falls back to <wslHome>/.codex. */
+  codexSessionSourceHome?: { host?: string; wsl?: Record<string, string> }
   /** Per-agent default CLI arguments appended after the binary/path and before prompts. */
   agentDefaultArgs?: Partial<Record<TuiAgent, string>>
   agentLaunchChoices?: AgentLaunchChoices

@@ -11,6 +11,7 @@ import {
 } from '@/components/integrations/source-control/cli-source-control-integration-cards'
 import { JiraIntegrationCard } from '@/components/integrations/task-trackers/jira-integration-card'
 import { LinearIntegrationCard } from '@/components/integrations/task-trackers/linear-integration-card'
+import { Bitrix24IntegrationCard } from '@/components/integrations/task-trackers/bitrix24-integration-card'
 import {
   IntegrationCardGroup,
   IntegrationCardPresentationProvider
@@ -160,6 +161,7 @@ export function ConnectIntegrationsList(): React.JSX.Element {
           <IntegrationCardGroup>
             <LinearIntegrationCard />
             <JiraIntegrationCard />
+            <Bitrix24IntegrationCard />
           </IntegrationCardGroup>
           <p className="px-1 pt-0.5 text-[12px] leading-snug text-muted-foreground">
             {translate(

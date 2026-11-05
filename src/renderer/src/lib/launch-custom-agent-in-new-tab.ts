@@ -26,7 +26,10 @@ import {
   type CustomAgentProfile
 } from '../../../shared/custom-agent-profile'
 import { parseExecutionHostId } from '../../../shared/execution-host'
-import { quoteStartupArg, resolveStartupShell } from '../../../shared/agent-launch/startup/tui-agent-startup-shell'
+import {
+  quoteStartupArg,
+  resolveStartupShell
+} from '../../../shared/agent-launch/startup/tui-agent-startup-shell'
 import { resolveLocalWindowsAgentStartupShell } from '../../../shared/windows-terminal-shell'
 import type { TuiAgent } from '../../../shared/agent-launch/catalog/tui-agent'
 

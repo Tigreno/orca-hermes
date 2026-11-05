@@ -120,11 +120,18 @@ export function prepareLoadedProfileSettings(
   })
   const visibleTaskProvidersDefaultedForJira =
     parsed.settings?.visibleTaskProvidersDefaultedForJira === true
-  const migratedVisibleTaskProviders = visibleTaskProvidersDefaultedForJira
+  const visibleTaskProvidersDefaultedForBitrix24 =
+    parsed.settings?.visibleTaskProvidersDefaultedForBitrix24 === true
+  const providerVisibleAfterJiraMigration = visibleTaskProvidersDefaultedForJira
     ? rawTaskProviderSettings.visibleTaskProviders
     : rawTaskProviderSettings.visibleTaskProviders.includes('jira')
       ? rawTaskProviderSettings.visibleTaskProviders
       : [...rawTaskProviderSettings.visibleTaskProviders, 'jira' as const]
+  const migratedVisibleTaskProviders = visibleTaskProvidersDefaultedForBitrix24
+    ? providerVisibleAfterJiraMigration
+    : providerVisibleAfterJiraMigration.includes('bitrix24')
+      ? providerVisibleAfterJiraMigration
+      : [...providerVisibleAfterJiraMigration, 'bitrix24' as const]
   const taskProviderSettings = normalizeTaskProviderSettings({
     visibleTaskProviders: migratedVisibleTaskProviders,
     defaultTaskSource: rawTaskProviderSettings.defaultTaskSource
@@ -145,7 +152,7 @@ export function prepareLoadedProfileSettings(
   if (migratePrimarySelectionPlatformDefault || stampPrimarySelectionTerminalDefaults) {
     markNeedsSave()
   }
-  if (!visibleTaskProvidersDefaultedForJira) {
+  if (!visibleTaskProvidersDefaultedForJira || !visibleTaskProvidersDefaultedForBitrix24) {
     markNeedsSave()
   }
   const claudeAgentTeamsDefaultDisabledMigrated =

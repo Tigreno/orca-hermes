@@ -58,6 +58,7 @@ export type RepositoryApi = {
         | 'kind'
         | 'issueSourcePreference'
         | 'defaultJiraProject'
+        | 'defaultBitrix24Project'
         | 'externalWorktreeVisibilityPromptDismissedAt'
         | 'externalWorktreeInboxBaselinePaths'
         | 'importedExternalWorktreePaths'
