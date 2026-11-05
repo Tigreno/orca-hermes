@@ -46,6 +46,7 @@ import {
   sshTargetGenerationForConnection,
   type AutomationStorageAuthority
 } from './automation-owner-projection'
+import { retainAutomationOptionalFields } from './automation-definition-field-retention'
 
 export type AutomationDefinitionOperations = {
   state: PersistedState
@@ -113,6 +114,7 @@ export function createAutomation(
     agentId: input.agentId,
     ...(setup.surface ? { surface: setup.surface } : {}),
     ...(extraAgentArgs !== undefined ? { extraAgentArgs } : {}),
+    ...(input.customAgentProfileId ? { customAgentProfileId: input.customAgentProfileId } : {}),
     // Prefer authority-local contexts; client-assigned runtime IDs cannot identify this store's host.
     runContext: contexts.runContext ?? input.runContext ?? null,
     sourceContext: contexts.sourceContext ?? input.sourceContext ?? null,
@@ -184,6 +186,7 @@ export function updateAutomation(
       ([, value]) => value !== undefined
     )
   ) as Omit<AutomationUpdateInput, 'launchSetupPatch'> & Pick<Automation, 'surface'>
+  const { customAgentProfileId, ...mergedUpdates } = definedUpdates
   const repoId = updates.projectId ?? current.projectId
   const selectorMoveRequested =
     updates.projectId !== undefined || options?.destination !== undefined
@@ -207,7 +210,7 @@ export function updateAutomation(
     : storedExtraAgentArgs(current.extraAgentArgs)
   const merged: Automation = {
     ...current,
-    ...definedUpdates,
+    ...mergedUpdates,
     name: updates.name !== undefined ? updates.name.trim() || 'Untitled automation' : current.name,
     precheck: Object.hasOwn(definedUpdates, 'precheck')
       ? normalizeAutomationPrecheck(definedUpdates.precheck)
@@ -266,15 +269,13 @@ export function updateAutomation(
       : current.nextRunAt,
     updatedAt: Date.now()
   }
-  if (retainContexts && !Object.hasOwn(current, 'sourceContext')) {
-    delete merged.sourceContext
-  }
-  if (extraAgentArgs === undefined) {
-    delete merged.extraAgentArgs
-  } else {
-    merged.extraAgentArgs = extraAgentArgs
-  }
+  retainAutomationOptionalFields(merged, current, { extraAgentArgs, retainContexts })
   assertAutomationExtraAgentArgs(merged)
+  if (customAgentProfileId === null) {
+    delete merged.customAgentProfileId
+  } else if (customAgentProfileId !== undefined) {
+    merged.customAgentProfileId = customAgentProfileId
+  }
   const previousPin = automationWorkspaceSshPin(operations.state, current.workspaceId)
   const workspaceSshPin = automationWorkspaceSshPin(operations.state, merged.workspaceId)
   const workspaceSshPinMoved = previousPin?.targetId !== workspaceSshPin?.targetId

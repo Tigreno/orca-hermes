@@ -45,7 +45,7 @@ const mocks = vi.hoisted(() => ({
     (
       args: Parameters<typeof AgentTabShortcuts.resolveTerminalAgentTabShortcut>[0]
     ) => TerminalAgentTabShortcut
-  >(() => ({ actionId: null, agent: null })),
+  >(() => ({ actionId: null, agent: null, customAgentProfileId: null })),
   actualResolveAgentShortcut: vi.fn<typeof AgentTabShortcuts.resolveTerminalAgentTabShortcut>(),
   launchAgentInNewTab: vi.fn()
 }))
@@ -515,7 +515,8 @@ describe('agent tab shortcuts', () => {
     }
     mocks.resolveAgentShortcut.mockReturnValueOnce({
       actionId: 'tab.newAgent.claude',
-      agent: 'claude'
+      agent: 'claude',
+      customAgentProfileId: null
     })
   })
 
@@ -637,6 +638,7 @@ describe('agent shortcut delivery and deferred ownership', () => {
       mocks.resolveAgentShortcut.mockReturnValue({
         actionId: 'tab.newAgent',
         agent: null,
+        customAgentProfileId: null,
         pendingAgent: detection.promise
       })
       handleTerminalWorkspaceKeyDown(

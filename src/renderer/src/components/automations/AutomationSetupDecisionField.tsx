@@ -11,6 +11,10 @@ import type { Repo } from '../../../../shared/repo-types'
 
 type AutomationSetupDecisionFieldProps = {
   draft: AutomationDraft
+  // Drives Hermes-vs-Orca variant behaviour in the upstream cherry-pick;
+  // no-op here until the Hermes editor lands, but kept so the sidebar JSX
+  // still type-checks.
+  createTarget?: string
   repos: readonly Repo[]
   projectHostSetups: readonly ProjectHostSetup[]
   yamlHooks?: OrcaHooks | null

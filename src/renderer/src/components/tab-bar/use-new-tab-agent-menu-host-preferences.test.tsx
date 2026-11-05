@@ -33,6 +33,10 @@ import {
 } from '../agent/use-agent-launch-picker-inventory'
 import { agentMenuShortcutLabels } from './agent-menu-shortcut-labels'
 import { useNewTabAgentMenuRows } from './use-new-tab-agent-menu-rows'
+import { isInstalledAgentMenuRow, type NewTabAgentMenuRow } from '@/lib/new-tab-agent-menu-rows'
+
+const rowAgent = (row: NewTabAgentMenuRow | undefined) =>
+  row && isInstalledAgentMenuRow(row) ? row.agent : undefined
 
 it.each(['wt', 'folder:f1'])(
   'uses the host list and default for %s without changing desktop settings',
@@ -84,7 +88,7 @@ it('filters chat and CLI rows with host preferences while keeping the desktop ch
   })
   expect(
     hook.result.current.state === 'settled' &&
-      hook.result.current.rows.some((row) => row.agent === 'opencode')
+      hook.result.current.rows.some((row) => rowAgent(row) === 'opencode')
   ).toBe(false)
 })
 
@@ -103,13 +107,13 @@ it('ignores old reads across host switches, restarts, and re-pairing', async () 
   await act(async () => {})
   hook.rerender({ environmentId: 'beta' })
   await act(async () => {})
-  expect(hook.result.current.state === 'settled' && hook.result.current.rows[0]?.agent).toBe(
+  expect(hook.result.current.state === 'settled' && rowAgent(hook.result.current.rows[0])).toBe(
     'codex'
   )
   await act(async () =>
     old.resolve({ settings: projectAgentLaunchSettings({ disabledTuiAgents: ['codex'] }) })
   )
-  expect(hook.result.current.state === 'settled' && hook.result.current.rows[0]?.agent).toBe(
+  expect(hook.result.current.state === 'settled' && rowAgent(hook.result.current.rows[0])).toBe(
     'codex'
   )
   const restarted = Promise.withResolvers<{ settings: typeof server }>()
@@ -132,7 +136,7 @@ it('ignores old reads across host switches, restarts, and re-pairing', async () 
   await act(async () =>
     restarted.resolve({ settings: projectAgentLaunchSettings({ disabledTuiAgents: ['codex'] }) })
   )
-  expect(hook.result.current.state === 'settled' && hook.result.current.rows[0]?.agent).toBe(
+  expect(hook.result.current.state === 'settled' && rowAgent(hook.result.current.rows[0])).toBe(
     'codex'
   )
 })
@@ -162,7 +166,7 @@ it.each([20, 200])('bounds %s menu owners across save/open', async (n) => {
   expect(reads()).toHaveLength(1)
   await act(notify)
   await act(async () => old.resolve())
-  expect(hook.result.current.state === 'settled' && hook.result.current.rows[0]?.agent).toBe(
+  expect(hook.result.current.state === 'settled' && rowAgent(hook.result.current.rows[0])).toBe(
     'codex'
   )
   expect(reads()).toHaveLength(2)
@@ -174,7 +178,7 @@ it.each([20, 200])('bounds %s menu owners across save/open', async (n) => {
   )
   hooks.forEach((h) => h.rerender({ open: true }))
   await act(async () => {})
-  expect(hook.result.current.state === 'settled' && hook.result.current.rows[0]?.agent).toBe(
+  expect(hook.result.current.state === 'settled' && rowAgent(hook.result.current.rows[0])).toBe(
     'claude'
   )
   expect(reads()).toHaveLength(3)
@@ -200,7 +204,7 @@ it('keeps this runtime’s last preferences through a failed reconnect refresh',
   )
   await act(async () => {})
   expect(rpc.call).toHaveBeenCalledTimes(2)
-  expect(hook.result.current.state === 'settled' && hook.result.current.rows[0]?.agent).toBe(
+  expect(hook.result.current.state === 'settled' && rowAgent(hook.result.current.rows[0])).toBe(
     'codex'
   )
 })
@@ -216,13 +220,13 @@ it('reopens a freshly mounted menu with the last host answer, then revalidates',
   const second = renderHook(() =>
     useNewTabAgentMenuRows('wt', true, { kind: 'runtime', environmentId: 'alpha' })
   )
-  expect(second.result.current.state === 'settled' && second.result.current.rows[0]?.agent).toBe(
+  expect(second.result.current.state === 'settled' && rowAgent(second.result.current.rows[0])).toBe(
     'codex'
   )
   await act(async () =>
     pending.resolve({ settings: projectAgentLaunchSettings({ defaultTuiAgent: 'claude' }) })
   )
-  expect(second.result.current.state === 'settled' && second.result.current.rows[0]?.agent).toBe(
+  expect(second.result.current.state === 'settled' && rowAgent(second.result.current.rows[0])).toBe(
     'claude'
   )
 })
@@ -233,9 +237,9 @@ it('keeps desktop preferences for a host that predates host launch settings', as
     useNewTabAgentMenuRows('wt', true, { kind: 'runtime', environmentId: 'alpha' })
   )
   await act(async () => {})
-  expect(
-    hook.result.current.state === 'settled' && hook.result.current.rows.map((row) => row.agent)
-  ).toEqual(['opencode', 'claude'])
+  expect(hook.result.current.state === 'settled' && hook.result.current.rows.map(rowAgent)).toEqual(
+    ['opencode', 'claude']
+  )
   expect(rpc.call).not.toHaveBeenCalled()
 })
 
@@ -245,9 +249,9 @@ it('falls back to desktop preferences when the first read fails', async () => {
     useNewTabAgentMenuRows('wt', true, { kind: 'runtime', environmentId: 'alpha' })
   )
   await act(async () => {})
-  expect(
-    hook.result.current.state === 'settled' && hook.result.current.rows.map((row) => row.agent)
-  ).toEqual(['opencode', 'claude'])
+  expect(hook.result.current.state === 'settled' && hook.result.current.rows.map(rowAgent)).toEqual(
+    ['opencode', 'claude']
+  )
 })
 
 it('stops waiting on a stalled host, then applies its late answer', async () => {
@@ -260,11 +264,11 @@ it('stops waiting on a stalled host, then applies its late answer', async () => 
     )
     expect(hook.result.current.state).toBe('loading')
     await act(async () => vi.advanceTimersByTime(3_000))
-    expect(hook.result.current.state === 'settled' && hook.result.current.rows[0]?.agent).toBe(
+    expect(hook.result.current.state === 'settled' && rowAgent(hook.result.current.rows[0])).toBe(
       'opencode'
     )
     await act(async () => stalled.resolve({ settings: server }))
-    expect(hook.result.current.state === 'settled' && hook.result.current.rows[0]?.agent).toBe(
+    expect(hook.result.current.state === 'settled' && rowAgent(hook.result.current.rows[0])).toBe(
       'codex'
     )
   } finally {
@@ -552,7 +556,7 @@ it('keeps a cold detected shortcut synchronous without starting a preference rea
       keybindings: {},
       matchShortcut: (action) => action === 'tab.newAgent'
     })
-  ).toEqual({ actionId: 'tab.newAgent', agent: 'claude' })
+  ).toEqual({ actionId: 'tab.newAgent', agent: 'claude', customAgentProfileId: null })
   expect(rpc.call).not.toHaveBeenCalled()
 })
 

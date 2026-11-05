@@ -21,6 +21,7 @@ import { normalizeDesktopTerminalScrollbackRows } from '../../../shared/terminal
 import { normalizeTerminalMinimumContrastRatio } from '../../../shared/terminal-themes/terminal-minimum-contrast-settings'
 import { normalizeTaskProviderSettings } from '../../../shared/task-providers'
 import { normalizeOpenInApplications } from '../../../shared/open-in-applications'
+import { normalizeCustomAgentProfiles } from '../../../shared/custom-agent-profile'
 import { normalizeTerminalShortcutPolicy } from '../../../shared/keybindings'
 import { normalizeSourceControlGroupOrder } from '../../../shared/source-control/listing/source-control-group-order'
 import { normalizeAppIconId } from '../../../shared/app-icon'
@@ -113,6 +114,9 @@ export function updateSettings(
     }
   }
   sanitizeAgentLaunchProfileUpdates(sanitizedUpdates, updates)
+  if ('customAgentProfiles' in updates) {
+    sanitizedUpdates.customAgentProfiles = normalizeCustomAgentProfiles(updates.customAgentProfiles)
+  }
   if ('nativeChatPermissionMode' in updates || 'agentPermissionDefault' in updates) {
     Object.assign(
       sanitizedUpdates,

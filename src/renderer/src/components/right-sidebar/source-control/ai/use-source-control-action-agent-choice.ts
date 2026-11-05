@@ -15,6 +15,7 @@ import { getAgentCatalog } from '@/lib/agent-catalog'
 import type { AgentLaunchSurface } from '@/lib/agent-session-launch-plan'
 import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
 import { useAgentMenuObservation } from '@/components/tab-bar/use-new-tab-agent-menu-rows'
+import { isInstalledAgentMenuRow } from '@/lib/new-tab-agent-menu-rows'
 import {
   sourceControlRepoAgentRows,
   sourceControlAgentPickerSelection,
@@ -62,6 +63,7 @@ export function useSourceControlActionAgentChoice(args: {
       ? [
           ...new Set(
             observation.model.rows
+              .filter(isInstalledAgentMenuRow)
               .filter((row) => row.kind !== 'chat-unavailable')
               .map((row) => row.agent)
           )

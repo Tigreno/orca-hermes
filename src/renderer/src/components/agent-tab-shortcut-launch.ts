@@ -1,5 +1,6 @@
 import { toast } from 'sonner'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
+import { launchCustomAgentInNewTab } from '@/lib/launch-custom-agent-in-new-tab'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import { translate } from '@/i18n/i18n'
 import { selectFloatingWorkspacePanelVisible } from '@/store/floating-workspace-panel-selector'
@@ -39,10 +40,22 @@ function launchAgentTab(
 /** Launch a resolved new-agent-tab shortcut in the pane it was pressed in, waiting on detection if needed. */
 export function launchAgentTabShortcut(
   worktreeId: string,
-  { agent, pendingAgent }: Pick<TerminalAgentTabShortcut, 'agent' | 'pendingAgent'>,
+  {
+    agent,
+    pendingAgent,
+    customAgentProfileId
+  }: Pick<TerminalAgentTabShortcut, 'agent' | 'pendingAgent' | 'customAgentProfileId'>,
   isTargetCurrent: () => boolean
 ): void {
   const context = captureAgentTabLaunchContext(worktreeId)
+  if (customAgentProfileId) {
+    launchCustomAgentInNewTab({
+      profileId: customAgentProfileId,
+      worktreeId,
+      ...(context.groupId ? { groupId: context.groupId } : {})
+    })
+    return
+  }
   if (agent) {
     launchAgentTab(worktreeId, agent, context)
     return
@@ -67,7 +80,7 @@ export function launchAgentTabShortcut(
 }
 
 export function launchFloatingWorkspaceAgentShortcut(
-  shortcut: Pick<TerminalAgentTabShortcut, 'agent' | 'pendingAgent'>
+  shortcut: Pick<TerminalAgentTabShortcut, 'agent' | 'pendingAgent' | 'customAgentProfileId'>
 ): void {
   launchAgentTabShortcut(FLOATING_TERMINAL_WORKTREE_ID, shortcut, () =>
     selectFloatingWorkspacePanelVisible(useAppStore.getState())

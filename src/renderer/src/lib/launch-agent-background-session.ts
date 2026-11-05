@@ -1,6 +1,5 @@
 import { ensureAgentLaunchPreferences } from '@/runtime/agent-launch-settings/use-host-agent-launch-preferences'
 import { useAppStore } from '@/store'
-import { buildAgentStartupPlan } from '../../../shared/agent-launch/startup/tui-agent-startup'
 import type {
   LaunchAgentBackgroundSessionArgs,
   LaunchAgentBackgroundSessionResult
@@ -32,7 +31,11 @@ import {
   reserveAgentBackgroundSessionIdentity
 } from '@/lib/adopt-agent-background-session-tab'
 import { createBackgroundAgentStatusConsumer } from '@/lib/background-agent-status-consumer'
-import { runtimeWaitExitCode, settleTabPtyBinding } from '@/lib/agent-background-session-exit'
+import {
+  createBackgroundSessionExitHandler,
+  runtimeWaitExitCode
+} from '@/lib/agent-background-session-exit'
+import { buildAutomationAgentStartupPlan } from '../../../shared/custom-agent-automation-startup'
 import { isWslUncPath } from '../../../shared/wsl-paths'
 
 export async function launchAgentBackgroundSession(
@@ -48,6 +51,7 @@ export async function launchAgentBackgroundSession(
   if (!worktree) {
     throw new Error('The target workspace is no longer available.')
   }
+
   // Folder launch ownership cannot be derived from a repo row (#2989).
   const { launchHost, runtimeTarget, executionFacts } = resolveAgentBackgroundLaunchContext({
     store,
@@ -60,6 +64,10 @@ export async function launchAgentBackgroundSession(
   if (hasExtraAgentArgs(args.extraAgentArgs) && runtimeTarget.kind === 'environment') {
     // Why: that server rebuilds the command from its own settings and would drop the extras.
     throw new Error("Extra arguments can't be applied to a paired server's workspace from here.")
+  }
+  if (args.customAgentProfile && hasExtraAgentArgs(args.extraAgentArgs)) {
+    // Why: a custom profile carries its own arguments; the extras would be dropped silently.
+    throw new Error("Extra arguments can't be combined with a custom agent.")
   }
   const createRuntimeTerminal =
     runtimeTarget.kind === 'environment'
@@ -90,10 +98,11 @@ export async function launchAgentBackgroundSession(
   const isFollowupPath = requireTuiAgentConfig(agent).promptInjectionMode === 'stdin-after-start'
 
   const pasteDraftAfterLaunch = hasPrompt && isFollowupPath ? trimmedPrompt : null
-  const startupPlan = buildAgentStartupPlan({
+  const startupPlan = buildAutomationAgentStartupPlan({
     ...planInputs,
     prompt: hasPrompt && !isFollowupPath ? trimmedPrompt : '',
-    allowEmptyPromptLaunch: !hasPrompt || isFollowupPath
+    allowEmptyPromptLaunch: !hasPrompt || isFollowupPath,
+    customAgentProfile: args.customAgentProfile
   })
   if (!startupPlan) {
     return null
@@ -115,25 +124,19 @@ export async function launchAgentBackgroundSession(
   // Capture local/SSH incarnation and actual launch config for later steps; runtime terminals supply neither.
   let spawned: { incarnationId?: string; launchConfig?: typeof startupPlan.launchConfig } = {}
   let tab: ReturnType<typeof store.createTab> | null = null
-  let exitHandled = false,
-    eagerPtyBuffer: EagerPtyHandle | null = null
+  let eagerPtyBuffer: EagerPtyHandle | null = null
   let terminalOwnership: ReturnType<typeof bindAutomationTerminal> = null
   let unsubscribeExit = (): void => {},
     unsubscribeData = (): void => {},
     releaseRuntimeObservers = (): void => {}
-  const handleExit = (exitPtyId: string, code: number): void => {
-    if (exitHandled) {
-      return
-    }
-    exitHandled = true
-    unsubscribeExit()
-    unsubscribeData()
-    if (tab) {
-      settleTabPtyBinding(tab.id, exitPtyId, code)
-    }
-    useAppStore.getState().clearAgentLaunchConfig(paneKey)
-    onExit?.(exitPtyId, code)
-  }
+  const sessionExit = createBackgroundSessionExitHandler({
+    tabId: () => tab?.id ?? null,
+    onExit,
+    unsubscribeExit: () => unsubscribeExit(),
+    unsubscribeData: () => unsubscribeData(),
+    clearLaunchConfig: () => useAppStore.getState().clearAgentLaunchConfig(paneKey)
+  })
+  const handleExit = sessionExit.handleExit
   // Main owns local/SSH status scanning; runtime bytes still need renderer-side writes.
   const mainOwnsAgentStatusWrites = isMainTerminalSideEffectAuthorityForPty({
     settings: store.settings,
@@ -223,7 +226,7 @@ export async function launchAgentBackgroundSession(
       runtimeTerminalHandle,
       executionFacts,
       onRetire: () => {
-        exitHandled = true
+        sessionExit.markHandled()
         store.clearAgentLaunchConfig(paneKey)
       },
       ...(title ? { title } : {})
@@ -300,7 +303,7 @@ export async function launchAgentBackgroundSession(
     }
   } catch (error) {
     // Creation and subscription are separate RPCs; failure between them must clean up the invisible runtime terminal.
-    exitHandled = true
+    sessionExit.markHandled()
     terminalOwnership?.release()
     const createdTab = tab
     runBestEffortAgentBackgroundCleanups(unsubscribeExit, unsubscribeData)

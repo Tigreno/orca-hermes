@@ -18,6 +18,7 @@ export type ReusableAutomationSession = {
 export function findReusableAutomationSession(args: {
   automationId: string
   agentId: TuiAgent
+  customAgentProfileId?: string | null
   worktreeId: string
   target: AutomationSessionTarget
   physicalTarget?: Pick<AutomationSessionTarget, 'hostId' | 'runtimeEnvironmentId'>
@@ -28,6 +29,9 @@ export function findReusableAutomationSession(args: {
     'agentStatusByPaneKey' | 'ptyIdsByTabId' | 'terminalLayoutsByTabId' | 'unifiedTabsByWorktree'
   >
 }): ReusableAutomationSession | null {
+  if (args.customAgentProfileId) {
+    return null
+  }
   const { state, physicalTarget = args.target, ...selection } = args
   const terminalTabs = new Map(
     (state.unifiedTabsByWorktree[args.worktreeId] ?? [])

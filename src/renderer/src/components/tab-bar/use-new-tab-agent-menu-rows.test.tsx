@@ -452,7 +452,7 @@ it("reads a publishing host's one snapshot, holding a placeholder only until it 
   })
   const row = (agent: string) =>
     hook.result.current.state === 'settled'
-      ? hook.result.current.rows.find((r) => r.agent === agent)
+      ? hook.result.current.rows.find((r) => r.kind !== 'custom' && r.agent === agent)
       : undefined
   // Held while the workspace is shown, so the first open already knows.
   expect(mocks.subscribe).toHaveBeenCalledTimes(1)
@@ -490,7 +490,7 @@ it('shows an older host from client facts and never asks it per agent', () => {
   const hook = renderHook(() => useNewTabAgentMenuRows('one', true, { kind: 'local' }))
   expect(
     hook.result.current.state === 'settled' &&
-      hook.result.current.rows.find((r) => r.agent === 'claude')
+      hook.result.current.rows.find((r) => r.kind !== 'custom' && r.agent === 'claude')
   ).toMatchObject({
     kind: 'chat'
   })
@@ -505,7 +505,7 @@ it('updates the real menu when the global default changes and retains opposite o
   const hook = renderHook(() => useNewTabAgentMenuRows('one', true, { kind: 'local' }))
   const row = () =>
     hook.result.current.state === 'settled'
-      ? hook.result.current.rows.find((item) => item.agent === 'claude')
+      ? hook.result.current.rows.find((item) => item.kind !== 'custom' && item.agent === 'claude')
       : undefined
   expect(row()?.kind).toBe('cli')
   await act(async () => {
@@ -529,7 +529,7 @@ it('offers a chat on the CLI row of an agent set to open as a CLI', () => {
   })
   const hook = renderHook(() => useNewTabAgentMenuRows('one', true, { kind: 'local' }))
   const rows = hook.result.current.state === 'settled' ? hook.result.current.rows : []
-  expect(rows.filter((row) => row.agent === 'claude')).toEqual([
+  expect(rows.filter((row) => row.kind !== 'custom' && row.agent === 'claude')).toEqual([
     { kind: 'cli', agent: 'claude', chat: true, executionHostId: 'local' }
   ])
   // An agent with no chat on this host keeps a plain CLI row.

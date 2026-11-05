@@ -6,6 +6,7 @@ import {
 import type { Repo } from '../../../../shared/repo-types'
 import type { Worktree } from '../../../../shared/worktree/types'
 import { getAgentCatalog } from '@/lib/agent-catalog'
+import { getDefaultCustomAgentProfile } from '../../../../shared/custom-agent-profile'
 import { useAppStore } from '@/store'
 import { useRepoMap, useWorktreeMap } from '@/store/selectors'
 import {
@@ -67,12 +68,14 @@ export function useAutomationsPageStoreState() {
     [folderWorkspaces, projectGroups, repos, worktreesByRepo]
   )
   const enabledAgents = filterEnabledTuiAgents(AGENTS, settings?.disabledTuiAgents)
+  const defaultCustomAgent = getDefaultCustomAgentProfile(settings?.customAgentProfiles)
   const defaultAgent =
-    settings?.defaultTuiAgent &&
+    defaultCustomAgent?.baseAgent ??
+    (settings?.defaultTuiAgent &&
     settings.defaultTuiAgent !== 'blank' &&
     isTuiAgentEnabled(settings.defaultTuiAgent, settings.disabledTuiAgents)
       ? settings.defaultTuiAgent
-      : (enabledAgents[0] ?? AGENTS[0])
+      : (enabledAgents[0] ?? AGENTS[0]))
 
   return {
     repos,
@@ -106,7 +109,8 @@ export function useAutomationsPageStoreState() {
     worktreeMap,
     repoForRow,
     worktreeForRow,
-    defaultAgent
+    defaultAgent,
+    defaultCustomAgentProfileId: defaultCustomAgent?.baseAgent ? defaultCustomAgent.id : null
   }
 }
 

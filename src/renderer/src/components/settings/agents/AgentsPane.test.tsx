@@ -194,6 +194,14 @@ describe('AgentsPane', () => {
     expect(detectedAgentsMock.lastTarget).toEqual({ kind: 'local' })
   })
 
+  it('offers duplicate-as-custom and places custom agents below Installed', () => {
+    const markup = renderPane(getDefaultSettings('/tmp'))
+
+    expect(markup).toContain('Duplicate Claude as custom agent')
+    expect(markup.indexOf('Installed')).toBeLessThan(markup.indexOf('Custom agents'))
+    expect(markup.indexOf('Custom agents')).toBeLessThan(markup.indexOf('Available to install'))
+  })
+
   it('waits for host launch settings before displaying remote agent controls', () => {
     // SSR reads Zustand’s initial snapshot, so patch/restore it to verify remote detection uses the selected server’s PATH.
     const initialState = useAppStore.getInitialState() as unknown as {

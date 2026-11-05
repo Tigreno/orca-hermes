@@ -38,7 +38,7 @@ import {
   resolveTuiAgentLaunchEnv
 } from '../../../../../../shared/agent-launch/choices/tui-agent-launch-defaults'
 import { isTuiAgentEnabled } from '../../../../../../shared/agent-launch/catalog/tui-agent-selection'
-import { getAgentCatalog } from '@/lib/agent-catalog'
+import { getAgentCatalog, type AgentCatalogEntry } from '@/lib/agent-catalog'
 import {
   agentChoiceOpensAsChat,
   readChatProgram,
@@ -57,9 +57,22 @@ import { AgentChatRuntimeArea } from '../../../agent/launch-settings/AgentChatCh
 import { chatProviderAgents, useHostStructuredAgentsVersion } from '@/lib/chat-provider-agents'
 import { readHostStructuredAgents } from '@/runtime/host-structured-agents'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../../../../shared/execution-host'
+import type { CustomAgentProfile } from '../../../../../../shared/custom-agent-profile'
 import { translate } from '@/i18n/i18n'
 
 export type AgentPermissionsRenderer = (props: AgentPermissionsSettingProps) => React.ReactNode
+
+/** Local-only custom agent profile wiring; paired hosts keep their own settings. */
+export type LocalCustomAgentControls = {
+  profiles: readonly CustomAgentProfile[]
+  defaultProfile: CustomAgentProfile | null
+  onSetBuiltInDefault: (agent: TuiAgent | 'blank' | null) => void
+  onSetDefaultProfile: (profileId: string) => void
+  onProfilesChange: (profiles: CustomAgentProfile[]) => void | Promise<void>
+  onDuplicateAsCustom: (agent: AgentCatalogEntry) => void
+  duplicateDisabled: boolean
+  afterDetectedAgents: React.ReactNode
+}
 
 export function AgentLaunchSettingsCatalog({
   settings,
@@ -88,8 +101,10 @@ export function AgentLaunchSettingsCatalog({
     settings: GlobalSettings
     saveEnvironment: (agent: TuiAgent, value: Record<string, string>) => Promise<void>
     updateSettings: (updates: Partial<GlobalSettings>) => void | Promise<void>
+    customAgents: LocalCustomAgentControls
   }
 }): React.JSX.Element {
+  const customAgents = local?.customAgents
   const {
     detectedIds: detected,
     detectionFailed,
@@ -225,7 +240,7 @@ export function AgentLaunchSettingsCatalog({
     defaultEnv: typed ? {} : getTuiAgentDefaultEnv(agent.id),
     isDetected,
     isEnabled: isTuiAgentEnabled(agent.id, settings.disabledTuiAgents),
-    isDefault: isDetected && settings.defaultTuiAgent === agent.id,
+    isDefault: isDetected && settings.defaultTuiAgent === agent.id && !customAgents?.defaultProfile,
     cmdOverride: isDetected ? settings.agentCmdOverrides[agent.id] : undefined,
     argsOverride:
       choicesSupported && settings.agentChoices
@@ -258,11 +273,15 @@ export function AgentLaunchSettingsCatalog({
             />
           )
         : undefined,
-    onSetDefault: () =>
-      save({
-        type: 'default',
-        agent: settings.defaultTuiAgent === agent.id ? 'blank' : agent.id
-      }),
+    onSetDefault: () => {
+      const next =
+        settings.defaultTuiAgent === agent.id && !customAgents?.defaultProfile ? 'blank' : agent.id
+      if (customAgents) {
+        customAgents.onSetBuiltInDefault(next)
+      } else {
+        save({ type: 'default', agent: next })
+      }
+    },
     onSetEnabled: (enabled) => save({ type: 'availability', agent: agent.id, enabled }),
     onSaveOverride: (value) => mutate({ type: 'command', agent: agent.id, value }),
     onSaveArgs: (value) =>
@@ -285,7 +304,9 @@ export function AgentLaunchSettingsCatalog({
     sessionSourceHome:
       local && isDetected && agent.id === 'codex'
         ? buildCodexSessionSourceHomeControl(local.settings, local.updateSettings)
-        : undefined
+        : undefined,
+    onDuplicateAsCustom: customAgents ? () => customAgents.onDuplicateAsCustom(agent) : undefined,
+    duplicateAsCustomDisabled: customAgents?.duplicateDisabled
   })
   const rowProps = (
     agent: (typeof catalog)[number],
@@ -324,7 +345,11 @@ export function AgentLaunchSettingsCatalog({
           'settings.agents.hostDefaults',
           'Defaults for new agents on the selected host.'
         )}
-        onSetDefault={(agent) => save({ type: 'default', agent })}
+        onSetDefault={(agent) =>
+          customAgents ? customAgents.onSetBuiltInDefault(agent) : save({ type: 'default', agent })
+        }
+        defaultCustomAgent={customAgents?.defaultProfile ?? null}
+        onSetCustomDefault={customAgents?.onSetDefaultProfile}
         defaultOpensAsChat={defaultOpensAsChat}
       />
       {permissionSettings ? (
@@ -368,6 +393,7 @@ export function AgentLaunchSettingsCatalog({
           refreshSettings?.()
         }}
         getRowProps={rowProps}
+        afterDetectedAgents={customAgents?.afterDetectedAgents}
       />
     </>
   )

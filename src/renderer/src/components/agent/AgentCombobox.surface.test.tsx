@@ -63,7 +63,7 @@ function renderPicker(
           inventoryReady: model.state === 'settled',
           answer:
             model.state === 'settled' &&
-            model.rows.some((row) => row.agent === value && row.kind === 'chat')
+            model.rows.some((row) => row.kind === 'chat' && row.agent === value)
               ? 'yes'
               : 'no-chats',
           chatPending: model.state === 'loading',

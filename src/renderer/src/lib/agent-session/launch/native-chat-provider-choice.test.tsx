@@ -17,7 +17,19 @@ import type * as SignInAreaModule from '../../../components/provider-accounts/An
 import { TooltipProvider } from '../../../components/ui/tooltip'
 import { AgentCatalogRow } from '../../../components/settings/agents/launch/AgentCatalogRow'
 import { AgentLaunchSettingsCatalog } from '../../../components/settings/agents/launch/AgentLaunchSettingsCatalog'
+import type { LocalCustomAgentControls } from '../../../components/settings/agents/launch/AgentLaunchSettingsCatalog'
 import { buildAgentOpensAs, saveNativeChatProviderChoice } from './native-chat-provider-choice'
+
+const customAgents: LocalCustomAgentControls = {
+  profiles: [],
+  defaultProfile: null,
+  onSetBuiltInDefault: vi.fn(),
+  onSetDefaultProfile: vi.fn(),
+  onProfilesChange: vi.fn(),
+  onDuplicateAsCustom: vi.fn(),
+  duplicateDisabled: false,
+  afterDetectedAgents: null
+}
 
 const store = vi.hoisted(
   (): { settings: unknown; localDetectedAgentIdsByContext: { host: TuiAgent[] | null } } => ({
@@ -234,7 +246,12 @@ describe('agent row chat or CLI', () => {
         detectionTarget={{ kind: 'local' }}
         hostName={null}
         renderPermissions={() => null}
-        local={{ settings, updateSettings: vi.fn(), saveEnvironment: vi.fn(async () => {}) }}
+        local={{
+          settings,
+          updateSettings: vi.fn(),
+          saveEnvironment: vi.fn(async () => {}),
+          customAgents
+        }}
       />
     )
     const view = render(element(), { wrapper: TooltipProvider })
@@ -298,7 +315,12 @@ describe('agent row chat or CLI', () => {
         detectionTarget={{ kind: 'local' }}
         hostName={null}
         renderPermissions={() => null}
-        local={{ settings, updateSettings: vi.fn(), saveEnvironment: vi.fn(async () => {}) }}
+        local={{
+          settings,
+          updateSettings: vi.fn(),
+          saveEnvironment: vi.fn(async () => {}),
+          customAgents
+        }}
       />,
       { wrapper: TooltipProvider }
     )
@@ -343,7 +365,7 @@ describe('agent row chat or CLI', () => {
           detectionTarget={{ kind: 'local' }}
           hostName={null}
           renderPermissions={() => null}
-          local={{ settings, updateSettings, saveEnvironment: vi.fn(async () => {}) }}
+          local={{ settings, updateSettings, saveEnvironment: vi.fn(async () => {}), customAgents }}
         />
       )
       inventory.detected = null
@@ -415,7 +437,7 @@ describe('agent row chat or CLI', () => {
         detectionTarget={{ kind: 'local' }}
         hostName={null}
         renderPermissions={() => null}
-        local={{ settings, updateSettings, saveEnvironment: vi.fn(async () => {}) }}
+        local={{ settings, updateSettings, saveEnvironment: vi.fn(async () => {}), customAgents }}
       />
     )
     const view = render(element(), { wrapper: TooltipProvider })
@@ -460,7 +482,7 @@ describe('agent row chat or CLI', () => {
           detectionTarget={{ kind: 'local' }}
           hostName={null}
           renderPermissions={() => null}
-          local={{ settings, updateSettings, saveEnvironment: vi.fn(async () => {}) }}
+          local={{ settings, updateSettings, saveEnvironment: vi.fn(async () => {}), customAgents }}
         />,
         { wrapper: TooltipProvider }
       )

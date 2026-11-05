@@ -14,7 +14,8 @@ import { normalizeMatchQuery, tokenizeMatchValue } from './query-token-match'
 import type { TuiAgent } from '../../../../shared/agent-launch/catalog/tui-agent'
 
 export type TabAgentLaunchOption = {
-  agent: TuiAgent
+  /** Absent for custom-agent rows: a profile has no built-in agent identity. */
+  agent?: TuiAgent
   aliases: readonly string[]
   label: string
   disabled?: boolean
@@ -81,16 +82,26 @@ export function buildTabAgentLaunchOptionsFromRows(
   commandOverrides: Partial<Record<TuiAgent, string>> = {}
 ): TabAgentLaunchOption[] {
   return rows.map((row) => {
-    const base = buildTabAgentLaunchOptions([row.agent], commandOverrides)[0]
+    if (row.kind === 'custom') {
+      return {
+        aliases: [row.profile.name],
+        label: row.profile.name,
+        row,
+        id: rowId(row)
+      }
+    }
+    const agentRow: Exclude<NewTabAgentMenuRow, { kind: 'custom' }> = row
+    const base = buildTabAgentLaunchOptions([agentRow.agent], commandOverrides)[0]
     return {
       ...base,
-      agent: row.agent,
+      agent: agentRow.agent,
       aliases: base?.aliases ?? [],
-      label: rowLabel(row),
-      disabled: row.kind === 'chat-unavailable',
-      reason: row.kind === 'chat-unavailable' ? chatUnavailableLabel(row.reason) : undefined,
-      row,
-      id: row.kind === 'terminal' ? `agent:${row.agent}` : rowId(row)
+      label: rowLabel(agentRow),
+      disabled: agentRow.kind === 'chat-unavailable',
+      reason:
+        agentRow.kind === 'chat-unavailable' ? chatUnavailableLabel(agentRow.reason) : undefined,
+      row: agentRow,
+      id: agentRow.kind === 'terminal' ? `agent:${agentRow.agent}` : rowId(agentRow)
     }
   })
 }

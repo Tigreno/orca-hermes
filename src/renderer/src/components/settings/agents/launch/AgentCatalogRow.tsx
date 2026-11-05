@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Check, ChevronDown, ExternalLink } from 'lucide-react'
+import { Check, ChevronDown, CopyPlus, ExternalLink } from 'lucide-react'
 import type { TuiAgent } from '../../../../../../shared/agent-launch/catalog/tui-agent'
 import { AgentIcon } from '@/lib/agent-catalog'
 import { cn } from '@/lib/utils'
@@ -105,6 +105,8 @@ export type AgentCatalogRowProps = {
   /** The downloaded chat program's install and sign-in, shown in the row's details. */
   chatRuntime?: React.ReactNode
   launchChoiceEditor?: (permissionControlRef: React.Ref<HTMLDivElement>) => React.ReactNode
+  onDuplicateAsCustom?: () => void
+  duplicateAsCustomDisabled?: boolean
 }
 
 export function AgentCatalogRow({
@@ -133,7 +135,9 @@ export function AgentCatalogRow({
   permissionChoice,
   launchArgs = argsOverride,
   opensAs,
-  chatRuntime
+  chatRuntime,
+  onDuplicateAsCustom,
+  duplicateAsCustomDisabled
 }: AgentCatalogRowProps): React.JSX.Element {
   const envSummary = environmentNames?.join(' ') ?? stringifyAgentDefaultEnvDraft(envOverride)
   const defaultEnvSummary = stringifyAgentDefaultEnvDraft(defaultEnv)
@@ -285,6 +289,28 @@ export function AgentCatalogRow({
               )}
             </div>
           </div>
+          {onDuplicateAsCustom && isDetected && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={onDuplicateAsCustom}
+              disabled={duplicateAsCustomDisabled}
+              aria-label={translate(
+                'auto.components.settings.AgentCatalogRow.duplicateAsCustom',
+                'Duplicate {{value0}} as custom agent',
+                { value0: label }
+              )}
+              title={translate(
+                'auto.components.settings.AgentCatalogRow.duplicateAsCustom',
+                'Duplicate {{value0}} as custom agent',
+                { value0: label }
+              )}
+              className="size-7 text-muted-foreground hover:text-foreground"
+            >
+              <CopyPlus className="size-3.5" />
+            </Button>
+          )}
         </div>
       </div>
 

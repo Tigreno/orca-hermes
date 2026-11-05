@@ -198,8 +198,11 @@ export const AgentLaunchPicker = memo(
                     onCatalogOpen?.(agent)
                   }
                 }}
-                runLaunch={(row, draft, entry, surface) =>
-                  onPick(
+                runLaunch={(row, draft, entry, surface) => {
+                  if (row.kind === 'custom') {
+                    return
+                  }
+                  return onPick(
                     row.agent,
                     draft,
                     entry,
@@ -207,7 +210,7 @@ export const AgentLaunchPicker = memo(
                     surface ??
                       (!draft && row.agent !== agent && row.kind === 'chat' ? 'chat' : undefined)
                   )
-                }
+                }}
               />
             ) : (
               <DropdownMenuItem disabled>

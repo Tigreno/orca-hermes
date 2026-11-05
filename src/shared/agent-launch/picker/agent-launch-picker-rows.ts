@@ -7,6 +7,12 @@ import type { ExecutionHostId } from '../../execution-host'
 import type { TuiAgent } from '../catalog/tui-agent'
 import { filterEnabledTuiAgents, TUI_AGENT_AUTO_PICK_ORDER } from '../catalog/tui-agent-selection'
 import type { AgentSessionChatProgram } from '../../agent-session/agent-session-agent-availability'
+import {
+  getDefaultCustomAgentProfile,
+  isCustomAgentProfileEnabled,
+  normalizeCustomAgentProfiles,
+  type CustomAgentProfile
+} from '../../custom-agent-profile'
 
 export type HostChatAnswer =
   | 'yes'
@@ -45,10 +51,33 @@ export type NewTabAgentMenuRow = (
   | { kind: 'chat-unavailable'; agent: TuiAgent; reason: ChatUnavailableReason }
   | { kind: 'cli'; agent: TuiAgent; chat?: true }
   | { kind: 'terminal'; agent: TuiAgent }
+  | { kind: 'custom'; profile: CustomAgentProfile; isDefault: boolean }
 ) & { executionHostId?: ExecutionHostId }
 
+/** A row backed by a built-in agent; custom-profile rows carry a profile instead. */
+export type InstalledAgentMenuRow = Exclude<NewTabAgentMenuRow, { kind: 'custom' }>
+
+export const isInstalledAgentMenuRow = (row: NewTabAgentMenuRow): row is InstalledAgentMenuRow =>
+  row.kind !== 'custom'
+
 export type NewTabAgentMenuSettings = NativeChatDefaultSettings &
-  Partial<Pick<GlobalSettings, 'defaultTuiAgent' | 'disabledTuiAgents'>>
+  Partial<Pick<GlobalSettings, 'defaultTuiAgent' | 'disabledTuiAgents' | 'customAgentProfiles'>>
+
+/** Enabled custom profiles, default first: they lead the menu and carry the new-agent shortcut. */
+function buildCustomAgentRows(
+  profiles: GlobalSettings['customAgentProfiles']
+): NewTabAgentMenuRow[] {
+  const normalized = normalizeCustomAgentProfiles(profiles)
+  const defaultProfile = getDefaultCustomAgentProfile(normalized)
+  return normalized
+    .filter(isCustomAgentProfileEnabled)
+    .map((profile) => ({
+      kind: 'custom' as const,
+      profile,
+      isDefault: defaultProfile?.id === profile.id
+    }))
+    .sort((left, right) => Number(right.isDefault) - Number(left.isDefault))
+}
 
 export function buildNewTabAgentMenuRows(args: {
   settings: NewTabAgentMenuSettings | null | undefined
@@ -60,12 +89,16 @@ export function buildNewTabAgentMenuRows(args: {
 }): NewTabAgentMenuRow[] {
   const { settings } = args
   const defaultAgent = settings?.defaultTuiAgent
+  const customRows = buildCustomAgentRows(settings?.customAgentProfiles)
   const installed = filterEnabledTuiAgents(args.detectedOnHost ?? [], settings?.disabledTuiAgents)
   if (args.hostChatAnswer('claude') === 'no-chats') {
-    return orderAgentLaunchPickerAgents(defaultAgent, installed).map((agent) => ({
-      kind: 'terminal',
-      agent
-    }))
+    return [
+      ...customRows,
+      ...orderAgentLaunchPickerAgents(defaultAgent, installed).map((agent) => ({
+        kind: 'terminal' as const,
+        agent
+      }))
+    ]
   }
   const runnable: TuiAgent[] = []
   const unavailable = new Map<TuiAgent, ChatUnavailableReason>()
@@ -107,6 +140,7 @@ export function buildNewTabAgentMenuRows(args: {
     }
   }
   return [
+    ...customRows,
     ...orderAgentLaunchPickerAgents(defaultAgent, runnable).map((agent) => ({
       kind: 'chat' as const,
       agent

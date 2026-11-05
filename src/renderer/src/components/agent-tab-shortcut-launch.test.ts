@@ -54,7 +54,11 @@ describe('launchFloatingWorkspaceAgentShortcut while detection is pending', () =
 
   it('opens the agent in the floating group the shortcut was pressed in', async () => {
     const detection = pendingDetection()
-    launchFloatingWorkspaceAgentShortcut({ agent: null, pendingAgent: detection.pendingAgent })
+    launchFloatingWorkspaceAgentShortcut({
+      agent: null,
+      customAgentProfileId: null,
+      pendingAgent: detection.pendingAgent
+    })
     mocks.state.activeGroupIdByWorktree = { [FLOATING_TERMINAL_WORKTREE_ID]: 'group-b' }
 
     await detection.settle('claude')
@@ -70,7 +74,11 @@ describe('launchFloatingWorkspaceAgentShortcut while detection is pending', () =
 
   it('drops the launch when the panel closed before detection settled', async () => {
     const detection = pendingDetection()
-    launchFloatingWorkspaceAgentShortcut({ agent: null, pendingAgent: detection.pendingAgent })
+    launchFloatingWorkspaceAgentShortcut({
+      agent: null,
+      customAgentProfileId: null,
+      pendingAgent: detection.pendingAgent
+    })
     mocks.state.floatingWorkspacePanelOpen = false
 
     await detection.settle('claude')

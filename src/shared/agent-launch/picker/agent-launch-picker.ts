@@ -18,7 +18,11 @@ import type {
   AgentSessionModelCatalogResult,
   AgentSessionModelOption
 } from '../../agent-session/agent-session-wire'
-import { orderAgentLaunchPickerAgents, type NewTabAgentMenuRow } from './agent-launch-picker-rows'
+import {
+  isInstalledAgentMenuRow,
+  orderAgentLaunchPickerAgents,
+  type NewTabAgentMenuRow
+} from './agent-launch-picker-rows'
 import type { TuiAgent } from '../catalog/tui-agent'
 import type { CurrentActionSelection } from '../../source-control/ai/recipes/source-control-action-selection'
 
@@ -265,26 +269,27 @@ export function agentPickerEntriesFromRows(
   label: (agent: TuiAgent) => string,
   defaultAgent: TuiAgent | 'blank' | null | undefined
 ): AgentPickerEntry[] {
+  const agentRows = rows.filter(isInstalledAgentMenuRow)
   // Why: rows are grouped by surface, so first appearance would rank every chat agent above every CLI one.
-  return orderAgentLaunchPickerAgents(defaultAgent, [...new Set(rows.map((row) => row.agent))]).map(
-    (agent) => {
-      const own = rows.filter((row) => row.agent === agent)
-      const chatDefault = own.some((row) => row.kind === 'chat')
-      const chat = chatDefault || own.some((row) => row.kind === 'cli' && row.chat)
-      return {
-        agent,
-        label: label(agent),
-        rows: own,
-        surfaces: [
-          ...(chat ? ['chat' as const] : []),
-          ...(detected.includes(agent) ? ['terminal' as const] : [])
-        ],
-        defaultSurface: chatDefault ? 'chat' : 'terminal',
-        ...seed(agent),
-        catalog: { origin: 'unknown' }
-      }
+  return orderAgentLaunchPickerAgents(defaultAgent, [
+    ...new Set(agentRows.map((row) => row.agent))
+  ]).map((agent) => {
+    const own = rows.filter((row) => row.kind !== 'custom' && row.agent === agent)
+    const chatDefault = own.some((row) => row.kind === 'chat')
+    const chat = chatDefault || own.some((row) => row.kind === 'cli' && row.chat)
+    return {
+      agent,
+      label: label(agent),
+      rows: own,
+      surfaces: [
+        ...(chat ? ['chat' as const] : []),
+        ...(detected.includes(agent) ? ['terminal' as const] : [])
+      ],
+      defaultSurface: chatDefault ? 'chat' : 'terminal',
+      ...seed(agent),
+      catalog: { origin: 'unknown' }
     }
-  )
+  })
 }
 
 export function agentPickerHydrationQueue(

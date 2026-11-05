@@ -31,6 +31,7 @@ import type { NotificationSettings } from './notification-settings-types'
 import type { CtrlTabOrderMode } from './tab-types'
 import type { TerminalQuickCommand } from './terminal/quick-commands/terminal-quick-command-types'
 import type { TuiAgent } from './agent-launch/catalog/tui-agent'
+import type { CustomAgentProfile } from './custom-agent-profile'
 import type { ZcodePlanSite } from './zcode-plan-sites'
 import type {
   AgentDashboardMode,
@@ -376,6 +377,8 @@ export type GlobalSettings = GlobalSettingsBase & {
   geminiCliOAuthEnabled: boolean
   /** Per-agent CLI command overrides. A missing key means use the catalog default binary name. */
   agentCmdOverrides: Partial<Record<TuiAgent, string>>
+  /** Named terminal launch profiles with an executable and literal arguments. */
+  customAgentProfiles?: CustomAgentProfile[]
   /** Off keeps each Codex home's history to itself: Orca links no sessions between accounts or
    *  into ~/.codex, and removes nothing already linked (#24511). Absent means on (#10770). */
   codexShareHistoryAcrossAccounts?: boolean

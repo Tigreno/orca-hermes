@@ -10,11 +10,7 @@ import {
   automationLaunchWorkspace
 } from './automation-launch-surface'
 import { toast } from 'sonner'
-import type {
-  Automation,
-  AutomationCreateInput,
-  AutomationUpdateInput
-} from '../../../../shared/automations-types'
+import type { Automation } from '../../../../shared/automations-types'
 import { getRepoExecutionHostId } from '../../../../shared/execution-host'
 import { buildAutomationRrule } from '../../../../shared/automation-schedule-occurrences'
 import { ensureHooksConfirmed } from '@/lib/ensure-hooks-confirmed'
@@ -34,6 +30,7 @@ import {
   resolveAutomationEditDestination,
   saveExistingAutomation
 } from './automation-orca-save-operations'
+import { buildAutomationCreateInput, buildAutomationUpdateInput } from './automation-save-payloads'
 import type { AutomationSaveContext } from './automation-save-context'
 
 /** Saves an Orca automation, including destination validation and host moves. */
@@ -120,6 +117,19 @@ export async function saveOrcaAutomation(
       : createCheck
         ? { status: 'ready' as const, ...createCheck.destination }
         : null
+  if (
+    draft.customAgentProfileId &&
+    setupResolution?.status === 'ready' &&
+    setupResolution.authority.kind === 'runtime'
+  ) {
+    toast.error(
+      translate(
+        'auto.components.automations.AutomationsPage.customAgentRemoteHost',
+        'Choose a built-in agent for automations stored on a paired Orca host.'
+      )
+    )
+    return
+  }
   const selectedRepos = dialogRepos.filter((repo) => repo.id === draft.projectId)
   const setupHostId =
     setupResolution?.status === 'ready' && selectedRepos.length === 1
@@ -193,56 +203,34 @@ export async function saveOrcaAutomation(
     edited('surface') ? surface : (currentAutomation?.surface ?? surface),
     currentAutomation
   )
-  const updates: AutomationUpdateInput = {
-    ...(edited('name') ? { name: draft.name } : {}),
-    ...(edited('prompt') ? { prompt: draft.prompt } : {}),
-    ...(edited('precheckCommand') || edited('precheckTimeoutSeconds') ? { precheck } : {}),
-    ...(edited('agentId') ? { agentId: draft.agentId } : {}),
-    ...(!currentAutomation || edited('surface') || edited('extraAgentArgs') ? launchSetup : {}),
-    ...(targetEdited
-      ? {
-          runContext,
-          projectId: draft.projectId,
-          workspaceMode: draft.workspaceMode,
-          workspaceId: draft.workspaceId
-        }
-      : {}),
-    ...(edited('baseBranch') ? { baseBranch: draft.baseBranch.trim() || null } : {}),
-    ...(edited('setupDecision') || setupDecision !== currentAutomation?.setupDecision
-      ? { setupDecision }
-      : {}),
-    ...(edited('reuseSession') || edited('workspaceMode')
-      ? { reuseSession: draft.workspaceMode === 'existing' && draft.reuseSession }
-      : {}),
-    ...(edited('missedRunGraceMinutes') ? { missedRunGraceMinutes } : {})
-  }
+  const updates = buildAutomationUpdateInput({
+    currentAutomation,
+    draft,
+    edited,
+    precheck,
+    launchSetup,
+    targetEdited,
+    runContext,
+    setupDecision,
+    missedRunGraceMinutes
+  })
   if (!currentAutomation || (scheduleEdited && currentAutomation.rrule !== rrule)) {
     updates.rrule = rrule
     updates.dtstart = time.now
   }
-  const createInput: AutomationCreateInput = {
-    name: currentAutomation ? currentAutomation.name : draft.name,
-    prompt: currentAutomation ? currentAutomation.prompt : draft.prompt,
-    precheck: currentAutomation ? currentAutomation.precheck : precheck,
-    agentId: currentAutomation ? currentAutomation.agentId : draft.agentId,
-    ...launchSetup,
-    runContext: currentAutomation ? currentAutomation.runContext : runContext,
-    projectId: currentAutomation ? currentAutomation.projectId : draft.projectId,
-    workspaceMode: currentAutomation ? currentAutomation.workspaceMode : draft.workspaceMode,
-    workspaceId: currentAutomation ? currentAutomation.workspaceId : draft.workspaceId,
-    baseBranch: currentAutomation ? currentAutomation.baseBranch : draft.baseBranch.trim() || null,
-    setupDecision: currentAutomation ? currentAutomation.setupDecision : setupDecision,
-    reuseSession: currentAutomation
-      ? currentAutomation.reuseSession
-      : draft.workspaceMode === 'existing' && draft.reuseSession,
+  const createInput = buildAutomationCreateInput({
+    currentAutomation,
+    draft,
+    precheck,
+    launchSetup,
+    runContext,
+    setupDecision,
     timezone,
-    rrule: currentAutomation ? currentAutomation.rrule : rrule,
-    dtstart: currentAutomation ? currentAutomation.dtstart : (updates.dtstart ?? time.now),
-    missedRunGraceMinutes: currentAutomation
-      ? currentAutomation.missedRunGraceMinutes
-      : missedRunGraceMinutes,
-    ...updates
-  }
+    rrule,
+    now: time.now,
+    updates,
+    missedRunGraceMinutes
+  })
 
   const destinationResult = resolveAutomationEditDestination({
     currentAutomation,

@@ -12,6 +12,7 @@ import { formatAgentTypeLabel } from '../../../../../../shared/agent-status/pres
 import { agentPickerChoiceSeeds } from '../../../../../../shared/agent-launch/picker/agent-launch-picker-defaults'
 import type { AgentPickerEntry } from '../../../../../../shared/agent-launch/picker/agent-launch-picker'
 import type { NewTabAgentMenuModel } from '../../../tab-bar/use-new-tab-agent-menu-rows'
+import { isInstalledAgentMenuRow } from '@/lib/new-tab-agent-menu-rows'
 import {
   mountSourceDialog,
   submittedActionStartupPlan
@@ -49,42 +50,40 @@ vi.mock('@/lib/launch-agent-tab-prompt-paste', () => ({
   }) => ({ delivered: !!(await launchPty), failureNotified: false })
 }))
 vi.mock('../../../agent/use-agent-launch-picker-inventory', () => ({
-  useAgentLaunchPickerInventory: (_id: string | undefined, model: NewTabAgentMenuModel) =>
-    model.state !== 'settled'
-      ? []
-      : [...new Set(model.rows.map((row) => row.agent))].map(
-          (agent: AgentPickerEntry['agent']): AgentPickerEntry => ({
-            agent,
-            label: formatAgentTypeLabel(agent),
-            ownerKey: `action-${agent}`,
-            rows: model.rows.filter((row) => row.agent === agent),
-            surfaces: ['chat', 'terminal'],
-            defaultSurface: model.rows.some((row) => row.agent === agent && row.kind === 'chat')
-              ? 'chat'
-              : 'terminal',
-            ...agentPickerChoiceSeeds(agent, useAppStore.getState().settings),
-            catalog: {
-              origin: 'probe',
-              fetchedAt: 1,
-              models: (agent === 'claude' ? ['opus', 'sonnet'] : ['o3', 'gpt-5.5']).map(
-                (id, index) => ({
-                  id,
-                  label: id,
-                  isDefault: index === 0,
-                  defaultEffort: 'high',
-                  efforts: [
-                    { value: 'low', label: 'Low' },
-                    { value: 'high', label: 'High' }
-                  ],
-                  supportsFastMode: true,
-                  ...(agent === 'codex'
-                    ? { serviceTiers: [{ value: 'priority', label: 'Fast' }] }
-                    : {})
-                })
-              )
-            }
-          })
-        )
+  useAgentLaunchPickerInventory: (_id: string | undefined, model: NewTabAgentMenuModel) => {
+    const rows = model.state === 'settled' ? model.rows.filter(isInstalledAgentMenuRow) : []
+    return [...new Set(rows.map((row) => row.agent))].map(
+      (agent: AgentPickerEntry['agent']): AgentPickerEntry => ({
+        agent,
+        label: formatAgentTypeLabel(agent),
+        ownerKey: `action-${agent}`,
+        rows: rows.filter((row) => row.agent === agent),
+        surfaces: ['chat', 'terminal'],
+        defaultSurface: rows.some((row) => row.agent === agent && row.kind === 'chat')
+          ? 'chat'
+          : 'terminal',
+        ...agentPickerChoiceSeeds(agent, useAppStore.getState().settings),
+        catalog: {
+          origin: 'probe',
+          fetchedAt: 1,
+          models: (agent === 'claude' ? ['opus', 'sonnet'] : ['o3', 'gpt-5.5']).map(
+            (id, index) => ({
+              id,
+              label: id,
+              isDefault: index === 0,
+              defaultEffort: 'high',
+              efforts: [
+                { value: 'low', label: 'Low' },
+                { value: 'high', label: 'High' }
+              ],
+              supportsFastMode: true,
+              ...(agent === 'codex' ? { serviceTiers: [{ value: 'priority', label: 'Fast' }] } : {})
+            })
+          )
+        }
+      })
+    )
+  }
 }))
 const initial = useAppStore.getState()
 afterEach(() => {

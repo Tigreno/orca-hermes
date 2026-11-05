@@ -38,6 +38,9 @@ export async function launchHeadlessAutomationAgent(
   }
 ): Promise<HeadlessAutomationAgentLaunch> {
   const { automation, run, target } = request
+  if (automation.customAgentProfileId) {
+    throw new Error('Custom agent automations require the desktop app.')
+  }
   const agent = automation.agentId
   const selectedTarget =
     automation.workspaceMode === 'existing'

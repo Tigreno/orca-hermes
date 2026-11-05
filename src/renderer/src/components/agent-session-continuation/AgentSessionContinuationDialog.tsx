@@ -10,6 +10,7 @@ import {
   type AgentPickerEntry
 } from '../../../../shared/agent-launch/picker/agent-launch-picker'
 import { useAgentMenuObservation } from '@/components/tab-bar/use-new-tab-agent-menu-rows'
+import { isInstalledAgentMenuRow } from '@/lib/new-tab-agent-menu-rows'
 import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
 import type { AgentLaunchSurface } from '@/lib/agent-session-launch-plan'
 import { Button } from '@/components/ui/button'
@@ -113,9 +114,9 @@ export function AgentSessionContinuationDialog({
     observation.model.state === 'settled'
       ? {
           ...observation.model,
-          rows: observation.model.rows.filter((row) =>
-            agents.some((agent) => agent.id === row.agent)
-          )
+          rows: observation.model.rows
+            .filter(isInstalledAgentMenuRow)
+            .filter((row) => agents.some((agent) => agent.id === row.agent))
         }
       : observation.model
   const rows = destinationModel.state === 'settled' ? destinationModel.rows : []
@@ -129,7 +130,9 @@ export function AgentSessionContinuationDialog({
   // Why: the explanation must read the same host rows the picker shows, before the family filter.
   const openableRows =
     observation.model.state === 'settled'
-      ? observation.model.rows.filter((row) => row.kind !== 'chat-unavailable')
+      ? observation.model.rows
+          .filter(isInstalledAgentMenuRow)
+          .filter((row) => row.kind !== 'chat-unavailable')
       : []
   const onlySourceFamilyOffered =
     openableRows.length > 0 &&

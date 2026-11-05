@@ -156,3 +156,6 @@ export function runtimeEnvironmentIdOrLocalUnlessTwin(
     ? match.owner.endpoint.environmentId
     : null
 }
+
+// Shim for the custom-agent launch path; same meaning as the helper above.
+export const getRuntimeEnvironmentIdForWorktree = runtimeEnvironmentIdOrLocalUnlessTwin

@@ -75,7 +75,7 @@ export function savedSurfaceForPick(
     entry?.agent === agent
       ? entry.surfaces.includes('chat') && entry.surfaces.includes('terminal')
       : model.state === 'settled' &&
-        model.rows.some((row) => row.agent === agent && row.kind === 'chat')
+        model.rows.some((row) => row.kind === 'chat' && row.agent === agent)
   return hadChoice ? surface : undefined
 }
 

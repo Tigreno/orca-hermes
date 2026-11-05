@@ -15,6 +15,7 @@ import { assertTerminalQuickCommandsStorable } from '../../../../shared/terminal
 import { normalizeTerminalCustomThemes } from '../../../../shared/terminal-themes/terminal-custom-themes'
 import { normalizeTaskProviderSettings } from '../../../../shared/task-providers'
 import { normalizeOpenInApplications } from '../../../../shared/open-in-applications'
+import { normalizeCustomAgentProfiles } from '../../../../shared/custom-agent-profile'
 import { createSettingsSearchState, type SettingsSearchState } from './settings-search-state'
 import { isRuntimeCatalogListingStale } from './runtime-status-hydration'
 import { normalizeDisabledTuiAgents } from '../../../../shared/agent-launch/catalog/tui-agent-selection'
@@ -105,6 +106,9 @@ function normalizeSettingsUpdates(
   }
   if ('disabledTuiAgents' in updates) {
     sanitizedUpdates.disabledTuiAgents = normalizeDisabledTuiAgents(updates.disabledTuiAgents)
+  }
+  if ('customAgentProfiles' in updates) {
+    sanitizedUpdates.customAgentProfiles = normalizeCustomAgentProfiles(updates.customAgentProfiles)
   }
   sanitizeAgentLaunchProfileUpdates(sanitizedUpdates, updates)
   if ('uiLanguage' in updates) {

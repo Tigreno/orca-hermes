@@ -3,6 +3,7 @@ import type { LaunchSource } from '../../../shared/telemetry-events'
 import type { TuiAgent } from '../../../shared/agent-launch/catalog/tui-agent'
 import type { AgentStartupPlan } from '../../../shared/agent-launch/startup/tui-agent-startup'
 import type { AutomationTerminalOwnership } from '@/lib/automation-terminal-ownership'
+import type { CustomAgentProfile } from '../../../shared/custom-agent-profile'
 import type { Repo } from '../../../shared/repo-types'
 import type { Worktree } from '../../../shared/worktree/types'
 
@@ -10,6 +11,7 @@ export type ResolvedAgentBackgroundTarget = { worktree: Worktree; repo: Repo }
 
 export type LaunchAgentBackgroundSessionArgs = {
   agent: TuiAgent
+  customAgentProfile?: CustomAgentProfile
   worktreeId: string
   resolvedTarget?: ResolvedAgentBackgroundTarget
   prompt?: string
