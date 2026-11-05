@@ -269,34 +269,38 @@ export function ProjectedAgentMenuItems({
         </DropdownMenuItem>
       ) : null}
       {pickerInventory ? (
-        <SubscribedAgentLaunchPickerMenu
-          shortcutLabels={shortcutLabels}
-          inventory={pickerInventory}
-          runLaunch={runLaunch}
-          onSelectAgent={onSelectPickerAgent}
-          hideSearch={hidePickerSearch}
-        />
+        <>
+          {/* Custom profiles are not picker entries, so the picker must not hide their rows. */}
+          {rows.map((row) =>
+            row.kind === 'custom' ? (
+              <CustomAgentMenuItem
+                key={rowId(row)}
+                row={row}
+                disabled={disabled}
+                runLaunch={runLaunch}
+                shortcut={newAgentShortcut}
+              />
+            ) : null
+          )}
+          <SubscribedAgentLaunchPickerMenu
+            shortcutLabels={shortcutLabels}
+            inventory={pickerInventory}
+            runLaunch={runLaunch}
+            onSelectAgent={onSelectPickerAgent}
+            hideSearch={hidePickerSearch}
+          />
+        </>
       ) : (
         rows.map((row, index) => {
           if (row.kind === 'custom') {
             return (
-              <DropdownMenuItem
+              <CustomAgentMenuItem
                 key={rowId(row)}
-                variant="launch"
+                row={row}
                 disabled={disabled}
-                onSelect={() => runLaunch(row)}
-                title={rowTitle(row, row.profile.name)}
-              >
-                {row.profile.baseAgent ? (
-                  <AgentIcon agent={row.profile.baseAgent} size={14} />
-                ) : (
-                  <SquareTerminal className="size-3.5 shrink-0" aria-hidden="true" />
-                )}
-                <span className="flex-1">{row.profile.name}</span>
-                {row.isDefault && newAgentShortcut !== null ? (
-                  <DropdownMenuShortcut>{newAgentShortcut}</DropdownMenuShortcut>
-                ) : null}
-              </DropdownMenuItem>
+                runLaunch={runLaunch}
+                shortcut={newAgentShortcut}
+              />
             )
           }
           const { agent } = row
@@ -361,5 +365,35 @@ export function ProjectedAgentMenuItems({
   )
 }
 
+function CustomAgentMenuItem({
+  row,
+  disabled,
+  runLaunch,
+  shortcut
+}: {
+  row: Extract<NewTabAgentMenuRow, { kind: 'custom' }>
+  disabled: boolean
+  runLaunch: React.ComponentProps<typeof SubscribedAgentLaunchPickerMenu>['runLaunch']
+  shortcut: string | null
+}): React.JSX.Element {
+  return (
+    <DropdownMenuItem
+      variant="launch"
+      disabled={disabled}
+      onSelect={() => runLaunch(row)}
+      title={rowTitle(row, row.profile.name)}
+    >
+      {row.profile.baseAgent ? (
+        <AgentIcon agent={row.profile.baseAgent} size={14} />
+      ) : (
+        <SquareTerminal className="size-3.5 shrink-0" aria-hidden="true" />
+      )}
+      <span className="flex-1">{row.profile.name}</span>
+      {row.isDefault && shortcut !== null ? (
+        <DropdownMenuShortcut>{shortcut}</DropdownMenuShortcut>
+      ) : null}
+    </DropdownMenuItem>
+  )
+}
 
 export const QuickLaunchAgentMenuItems = React.memo(QuickLaunchAgentMenuItemsInner)

@@ -28,6 +28,7 @@ import {
   useTabAgentMenuLaunch
 } from './QuickLaunchButton'
 import { useTabBarCreateMenuController } from './use-tab-bar-create-menu-controller'
+import { createAgentPickerInventorySource } from '../agent/agent-launch-picker-acquisition'
 
 import type * as WorktreeFixtures from '@/store/slices/worktrees-slice-test-fixtures'
 
@@ -418,6 +419,34 @@ it('gives static/search no agent actions while loading, retaining settings and g
   expect(document.querySelector('[title]')).toBeNull()
   expect(document.body.textContent).toContain('Agent settings')
   model.mockRestore()
+})
+
+it('keeps custom agent rows visible when the picker inventory owns the built-in agents', () => {
+  render(
+    <ProjectedAgentMenuItems
+      runLaunch={vi.fn()}
+      pickerInventory={createAgentPickerInventorySource([])}
+      model={{
+        state: 'settled',
+        rows: [
+          {
+            kind: 'custom',
+            isDefault: false,
+            profile: { id: 'luna', name: 'Codex Luna', executable: 'codex', args: [] }
+          }
+        ],
+        detection: {
+          detectedIds: [],
+          detectionFailed: false,
+          needsServerUpdate: false,
+          isLoading: false,
+          isRefreshing: false,
+          refresh: async () => []
+        }
+      }}
+    />
+  )
+  expect(screen.getByText('Codex Luna')).not.toBeNull()
 })
 
 it('shows the existing inventory failure alongside truthful disabled chat rows', () => {
