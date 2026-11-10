@@ -36,6 +36,15 @@ export type AgentMenuRowsTarget = {
   launchCwd?: string | null
 }
 
+/** Custom rows carry a profile instead of an agent, so compare what each row would launch. */
+const rowComparisonKey = (row: NewTabAgentMenuRow): unknown[] => [
+  row.kind === 'custom' ? row.profile.id : row.agent,
+  row.kind,
+  row.executionHostId,
+  row.kind === 'custom' ? row.isDefault : undefined,
+  'reason' in row ? row.reason : undefined
+]
+
 /** Compare selected launch references before deriving source, profile or catalog views. */
 export function sameAgentLaunchPickerModel(a: NewTabAgentMenuModel, b: NewTabAgentMenuModel) {
   if (a === b) {
@@ -72,12 +81,7 @@ export function sameAgentLaunchPickerModel(a: NewTabAgentMenuModel, b: NewTabAge
       x?.settings?.nativeChatSessionOptions,
       x?.settings?.nativeChatPermissionMode,
       ...(a.detection.detectedIds ?? []),
-      ...a.rows.flatMap((row) => [
-        row.agent,
-        row.kind,
-        row.executionHostId,
-        'reason' in row ? row.reason : undefined
-      ])
+      ...a.rows.flatMap(rowComparisonKey)
     ],
     [
       b.defaultTuiAgent,
@@ -100,12 +104,7 @@ export function sameAgentLaunchPickerModel(a: NewTabAgentMenuModel, b: NewTabAge
       y?.settings?.nativeChatSessionOptions,
       y?.settings?.nativeChatPermissionMode,
       ...(b.detection.detectedIds ?? []),
-      ...b.rows.flatMap((row) => [
-        row.agent,
-        row.kind,
-        row.executionHostId,
-        'reason' in row ? row.reason : undefined
-      ])
+      ...b.rows.flatMap(rowComparisonKey)
     ]
   )
 }

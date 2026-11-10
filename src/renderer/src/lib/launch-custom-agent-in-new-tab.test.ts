@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AgentCatalogEntry } from '@/lib/agent-catalog'
+import type { AgentCatalogEntry } from '@/lib/agent-catalog/agent-catalog'
 import type { launchCustomAgentInNewTab as LaunchCustomAgentInNewTab } from './launch-custom-agent-in-new-tab'
 
 const mocks = vi.hoisted(() => ({

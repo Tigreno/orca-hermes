@@ -14,6 +14,27 @@ import {
   SelectItem
 } from '@/components/ui/select'
 import { openAppHttpLink } from '@/lib/browser/navigation/app-http-link-open'
+import { useBitrix24TaskPage } from './bitrix24/task-page-bitrix24-context'
+
+function Bitrix24ProjectChip(): React.JSX.Element {
+  const { scope } = useBitrix24TaskPage()
+  const t = useTranslate()
+  return (
+    <div className="flex items-center gap-2">
+      <div className="hidden min-w-0 max-w-[min(320px,40vw)] items-center rounded-md border border-border/50 bg-muted/35 px-2 py-1 text-xs text-muted-foreground sm:flex">
+        <span className="truncate">
+          {scope
+            ? t('auto.components.TaskPage.bitrix24Project', '{{project}} · {{portal}}', {
+                project: scope.project.groupName,
+                portal: scope.project.portalHost
+              })
+            : t('auto.components.TaskPage.bitrix24AllPortal', 'All portal tasks')}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export function TaskPageSourceBar({
   model
 }: {
@@ -127,12 +148,14 @@ export function TaskPageSourceBar({
             </Tooltip>
           )
         })}
-        <div
-          className="hidden min-w-0 max-w-[min(420px,40vw)] items-center rounded-md border border-border/50 bg-muted/35 px-2 py-1 text-xs text-muted-foreground sm:flex"
-          title={taskSourceContextSummary.title}
-        >
-          <span className="truncate">{taskSourceContextSummary.label}</span>
-        </div>
+        {taskSource === 'bitrix24' ? null : (
+          <div
+            className="hidden min-w-0 max-w-[min(420px,40vw)] items-center rounded-md border border-border/50 bg-muted/35 px-2 py-1 text-xs text-muted-foreground sm:flex"
+            title={taskSourceContextSummary.title}
+          >
+            <span className="truncate">{taskSourceContextSummary.label}</span>
+          </div>
+        )}
       </div>
       {taskSource === 'linear' && linearConnected ? (
         <div className="flex items-center gap-2">
@@ -220,6 +243,7 @@ export function TaskPageSourceBar({
           ) : null}
         </div>
       ) : null}
+      {taskSource === 'bitrix24' ? <Bitrix24ProjectChip /> : null}
     </div>
   )
 }

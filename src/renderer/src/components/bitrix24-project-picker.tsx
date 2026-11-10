@@ -4,7 +4,7 @@ import type { Bitrix24ProjectReference } from '../../../shared/bitrix24/project-
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { WorkItemScopePicker, type WorkItemScopeOption } from './work-item-scope-picker'
-import { translate } from '@/i18n/i18n'
+import { useTranslate } from '@/i18n/use-translate'
 
 export function Bitrix24ProjectPicker({
   projects,
@@ -23,6 +23,7 @@ export function Bitrix24ProjectPicker({
   emptyLabel: string
   disabled?: boolean
 }): React.JSX.Element {
+  const t = useTranslate()
   const [manualOpen, setManualOpen] = useState(false)
   const [manualId, setManualId] = useState('')
 
@@ -43,7 +44,7 @@ export function Bitrix24ProjectPicker({
     onChange({
       portalHost,
       groupId,
-      groupName: translate('components.bitrix24ProjectPicker.manualName', 'Project {{id}}', {
+      groupName: t('components.bitrix24ProjectPicker.manualName', 'Project {{id}}', {
         id: groupId
       })
     })
@@ -60,11 +61,8 @@ export function Bitrix24ProjectPicker({
         onChange={onChange}
         label={label}
         allLabel={emptyLabel}
-        searchPlaceholder={translate(
-          'components.bitrix24ProjectPicker.search',
-          'Search Bitrix24 projects'
-        )}
-        emptyLabel={translate(
+        searchPlaceholder={t('components.bitrix24ProjectPicker.search', 'Search Bitrix24 projects')}
+        emptyLabel={t(
           'components.bitrix24ProjectPicker.empty',
           'No projects found. Enter an ID manually.'
         )}
@@ -75,11 +73,11 @@ export function Bitrix24ProjectPicker({
           <Input
             value={manualId}
             onChange={(event) => setManualId(event.target.value)}
-            placeholder={translate(
+            placeholder={t(
               'components.bitrix24ProjectPicker.manualPlaceholder',
               'Bitrix24 project ID'
             )}
-            aria-label={translate(
+            aria-label={t(
               'components.bitrix24ProjectPicker.manualPlaceholder',
               'Bitrix24 project ID'
             )}
@@ -97,7 +95,7 @@ export function Bitrix24ProjectPicker({
             onClick={applyManualId}
             disabled={disabled || !manualId.trim()}
           >
-            {translate('components.bitrix24ProjectPicker.apply', 'Use ID')}
+            {t('components.bitrix24ProjectPicker.apply', 'Use ID')}
           </Button>
         </div>
       ) : (
@@ -108,7 +106,7 @@ export function Bitrix24ProjectPicker({
           onClick={() => setManualOpen(true)}
           disabled={disabled || !portalHost}
         >
-          {translate('components.bitrix24ProjectPicker.manual', 'Enter project ID manually')}
+          {t('components.bitrix24ProjectPicker.manual', 'Enter project ID manually')}
         </Button>
       )}
     </div>

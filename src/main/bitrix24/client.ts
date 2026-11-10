@@ -2,7 +2,7 @@ import {
   API_RESPONSE_MAX_BYTES,
   readFetchResponseJsonWithinLimit
 } from '../../shared/fetch-response-body'
-import { taskProviderFailure } from '../../shared/task-provider-failure'
+import { taskProviderFailure } from '../../shared/work-items/task-provider-failure'
 import {
   buildBitrix24WebhookUrl,
   parseBitrix24WebhookUrl,
@@ -74,8 +74,8 @@ function serialize<T>(task: () => Promise<T>): Promise<T> {
   return run
 }
 
-export function getStoredCredential(): Bitrix24WebhookCredential {
-  const credential = readWebhookCredential()
+export async function getStoredCredential(): Promise<Bitrix24WebhookCredential> {
+  const credential = await readWebhookCredential()
   if (!credential) {
     throw new Bitrix24NotConnectedError()
   }
@@ -148,7 +148,7 @@ export async function bitrix24Request<T>(
     signal?: AbortSignal
   } = {}
 ): Promise<Bitrix24Envelope<T>> {
-  const credential = options.credential ?? getStoredCredential()
+  const credential = options.credential ?? (await getStoredCredential())
   return serialize(async () => {
     let lastError: unknown
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
@@ -211,14 +211,14 @@ function missingScopes(scopes: readonly string[]): string[] {
   return BITRIX24_REQUIRED_SCOPES.filter((scope) => !scopes.includes(scope))
 }
 
-export function getStatus(): Bitrix24ConnectionStatus {
+export async function getStatus(): Promise<Bitrix24ConnectionStatus> {
   let connected = false
   let portalHost: string | null = null
   let userId: string | null = null
   let error: string | null = null
   try {
-    connected = hasStoredWebhook()
-    const credential = readWebhookCredential()
+    connected = await hasStoredWebhook()
+    const credential = await readWebhookCredential()
     portalHost = credential?.portalHost ?? null
     userId = credential?.userId ?? null
   } catch (caught) {
@@ -252,15 +252,15 @@ export async function connect(
         `Bitrix24 webhook is missing required scopes: ${missing.join(', ')}.`
       )
     }
-    saveWebhookCredential(credential)
-    return { ok: true, status: getStatus() }
+    await saveWebhookCredential(credential)
+    return { ok: true, status: await getStatus() }
   } catch (caught) {
     return { ok: false, error: bitrix24ErrorMessage(caught) }
   }
 }
 
-export function disconnect(): void {
-  clearWebhookCredential()
+export async function disconnect(): Promise<void> {
+  await clearWebhookCredential()
   cachedScopes = null
 }
 
@@ -268,7 +268,7 @@ export async function testConnection(): Promise<
   { ok: true; status: Bitrix24ConnectionStatus } | { ok: false; error: string }
 > {
   try {
-    const credential = getStoredCredential()
+    const credential = await getStoredCredential()
     const scopes = await fetchScopes(credential)
     const missing = missingScopes(scopes)
     if (missing.length > 0) {
@@ -277,7 +277,7 @@ export async function testConnection(): Promise<
         `Bitrix24 webhook is missing required scopes: ${missing.join(', ')}.`
       )
     }
-    return { ok: true, status: getStatus() }
+    return { ok: true, status: await getStatus() }
   } catch (caught) {
     return { ok: false, error: bitrix24ErrorMessage(caught) }
   }

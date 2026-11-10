@@ -1,4 +1,4 @@
-// @vitest-environment happy-dom
+﻿// @vitest-environment happy-dom
 import {
   mockCreateTab,
   mockToastError,
@@ -24,14 +24,14 @@ it('a shortcut while SSH is still connecting waits silently, then settled missin
   const sshState = (status: string) =>
     Object.assign(store, { sshConnectionStates: new Map([['missing-host', { status }]]) })
   sshState('connecting')
-  launchAgentTabShortcut('wt-1', { agent: 'codex' }, () => true)
+  launchAgentTabShortcut('wt-1', { agent: 'codex', customAgentProfileId: null }, () => true)
   expect(mockToastError).not.toHaveBeenCalled()
   expect(mockCreateTab).not.toHaveBeenCalled()
 
   sshState('disconnected')
-  launchAgentTabShortcut('wt-1', { agent: 'codex' }, () => true)
+  launchAgentTabShortcut('wt-1', { agent: 'codex', customAgentProfileId: null }, () => true)
   expect(mockToastError).toHaveBeenCalledExactlyOnceWith('Could not start a new Codex session.', {
-    description: 'Connect to this workspace’s SSH host, then try again.'
+    description: 'Connect to this workspaceвЂ™s SSH host, then try again.'
   })
   expect(mockCreateTab).not.toHaveBeenCalled()
 })
@@ -48,7 +48,7 @@ it('a terminal opened behind a visible chat returns its refusal to that chat ins
     })
   ).toEqual({
     refused: { delivered: false, failureNotified: true },
-    recovery: 'Connect to this workspace’s SSH host, then try again.'
+    recovery: 'Connect to this workspaceвЂ™s SSH host, then try again.'
   })
   expect(mockToastError).not.toHaveBeenCalled()
   expect(mockCreateTab).not.toHaveBeenCalled()

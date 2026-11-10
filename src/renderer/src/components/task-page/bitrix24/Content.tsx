@@ -4,8 +4,8 @@ import { Bitrix24Icon } from '@/components/icons/Bitrix24Icon'
 import { Bitrix24ConnectDialog } from '@/components/bitrix24-connect-dialog'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { openAppHttpLink } from '@/lib/app-http-link-open'
-import { translate } from '@/i18n/i18n'
+import { openAppHttpLink } from '@/lib/browser/navigation/app-http-link-open'
+import { useTranslate } from '@/i18n/use-translate'
 import { useAppStore } from '@/store'
 import type { Bitrix24TaskSummary } from '../../../../../shared/bitrix24/bitrix24-types'
 import { formatRelativeTime } from '../task-page-source-context'
@@ -24,6 +24,7 @@ function TaskRow({
   onOpen: () => void
   onStart: () => void
 }): React.JSX.Element {
+  const t = useTranslate()
   return (
     <div
       role="button"
@@ -63,16 +64,13 @@ function TaskRow({
                 event.stopPropagation()
                 onStart()
               }}
-              aria-label={translate(
-                'components.bitrix24TaskList.startWorkspace',
-                'Start workspace'
-              )}
+              aria-label={t('components.bitrix24TaskList.startWorkspace', 'Start workspace')}
             >
               <ArrowRight className="size-3.5" />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="left" sideOffset={6}>
-            {translate('components.bitrix24TaskList.startWorkspace', 'Start workspace')}
+            {t('components.bitrix24TaskList.startWorkspace', 'Start workspace')}
           </TooltipContent>
         </Tooltip>
         <Tooltip>
@@ -84,16 +82,13 @@ function TaskRow({
                 event.stopPropagation()
                 openAppHttpLink(task.url, { event })
               }}
-              aria-label={translate(
-                'components.bitrix24TaskList.openInBitrix24',
-                'Open in Bitrix24'
-              )}
+              aria-label={t('components.bitrix24TaskList.openInBitrix24', 'Open in Bitrix24')}
             >
               <ExternalLink className="size-3.5" />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="left" sideOffset={6}>
-            {translate('components.bitrix24TaskList.openInBitrix24', 'Open in Bitrix24')}
+            {t('components.bitrix24TaskList.openInBitrix24', 'Open in Bitrix24')}
           </TooltipContent>
         </Tooltip>
       </div>
@@ -102,6 +97,7 @@ function TaskRow({
 }
 
 export function TaskPageBitrix24Content(): React.JSX.Element {
+  const t = useTranslate()
   const {
     checking,
     connected,
@@ -134,16 +130,16 @@ export function TaskPageBitrix24Content(): React.JSX.Element {
         <div className="mt-4 flex flex-col items-center justify-center rounded-md border border-border/50 bg-muted/50 px-6 py-14 text-center shadow-sm">
           <Bitrix24Icon className="mb-4 size-8 text-muted-foreground/60" />
           <p className="text-base font-medium text-foreground">
-            {translate('components.bitrix24TaskList.connectTitle', 'Connect Bitrix24')}
+            {t('components.bitrix24TaskList.connectTitle', 'Connect Bitrix24')}
           </p>
           <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-            {translate(
+            {t(
               'components.bitrix24TaskList.connectDescription',
               'Browse tasks from your Bitrix24 projects and start workspaces from them.'
             )}
           </p>
           <Button className="mt-5" onClick={() => setConnectOpen(true)}>
-            {translate('components.bitrix24TaskList.connectAction', 'Connect Bitrix24')}
+            {t('components.bitrix24TaskList.connectAction', 'Connect Bitrix24')}
           </Button>
         </div>
         <Bitrix24ConnectDialog open={connectOpen} onOpenChange={setConnectOpen} />
@@ -156,10 +152,10 @@ export function TaskPageBitrix24Content(): React.JSX.Element {
       <div
         className={`flex-none grid gap-3 border-b border-border/50 px-3 py-2 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground ${GRID_COLUMNS}`}
       >
-        <span>{translate('components.bitrix24TaskList.id', 'ID')}</span>
-        <span>{translate('components.bitrix24TaskList.title', 'Title')}</span>
-        <span>{translate('components.bitrix24TaskList.status', 'Status')}</span>
-        <span>{translate('components.bitrix24TaskList.updated', 'Updated')}</span>
+        <span>{t('components.bitrix24TaskList.id', 'ID')}</span>
+        <span>{t('components.bitrix24TaskList.title', 'Title')}</span>
+        <span>{t('components.bitrix24TaskList.status', 'Status')}</span>
+        <span>{t('components.bitrix24TaskList.updated', 'Updated')}</span>
         <span />
       </div>
       <div className="min-h-0 flex-initial overflow-y-auto scrollbar-sleek">
@@ -189,16 +185,14 @@ export function TaskPageBitrix24Content(): React.JSX.Element {
         {!loading && tasks.length === 0 && !error ? (
           <div className="px-4 py-12 text-center">
             <p className="text-base font-medium text-foreground">
-              {translate('components.bitrix24TaskList.emptyTitle', 'No Bitrix24 tasks')}
+              {t('components.bitrix24TaskList.emptyTitle', 'No Bitrix24 tasks')}
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
               {scope
-                ? translate(
-                    'components.bitrix24TaskList.emptyInProject',
-                    'Nothing matches in {{name}}.',
-                    { name: scope.project.groupName }
-                  )
-                : translate(
+                ? t('components.bitrix24TaskList.emptyInProject', 'Nothing matches in {{name}}.', {
+                    name: scope.project.groupName
+                  })
+                : t(
                     'components.bitrix24TaskList.emptyDescription',
                     'Nothing matches the current filter.'
                   )}
@@ -221,7 +215,7 @@ export function TaskPageBitrix24Content(): React.JSX.Element {
                   toast.error(
                     caught instanceof Error
                       ? caught.message
-                      : translate(
+                      : t(
                           'components.bitrix24TaskList.startFailed',
                           'Could not start a workspace from this task.'
                         )
@@ -237,10 +231,10 @@ export function TaskPageBitrix24Content(): React.JSX.Element {
               {loadingMore ? (
                 <>
                   <LoaderCircle className="mr-1.5 size-3.5 animate-spin" />
-                  {translate('components.bitrix24TaskList.loadingMore', 'Loading...')}
+                  {t('components.bitrix24TaskList.loadingMore', 'Loading...')}
                 </>
               ) : (
-                translate('components.bitrix24TaskList.loadMore', 'Load more')
+                t('components.bitrix24TaskList.loadMore', 'Load more')
               )}
             </Button>
           </div>

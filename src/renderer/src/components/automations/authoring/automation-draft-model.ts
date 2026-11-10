@@ -8,7 +8,7 @@ import {
   parseExtraAgentArgs
 } from '../../../../../shared/agent-launch/startup/automation-extra-agent-args'
 import type { AutomationDraft } from './AutomationEditorDialog'
-import type { CustomAgentProfile } from '../../../../shared/custom-agent-profile'
+import type { CustomAgentProfile } from '../../../../../shared/custom-agent-profile'
 import { extraAgentArgsErrorText } from './automation-extra-agent-args-error-copy'
 
 export const AUTOMATION_DEFAULT_TIME = '09:00'

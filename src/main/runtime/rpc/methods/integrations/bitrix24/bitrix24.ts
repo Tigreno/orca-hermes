@@ -1,10 +1,10 @@
-import { defineMethod } from '../core'
+import { defineMethod } from '../../../core'
 import {
   Bitrix24Connect,
   Bitrix24ListTasks,
   Bitrix24RepoProjectBinding,
   Bitrix24TaskId
-} from '../../../../shared/rpc-contract/bitrix24-params'
+} from '../../../../../../shared/rpc-contract/bitrix24-params'
 
 export const BITRIX24_METHODS = [
   defineMethod({

@@ -1,4 +1,8 @@
 import { retainAutomationReselectionContexts } from './automation-host-reselection'
+import {
+  applyAutomationUpdateFields,
+  takeCustomAgentProfileUpdate
+} from './automation-definition-update-fields'
 import { getRepoSshConnectionId } from '../../../shared/execution-host'
 import type { Repo } from '../../../shared/repo-types'
 import { findAutomationRepoForWrite } from '../../../shared/automations/ownership/automation-repo-target'
@@ -6,7 +10,6 @@ import {
   applyAutomationLaunchSetupPatch,
   automationWithLaunchSetup
 } from '../../../shared/automations/launch/automation-launch-setup'
-import { automationCanonicalLaunchSetup } from '../../../shared/automations/launch/automation-canonical-launch-setup'
 import { randomUUID } from 'node:crypto'
 import type {
   Automation,
@@ -121,6 +124,7 @@ export function createAutomation(
       : {}),
     ...(setup.agentArgs !== undefined ? { agentArgs: setup.agentArgs } : {}),
     ...(extraAgentArgs !== undefined ? { extraAgentArgs } : {}),
+    ...(input.customAgentProfileId ? { customAgentProfileId: input.customAgentProfileId } : {}),
     // Prefer authority-local contexts; client-assigned runtime IDs cannot identify this store's host.
     runContext: contexts.runContext ?? input.runContext ?? null,
     sourceContext: contexts.sourceContext ?? input.sourceContext ?? null,
@@ -192,6 +196,7 @@ export function updateAutomation(
   const definedUpdates = Object.fromEntries(
     Object.entries(launchSetupUpdate).filter(([, value]) => value !== undefined)
   ) as Omit<AutomationUpdateInput, 'launchSetupPatch'> & Pick<Automation, 'surface'>
+  const { customAgentProfileId, rest: mergedUpdates } = takeCustomAgentProfileUpdate(definedUpdates)
   const repoId = updates.projectId ?? current.projectId
   const selectorMoveRequested =
     updates.projectId !== undefined || options?.destination !== undefined
@@ -211,7 +216,7 @@ export function updateAutomation(
   const workspaceMode = updates.workspaceMode ?? current.workspaceMode
   const merged: Automation = {
     ...current,
-    ...definedUpdates,
+    ...mergedUpdates,
     name: updates.name !== undefined ? updates.name.trim() || 'Untitled automation' : current.name,
     precheck: Object.hasOwn(definedUpdates, 'precheck')
       ? normalizeAutomationPrecheck(definedUpdates.precheck)
@@ -271,12 +276,7 @@ export function updateAutomation(
     delete merged.sourceContext
   }
   applyAutomationSetupTrust(merged, definedUpdates, current)
-  delete merged.launchSetup
-  for (const key of ['surface', 'launchPreferences', 'agentArgs', 'extraAgentArgs'] as const) {
-    delete merged[key]
-  }
-  Object.assign(merged, automationCanonicalLaunchSetup(launchSetupUpdate))
-  assertAutomationExtraAgentArgs(merged)
+  applyAutomationUpdateFields(merged, launchSetupUpdate, customAgentProfileId)
   const previousPin = automationWorkspaceSshPin(operations.state, current.workspaceId)
   const workspaceSshPin = automationWorkspaceSshPin(operations.state, merged.workspaceId)
   const workspaceSshPinMoved = previousPin?.targetId !== workspaceSshPin?.targetId

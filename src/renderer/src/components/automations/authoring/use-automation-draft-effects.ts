@@ -149,6 +149,7 @@ export function useAutomationDraftEffects({
               extraAgentArgs: ''
             }
           : {}),
+        customAgentProfileId: template.agentId === undefined ? current.customAgentProfileId : null,
         missedRunGraceMinutes: template.missedRunGraceMinutes ?? current.missedRunGraceMinutes,
         scheduleWarning: null
       }))

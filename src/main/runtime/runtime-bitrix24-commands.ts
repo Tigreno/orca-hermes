@@ -23,12 +23,11 @@ export class RuntimeBitrix24Commands {
     return connect(args)
   }
 
-  bitrix24Disconnect(): { ok: true } {
-    disconnect()
-    return { ok: true }
+  bitrix24Disconnect(): Promise<{ ok: true }> {
+    return disconnect().then(() => ({ ok: true }))
   }
 
-  bitrix24Status(): Bitrix24ConnectionStatus {
+  bitrix24Status(): Promise<Bitrix24ConnectionStatus> {
     return getStatus()
   }
 
@@ -48,7 +47,7 @@ export class RuntimeBitrix24Commands {
     return getTask(taskId)
   }
 
-  bitrix24RepoProjectBindings(): Record<string, Bitrix24ProjectReference> {
+  bitrix24RepoProjectBindings(): Promise<Record<string, Bitrix24ProjectReference>> {
     return readRepoProjectBindings()
   }
 
@@ -56,7 +55,7 @@ export class RuntimeBitrix24Commands {
     repoId: string
     hostId: string
     project: unknown
-  }): Bitrix24ProjectReference | null {
+  }): Promise<Bitrix24ProjectReference | null> {
     return setRepoProjectBinding(args)
   }
 }

@@ -23,6 +23,7 @@ export function automationRunRecency(run: AutomationRun): number {
 export function findReusableAutomationRun<Session>(args: {
   automationId: string
   agentId: TuiAgent
+  customAgentProfileId?: string | null
   worktreeId: string
   target: AutomationSessionTarget
   currentRunId: string
@@ -31,6 +32,9 @@ export function findReusableAutomationRun<Session>(args: {
   /** The run's session while its pane still holds the run's own PTY; null otherwise. */
   liveSession: (run: ReusableAutomationRun) => Session | null
 }): Session | null {
+  if (args.customAgentProfileId) {
+    return null
+  }
   const ownRuns = args.runs
     .filter((run) => run.id !== args.currentRunId && run.automationId === args.automationId)
     .sort((left, right) => automationRunRecency(right) - automationRunRecency(left))

@@ -1,21 +1,21 @@
 import { toast } from 'sonner'
-import { getAgentCatalog } from '@/lib/agent-catalog'
-import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
-import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
-import { resolveAgentLaunchExecutionContext } from '@/lib/launch-agent-execution-context'
+import { getAgentCatalog } from '@/lib/agent-catalog/agent-catalog'
+import { launchAgentInNewTab } from '@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab'
+import { newAgentLaunchRequestId } from '@/lib/agent-session/launch/routing/agent-launch-request-id'
+import { resolveAgentLaunchExecutionContext } from '@/lib/agent-session/launch/new-tab/launch-agent-execution-context'
 import { resolveCustomAgentProfileBaseAgent } from '@/lib/custom-agent-profile-base-agent'
-import { persistAgentLaunchTabOrder } from '@/lib/launch-agent-tab-order'
+import { persistAgentLaunchTabOrder } from '@/lib/agent-session/launch/pane/launch-agent-tab-order'
 import { translate } from '@/i18n/i18n'
 import {
   getAgentLaunchPlatformForRepo,
   nodePlatformFromProjectRuntime
 } from '@/lib/agent-launch-platform'
 import { getLocalProjectExecutionRuntimeContext } from '@/lib/local-preflight-context'
-import { CLIENT_PLATFORM } from '@/lib/new-workspace'
+import { CLIENT_PLATFORM } from '@/lib/workspace/creation/new-workspace'
 import {
   getExecutionHostIdForWorktree,
   getRuntimeEnvironmentIdForWorktree
-} from '@/lib/worktree-runtime-owner'
+} from '@/lib/workspace/ownership/worktree-runtime-owner'
 import { useAppStore } from '@/store'
 import { worktreeUsesWslPath } from '@/store/terminals/terminal-workspace-routing'
 import { repoIsRemote } from '../../../shared/agent-launch/startup/agent-launch-remote'
@@ -166,7 +166,7 @@ function launchProfileThroughAgentPipeline(args: {
   const executionContext = resolveAgentLaunchExecutionContext(useAppStore.getState(), {
     worktreeId: args.worktreeId
   })
-  if (!executionContext) {
+  if (!executionContext || 'unavailable' in executionContext) {
     return null
   }
   const shell =
@@ -183,7 +183,7 @@ function launchProfileThroughAgentPipeline(args: {
     requestedSurface: 'terminal',
     launchPlatform: executionContext.resolvedLaunchPlatform
   })
-  if (!launched || launched.surface.kind === 'host-published') {
+  if (!launched || 'refused' in launched || launched.surface.kind === 'host-published') {
     return null
   }
   return { tabId: launched.surface.tabId }

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -27,13 +27,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function readBindingFile(): Bitrix24RepoProjectBindingFile {
-  const path = getBindingsFilePath()
-  if (!existsSync(path)) {
+async function readBindingFile(): Promise<Bitrix24RepoProjectBindingFile> {
+  let raw: string
+  try {
+    raw = await readFile(getBindingsFilePath(), 'utf-8')
+  } catch {
     return { version: 1, bindings: [] }
   }
   try {
-    const parsed: unknown = JSON.parse(readFileSync(path, { encoding: 'utf-8' }))
+    const parsed: unknown = JSON.parse(raw)
     if (!isRecord(parsed)) {
       return { version: 1, bindings: [] }
     }
@@ -60,32 +62,30 @@ function readBindingFile(): Bitrix24RepoProjectBindingFile {
   }
 }
 
-function writeBindingFile(bindings: readonly StoredBinding[]): void {
-  const dir = join(homedir(), '.orca')
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true })
-  }
+async function writeBindingFile(bindings: readonly StoredBinding[]): Promise<void> {
+  await mkdir(join(homedir(), '.orca'), { recursive: true })
   const file: Bitrix24RepoProjectBindingFile = { version: 1, bindings: [...bindings] }
-  writeFileSync(getBindingsFilePath(), JSON.stringify(file, null, 2), {
+  await writeFile(getBindingsFilePath(), JSON.stringify(file, null, 2), {
     encoding: 'utf-8',
     mode: 0o600
   })
 }
 
-export function readRepoProjectBindings(): Record<string, Bitrix24ProjectReference> {
+export async function readRepoProjectBindings(): Promise<Record<string, Bitrix24ProjectReference>> {
+  const { bindings } = await readBindingFile()
   return Object.fromEntries(
-    readBindingFile().bindings.map((binding) => [
+    bindings.map((binding) => [
       getRepoHostIdentityForParts(binding.repoId, binding.hostId),
       binding.project
     ])
   )
 }
 
-export function setRepoProjectBinding(args: {
+export async function setRepoProjectBinding(args: {
   repoId: string
   hostId: string
   project: unknown
-}): Bitrix24ProjectReference | null {
+}): Promise<Bitrix24ProjectReference | null> {
   const repoId = args.repoId.trim()
   const hostId = args.hostId.trim()
   if (!repoId || !hostId) {
@@ -96,9 +96,9 @@ export function setRepoProjectBinding(args: {
     throw new Error('Invalid Bitrix24 project reference.')
   }
   const key = getRepoHostIdentityForParts(repoId, hostId)
-  const others = readBindingFile().bindings.filter(
+  const others = (await readBindingFile()).bindings.filter(
     (binding) => getRepoHostIdentityForParts(binding.repoId, binding.hostId) !== key
   )
-  writeBindingFile(reference ? [...others, { repoId, hostId, project: reference }] : others)
+  await writeBindingFile(reference ? [...others, { repoId, hostId, project: reference }] : others)
   return reference
 }

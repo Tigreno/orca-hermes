@@ -5,7 +5,8 @@ import { getAgentCatalog, type AgentCatalogEntry } from '@/lib/agent-catalog/age
 import { AgentIcon } from '@/components/agent/icons/AgentIcon'
 import { searchAgentPickerEntries } from '@/lib/agent-catalog/agent-picker-search'
 import type { AgentLaunchSurface } from '@/lib/agent-session/launch/routing/agent-session-launch-plan'
-import type { NewTabAgentMenuRow } from '../../../../shared/agent-launch/picker/agent-launch-picker-rows'
+import type { InstalledAgentMenuRow } from '../../../../shared/agent-launch/picker/agent-launch-picker-rows'
+import { isInstalledAgentMenuRow } from '../../../../shared/agent-launch/picker/agent-launch-picker-rows'
 import type { NewTabAgentMenuModel } from '@/components/tab-bar/use-new-tab-agent-menu-rows'
 import {
   chatUnavailableLabel,
@@ -50,14 +51,15 @@ export function visibleSurfaceRows(
   model: NewTabAgentMenuModel,
   agents: readonly AgentCatalogEntry[],
   query: string
-): NewTabAgentMenuRow[] {
+): InstalledAgentMenuRow[] {
   if (model.state !== 'settled') {
     return []
   }
+  const rows = model.rows.filter(isInstalledAgentMenuRow)
   const matching = searchAgentPickerEntries(agents, query)
   return query.trim()
-    ? matching.flatMap((agent) => model.rows.filter((row) => row.agent === agent.id))
-    : model.rows.filter((row) => matching.some((agent) => row.agent === agent.id))
+    ? matching.flatMap((agent) => rows.filter((row) => row.agent === agent.id))
+    : rows.filter((row) => matching.some((agent) => row.agent === agent.id))
 }
 
 /** cmdk values for the surface list: the selected agent's row, and the row a query highlights. */
@@ -70,7 +72,7 @@ export function surfaceCommandValues(
     blankMatchesQuery: boolean
   },
   t?: Translate
-): { rows: NewTabAgentMenuRow[]; selected: string | null; highlighted: string } {
+): { rows: InstalledAgentMenuRow[]; selected: string | null; highlighted: string } {
   // Disabled rows are listed with their reason, so every agent is searched, not only pickable ones.
   const rows = visibleSurfaceRows(model, getAgentCatalog(), picker.query)
   const selected =
@@ -91,7 +93,7 @@ export function surfaceCommandValues(
 
 /** The row that carries the selected agent: its chat row when it has one, so the lit button shows. */
 export function surfaceRowValue(
-  rows: readonly NewTabAgentMenuRow[],
+  rows: readonly InstalledAgentMenuRow[],
   agent: TuiAgent | null
 ): string | undefined {
   const own = rows.filter((row) => row.agent === agent && row.kind !== 'chat-unavailable')
@@ -100,14 +102,14 @@ export function surfaceRowValue(
 }
 
 /** A chat row's terminal button runs the agent's CLI, so only a detected CLI gets one. */
-const rowOffersTerminal = (model?: NewTabAgentMenuModel, row?: NewTabAgentMenuRow): boolean =>
+const rowOffersTerminal = (model?: NewTabAgentMenuModel, row?: InstalledAgentMenuRow): boolean =>
   row?.kind === 'chat' &&
   model?.state === 'settled' &&
   model.detection.detectedIds?.includes(row.agent) === true
 
 /** cmdk keeps focus in the search box, so ArrowRight arms the highlighted row's terminal button. */
 export function useSurfaceRowArming(
-  rows: readonly NewTabAgentMenuRow[],
+  rows: readonly InstalledAgentMenuRow[],
   commandValue: string,
   pick: (agent: TuiAgent, surface: AgentLaunchSurface) => void,
   interaction: { key: string; model?: NewTabAgentMenuModel }
@@ -158,7 +160,7 @@ export function SurfaceAgentItems({
   onSetDefault
 }: {
   surfaceRows: AgentComboboxSurfaceRows
-  rows: readonly NewTabAgentMenuRow[]
+  rows: readonly InstalledAgentMenuRow[]
   value: TuiAgent | null
   armedValue: string | null
   defaultAgent?: TuiAgent | 'blank' | null

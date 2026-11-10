@@ -149,14 +149,18 @@ export const AgentLaunchPicker = memo(
       [ownsCatalog, onCatalogOpen]
     )
     const runLaunch = useCallback<ComponentProps<typeof AgentLaunchPickerMenu>['runLaunch']>(
-      (row, draft, entry, surface) =>
-        onPick(
+      (row, draft, entry, surface) => {
+        if (row.kind === 'custom') {
+          return
+        }
+        return onPick(
           row.agent,
           draft,
           entry,
           // Re-selecting an agent preserves the form's surface; a new chat row chooses Chat.
           surface ?? (!draft && row.agent !== agent && row.kind === 'chat' ? 'chat' : undefined)
-        ),
+        )
+      },
       [onPick, agent]
     )
     const catalogAgent = open && suppliedEntries ? (agent ?? undefined) : undefined

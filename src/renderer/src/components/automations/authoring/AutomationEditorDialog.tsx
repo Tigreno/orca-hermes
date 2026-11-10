@@ -52,6 +52,7 @@ export type AutomationDraft = {
   agentArgs?: string | null
   launchSetupPatch?: AutomationLaunchSetupPatch & { legacyOnly?: true }
   launchArgumentsInput?: { kind: 'legacy' | 'supplemental'; value: string }
+  customAgentProfileId: string | null
   projectId: string
   workspaceMode: AutomationWorkspaceMode
   workspaceId: string

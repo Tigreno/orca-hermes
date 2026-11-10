@@ -10,7 +10,7 @@ import {
   type AgentPickerEntry
 } from '../../../../shared/agent-launch/picker/agent-launch-picker'
 import { useAgentMenuObservation } from '@/components/tab-bar/use-new-tab-agent-menu-rows'
-import { isInstalledAgentMenuRow } from '@/lib/new-tab-agent-menu-rows'
+import { isInstalledAgentMenuRow } from '@/lib/agent-session/launch/routing/new-tab-agent-menu-rows'
 import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
 import type { AgentLaunchSurface } from '@/lib/agent-session/launch/routing/agent-session-launch-plan'
 import { Button } from '@/components/ui/button'
@@ -118,16 +118,17 @@ export function AgentSessionContinuationDialog({
       isTuiAgentEnabled(agent.id, disabledAgents) &&
       isContinuationAgentAllowed(agent.id, request?.source.sourceAgent, request?.avoidSourceAgent)
   )
+  const destinationRows =
+    observation.model.state === 'settled'
+      ? observation.model.rows
+          .filter(isInstalledAgentMenuRow)
+          .filter((row) => agents.some((agent) => agent.id === row.agent))
+      : []
   const destinationModel =
     observation.model.state === 'settled'
-      ? {
-          ...observation.model,
-          rows: observation.model.rows
-            .filter(isInstalledAgentMenuRow)
-            .filter((row) => agents.some((agent) => agent.id === row.agent))
-        }
+      ? { ...observation.model, rows: destinationRows }
       : observation.model
-  const rows = destinationModel.state === 'settled' ? destinationModel.rows : []
+  const rows = destinationRows
   const pickable = agents
     .map((agent) => agent.id)
     .filter(

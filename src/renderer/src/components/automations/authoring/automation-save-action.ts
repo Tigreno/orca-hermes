@@ -13,10 +13,10 @@ import {
   draftExtraAgentArgsNeedFreshSession,
   getDraftExtraAgentArgsError,
   parseDraftTime
-} from './automation-draft-model'
+} from '../authoring/automation-draft-model'
 import { saveOrcaAutomation } from './automation-orca-save'
 import type { AutomationSaveContext } from './automation-save-context'
-import { findEnabledCustomAgentProfile } from '../../../../shared/custom-agent-profile'
+import { findEnabledCustomAgentProfile } from '../../../../../shared/custom-agent-profile'
 
 /** Validates editor input then runs the Orca save transaction. */
 export function createAutomationSaveAction(context: AutomationSaveContext) {

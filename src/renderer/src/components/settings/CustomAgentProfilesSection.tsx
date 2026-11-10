@@ -1,9 +1,10 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Play, Plus, Terminal, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { AgentCatalogEntry } from '@/lib/agent-catalog'
-import { AgentIcon } from '@/lib/agent-catalog'
+import type { AgentCatalogEntry } from '@/lib/agent-catalog/agent-catalog'
+import { AgentIcon } from '@/components/agent/icons/AgentIcon'
 import { translate } from '@/i18n/i18n'
+import { useTranslate } from '@/i18n/use-translate'
 import { launchCustomAgentInNewTab } from '@/lib/launch-custom-agent-in-new-tab'
 import {
   CUSTOM_AGENT_PROFILES_MAX,
@@ -39,6 +40,20 @@ type CustomAgentProfilesSectionProps = {
   launchWorktreeId?: string | null
 }
 
+type ProfileSaveOutcome = { ok: true } | { ok: false; error: string }
+
+async function saveCustomAgentProfiles(
+  next: CustomAgentProfile[],
+  onProfilesChange: CustomAgentProfilesSectionProps['onProfilesChange']
+): Promise<ProfileSaveOutcome> {
+  try {
+    await onProfilesChange(next)
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
 export const CustomAgentProfilesSection = forwardRef<
   CustomAgentProfilesSectionHandle,
   CustomAgentProfilesSectionProps
@@ -46,6 +61,7 @@ export const CustomAgentProfilesSection = forwardRef<
   { profiles, catalog, onProfilesChange, launchWorktreeId = null },
   ref
 ): React.JSX.Element {
+  const t = useTranslate()
   const [editor, setEditor] = useState<CustomAgentEditorState | null>(null)
   const [saving, setSaving] = useState(false)
   const [persistenceError, setPersistenceError] = useState<string | null>(null)
@@ -102,16 +118,14 @@ export const CustomAgentProfilesSection = forwardRef<
     mutationInFlightRef.current = true
     setSaving(true)
     setPersistenceError(null)
-    try {
-      await onProfilesChange(next)
-      return true
-    } catch (error) {
-      setPersistenceError(error instanceof Error ? error.message : String(error))
+    const outcome = await saveCustomAgentProfiles(next, onProfilesChange)
+    mutationInFlightRef.current = false
+    setSaving(false)
+    if (!outcome.ok) {
+      setPersistenceError(outcome.error)
       return false
-    } finally {
-      mutationInFlightRef.current = false
-      setSaving(false)
     }
+    return true
   }
   const save = async (): Promise<void> => {
     if (!editor) {
@@ -123,7 +137,7 @@ export const CustomAgentProfilesSection = forwardRef<
     }
     if (!editor.originalId && profiles.length >= CUSTOM_AGENT_PROFILES_MAX) {
       toast.error(
-        translate(
+        t(
           'auto.components.settings.CustomAgentProfilesSection.limit',
           'Custom agents are limited to {{value0}} profiles.',
           { value0: String(CUSTOM_AGENT_PROFILES_MAX) }
@@ -172,10 +186,7 @@ export const CustomAgentProfilesSection = forwardRef<
       <SettingsSubsectionHeader
         title={
           <span className="flex items-center gap-2">
-            {translate(
-              'auto.components.settings.CustomAgentProfilesSection.title',
-              'Custom agents'
-            )}
+            {t('auto.components.settings.CustomAgentProfilesSection.title', 'Custom agents')}
             {profiles.length > 0 ? (
               <SettingsBadge tone="accent">{profiles.length}</SettingsBadge>
             ) : null}
@@ -193,17 +204,14 @@ export const CustomAgentProfilesSection = forwardRef<
             }
           >
             <Plus className="size-3" />
-            {translate(
-              'auto.components.settings.CustomAgentProfilesSection.create',
-              'Create custom agent'
-            )}
+            {t('auto.components.settings.CustomAgentProfilesSection.create', 'Create custom agent')}
           </Button>
         }
       />
 
       {profiles.length === 0 && !editor ? (
         <div className="rounded-md border border-dashed border-border/50 px-3 py-4 text-xs text-muted-foreground">
-          {translate(
+          {t(
             'auto.components.settings.CustomAgentProfilesSection.empty',
             'No custom agents yet. Create one or duplicate an installed agent above.'
           )}
@@ -250,12 +258,12 @@ export const CustomAgentProfilesSection = forwardRef<
                 detailsOpen={isEditing}
                 toggleDetailsLabel={
                   isEditing
-                    ? translate(
+                    ? t(
                         'auto.components.settings.CustomAgentProfilesSection.closeEditor',
                         'Close {{value0}} editor',
                         { value0: profile.name }
                       )
-                    : translate(
+                    : t(
                         'auto.components.settings.CustomAgentProfilesSection.editProfile',
                         'Edit {{value0}}',
                         { value0: profile.name }
@@ -294,7 +302,8 @@ function LaunchProfileAction({
   profile: CustomAgentProfile
   worktreeId: string | null
 }): React.JSX.Element {
-  const label = translate(
+  const t = useTranslate()
+  const label = t(
     'auto.components.settings.CustomAgentProfilesSection.launchNamed',
     'Run {{value0}} in a new terminal',
     { value0: profile.name }
@@ -302,7 +311,7 @@ function LaunchProfileAction({
   const handleLaunch = (): void => {
     if (!worktreeId) {
       toast.error(
-        translate(
+        t(
           'auto.components.settings.CustomAgentProfilesSection.launchNeedsWorkspace',
           'Open a project before running a custom agent.'
         )
@@ -333,27 +342,25 @@ function DeleteProfileAction({
   onDelete: () => Promise<boolean>
   onDeleted: () => void
 }): React.JSX.Element {
+  const t = useTranslate()
   const confirm = useConfirmationDialog()
-  const label = translate(
+  const label = t(
     'auto.components.settings.CustomAgentProfilesSection.deleteNamed',
     'Delete {{value0}}',
     { value0: profile.name }
   )
   const handleDelete = async (): Promise<void> => {
     const accepted = await confirm({
-      title: translate(
+      title: t(
         'auto.components.settings.CustomAgentProfilesSection.deleteTitle',
         'Delete {{value0}}?',
         { value0: profile.name }
       ),
-      description: translate(
+      description: t(
         'auto.components.settings.CustomAgentProfilesSection.deleteDescription',
         'Existing terminals keep their captured launch command. This removes the profile from future launches.'
       ),
-      confirmLabel: translate(
-        'auto.components.settings.CustomAgentProfilesSection.delete',
-        'Delete'
-      ),
+      confirmLabel: t('auto.components.settings.CustomAgentProfilesSection.delete', 'Delete'),
       confirmVariant: 'destructive'
     })
     if (accepted && (await onDelete())) {

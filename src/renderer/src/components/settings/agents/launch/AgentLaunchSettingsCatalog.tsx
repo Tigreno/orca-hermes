@@ -62,6 +62,8 @@ import {
 } from '@/runtime/native-chat/agent-catalogs/chat-provider-agents'
 import { readHostStructuredAgents } from '@/runtime/native-chat/agent-catalogs/host-structured-agents'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../../../../shared/execution-host'
+import type { LocalCustomAgentControls } from './agent-launch-custom-agent-controls'
+import { setBuiltInAgentDefault } from './agent-launch-custom-agent-controls'
 import { useTranslate } from '@/i18n/use-translate'
 
 export type AgentPermissionsRenderer = (props: AgentPermissionsSettingProps) => React.ReactNode
@@ -93,9 +95,11 @@ export function AgentLaunchSettingsCatalog({
     settings: GlobalSettings
     saveEnvironment: (agent: TuiAgent, value: Record<string, string>) => Promise<void>
     updateSettings: (updates: Partial<GlobalSettings>) => void | Promise<void>
+    customAgents: LocalCustomAgentControls
   }
 }): React.JSX.Element {
   const t = useTranslate()
+  const customAgents = local?.customAgents
   const {
     detectedIds: detected,
     detectionFailed,
@@ -235,7 +239,7 @@ export function AgentLaunchSettingsCatalog({
     defaultEnv: typed ? {} : getTuiAgentDefaultEnv(agent.id),
     isDetected,
     isEnabled: isTuiAgentEnabled(agent.id, settings.disabledTuiAgents),
-    isDefault: isDetected && settings.defaultTuiAgent === agent.id,
+    isDefault: isDetected && settings.defaultTuiAgent === agent.id && !customAgents?.defaultProfile,
     cmdOverride: settings.agentCmdOverrides[agent.id],
     argsOverride:
       choicesSupported && settings.agentChoices
@@ -269,10 +273,9 @@ export function AgentLaunchSettingsCatalog({
           )
         : undefined,
     onSetDefault: () =>
-      save({
-        type: 'default',
-        agent: settings.defaultTuiAgent === agent.id ? 'blank' : agent.id
-      }),
+      setBuiltInAgentDefault(settings.defaultTuiAgent, agent.id, customAgents, (next) =>
+        save({ type: 'default', agent: next })
+      ),
     onSetEnabled: (enabled) => save({ type: 'availability', agent: agent.id, enabled }),
     onSaveOverride: async (value) => {
       const changed = value !== (settings.agentCmdOverrides[agent.id] ?? '')
@@ -302,7 +305,9 @@ export function AgentLaunchSettingsCatalog({
     sessionSourceHome:
       local && isDetected && agent.id === 'codex'
         ? buildCodexSessionSourceHomeControl(local.settings, local.updateSettings)
-        : undefined
+        : undefined,
+    onDuplicateAsCustom: customAgents ? () => customAgents.onDuplicateAsCustom(agent) : undefined,
+    duplicateAsCustomDisabled: customAgents?.duplicateDisabled
   })
   const rowProps = (
     agent: (typeof catalog)[number],
@@ -341,7 +346,11 @@ export function AgentLaunchSettingsCatalog({
           'settings.agents.hostDefaults',
           'Defaults for new agents on the selected host.'
         )}
-        onSetDefault={(agent) => save({ type: 'default', agent })}
+        onSetDefault={(agent) =>
+          customAgents ? customAgents.onSetBuiltInDefault(agent) : save({ type: 'default', agent })
+        }
+        defaultCustomAgent={customAgents?.defaultProfile ?? null}
+        onSetCustomDefault={customAgents?.onSetDefaultProfile}
         defaultOpensAsChat={defaultOpensAsChat}
         permissions={
           permissionSettings ? (
@@ -388,6 +397,7 @@ export function AgentLaunchSettingsCatalog({
           refreshSettings?.()
         }}
         getRowProps={rowProps}
+        afterDetectedAgents={customAgents?.afterDetectedAgents}
       />
     </>
   )

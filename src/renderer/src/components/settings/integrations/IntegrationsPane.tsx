@@ -10,6 +10,7 @@ import {
 import { JiraIntegrationCard } from '../../integrations/task-trackers/jira-integration-card'
 import { LinearIntegrationCard } from '../../integrations/task-trackers/linear-integration-card'
 import { IntegrationCardPresentationProvider } from '../../integrations/presentation/integration-card-presentation'
+import { Bitrix24IntegrationCard } from '../../integrations/task-trackers/bitrix24-integration-card'
 import { useIntegrationProviderStatusRefresh } from '../../../hooks/use-integration-provider-status-refresh'
 import { SettingsGroup } from '../section-layout/SettingsGroup'
 import { useTranslate } from '@/i18n/use-translate'
@@ -66,6 +67,9 @@ export function IntegrationsPane(): React.JSX.Element {
           </ProviderRow>
           <ProviderRow>
             <JiraIntegrationCard />
+          </ProviderRow>
+          <ProviderRow>
+            <Bitrix24IntegrationCard />
           </ProviderRow>
         </SettingsGroup>
       </div>

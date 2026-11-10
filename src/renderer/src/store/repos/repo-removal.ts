@@ -10,6 +10,7 @@ import {
 import { omitSparsePresetsForRepos } from '../slices/worktrees/create/sparse-presets'
 import { repoMatchesHostIdentity, worktreeBelongsToHost } from './repo-host-identity'
 import { callRuntimeRpc } from '../../runtime/rpc/calls/runtime-rpc-call'
+import { clearBitrix24RepoProjectBinding } from './bitrix24-repo-project-bindings'
 import { hasRuntimeRpcErrorCode } from '../../../../shared/runtime-rpc-error-code'
 import { ipcOrRuntimeTargetForHostId } from '../../runtime/rpc/targets/runtime-client-target'
 import { getRepoExecutionHostId, LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
@@ -175,6 +176,7 @@ export function createRepoRemovalActions(
           } catch (error) {
             console.warn('[repos] failed to drop paired-host project residue', error)
           }
+          await clearBitrix24RepoProjectBinding(projectId, ownerHostId)
         }
 
         get().clearOrcaHookTrustForRepo(projectId)

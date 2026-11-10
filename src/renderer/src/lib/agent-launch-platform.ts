@@ -1,8 +1,8 @@
 // Why: the renderer runs with contextIsolation, so `process.platform` does not exist here;
 // reading it threw on every custom-agent launch. SSH targets carry their own platform from
 // the connection state, so this only has to answer for a local workspace — this client's OS.
-import { CLIENT_PLATFORM } from '@/lib/new-workspace'
-import type { ProjectExecutionRuntimeResolution } from '../../../shared/project-execution-runtime'
+import { CLIENT_PLATFORM } from '@/lib/workspace/creation/new-workspace'
+import type { ProjectExecutionRuntimeResolution } from '../../../shared/execution-host/project-execution-runtime'
 
 /**
  * The runtime's host OS as a Node platform name; `wsl` and unknown hosts answer `undefined`.

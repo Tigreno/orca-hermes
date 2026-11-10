@@ -6,8 +6,9 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import TaskProjectSourceCombobox from '@/components/task-project-source-combobox'
 import { normalizeTaskRepoSelection } from '@/components/task-page/task-page-default-repo-selection'
 import type { Bitrix24TaskFilter } from '../../../../../shared/bitrix24/bitrix24-types'
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/class-names'
 import { translate } from '@/i18n/i18n'
+import { useTranslate } from '@/i18n/use-translate'
 import type { TaskPageComposerActionsModel } from '../use-task-page-composer-actions'
 import { useBitrix24TaskPage } from './task-page-bitrix24-context'
 
@@ -29,6 +30,7 @@ export function TaskPageBitrix24Filters({
 }: {
   model: TaskPageComposerActionsModel
 }): React.JSX.Element | null {
+  const t = useTranslate()
   const {
     connected,
     filter,
@@ -67,10 +69,7 @@ export function TaskPageBitrix24Filters({
               setRepoSelection(normalized)
               void updateSettings({ defaultRepoSelection: [...normalized] }).catch(() => {
                 toast.error(
-                  translate(
-                    'auto.components.TaskPage.dfd72673e7',
-                    'Failed to save project selection.'
-                  )
+                  t('auto.components.TaskPage.dfd72673e7', 'Failed to save project selection.')
                 )
               })
             }}
@@ -79,10 +78,7 @@ export function TaskPageBitrix24Filters({
               setRepoSelection(allIds)
               void updateSettings({ defaultRepoSelection: null }).catch(() => {
                 toast.error(
-                  translate(
-                    'auto.components.TaskPage.dfd72673e7',
-                    'Failed to save project selection.'
-                  )
+                  t('auto.components.TaskPage.dfd72673e7', 'Failed to save project selection.')
                 )
               })
             }}
@@ -123,8 +119,8 @@ export function TaskPageBitrix24Filters({
                     submitSearch()
                   }
                 }}
-                placeholder={translate('components.bitrix24Filters.search', 'Search title')}
-                aria-label={translate('components.bitrix24Filters.search', 'Search title')}
+                placeholder={t('components.bitrix24Filters.search', 'Search title')}
+                aria-label={t('components.bitrix24Filters.search', 'Search title')}
                 density="compact"
                 adornment="trailing"
                 className="w-[190px]"
@@ -133,7 +129,7 @@ export function TaskPageBitrix24Filters({
                 <button
                   type="button"
                   onClick={clearSearch}
-                  aria-label={translate('components.bitrix24Filters.clearSearch', 'Clear search')}
+                  aria-label={t('components.bitrix24Filters.clearSearch', 'Clear search')}
                   className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
                 >
                   <X className="size-3" />
@@ -147,7 +143,7 @@ export function TaskPageBitrix24Filters({
                   size="icon"
                   onClick={refresh}
                   disabled={loading}
-                  aria-label={translate('components.bitrix24Filters.refresh', 'Refresh tasks')}
+                  aria-label={t('components.bitrix24Filters.refresh', 'Refresh tasks')}
                 >
                   {loading ? (
                     <LoaderCircle className="size-4 animate-spin" />
@@ -157,7 +153,7 @@ export function TaskPageBitrix24Filters({
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" sideOffset={6}>
-                {translate('components.bitrix24Filters.refresh', 'Refresh tasks')}
+                {t('components.bitrix24Filters.refresh', 'Refresh tasks')}
               </TooltipContent>
             </Tooltip>
           </div>

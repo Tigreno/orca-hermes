@@ -27,6 +27,7 @@ import {
 } from '../hosts/automation-row-action-dispatch'
 import { buildDraftPrecheck, buildDraftSchedule } from './automation-draft-model'
 import { buildAutomationRunContextForRepo } from './automation-run-context'
+import { buildAutomationUpdateInput } from './automation-save-updates'
 import { resolveAutomationSetupDecisionForSave } from './automation-setup-decision'
 import { reconfirmSkippedSetup } from './automation-setup-review'
 import {
@@ -111,6 +112,19 @@ export async function saveOrcaAutomation(
       : createCheck
         ? { status: 'ready' as const, ...createCheck.destination }
         : null
+  if (
+    draft.customAgentProfileId &&
+    setupResolution?.status === 'ready' &&
+    setupResolution.authority.kind === 'runtime'
+  ) {
+    toast.error(
+      translate(
+        'auto.components.automations.AutomationsPage.customAgentRemoteHost',
+        'Choose a built-in agent for automations stored on a paired Orca host.'
+      )
+    )
+    return
+  }
   const selectedRepos = dialogRepos.filter((repo) => repo.id === draft.projectId)
   const setupHostId =
     setupResolution?.status === 'ready' && selectedRepos.length === 1
@@ -185,35 +199,18 @@ export async function saveOrcaAutomation(
     edited('surface') ? surface : (currentAutomation?.surface ?? surface),
     currentAutomation
   )
-  const updates: AutomationUpdateInput = {
-    ...(edited('name') ? { name: draft.name } : {}),
-    ...(edited('prompt') ? { prompt: draft.prompt } : {}),
-    ...(edited('precheckCommand') || edited('precheckTimeoutSeconds') ? { precheck } : {}),
-    ...(edited('agentId') ? { agentId: draft.agentId } : {}),
-    ...(!currentAutomation ||
-    draft.launchSetupPatch ||
-    edited('surface') ||
-    edited('extraAgentArgs')
-      ? launchSetup
-      : {}),
-    ...(targetEdited
-      ? {
-          runContext,
-          projectId: draft.projectId,
-          workspaceMode: draft.workspaceMode,
-          workspaceId: draft.workspaceId
-        }
-      : {}),
-    ...(edited('baseBranch') ? { baseBranch: draft.baseBranch.trim() || null } : {}),
-    ...(edited('setupDecision') || setupDecision !== currentAutomation?.setupDecision
-      ? { setupDecision }
-      : {}),
-    ...(setupTrustHash ? { setupTrustHash } : {}),
-    ...(edited('reuseSession') || edited('workspaceMode')
-      ? { reuseSession: draft.workspaceMode === 'existing' && draft.reuseSession }
-      : {}),
-    ...(edited('missedRunGraceMinutes') ? { missedRunGraceMinutes } : {})
-  }
+  const updates: AutomationUpdateInput = buildAutomationUpdateInput({
+    currentAutomation,
+    draft,
+    edited,
+    precheck,
+    launchSetup,
+    targetEdited,
+    runContext,
+    setupDecision,
+    setupTrustHash,
+    missedRunGraceMinutes
+  })
   if (!currentAutomation || (scheduleEdited && currentAutomation.rrule !== rrule)) {
     updates.rrule = rrule
     updates.dtstart = time.now
@@ -240,6 +237,7 @@ export async function saveOrcaAutomation(
     missedRunGraceMinutes: currentAutomation
       ? currentAutomation.missedRunGraceMinutes
       : missedRunGraceMinutes,
+    customAgentProfileId: draft.customAgentProfileId ?? undefined,
     ...updates
   })
 

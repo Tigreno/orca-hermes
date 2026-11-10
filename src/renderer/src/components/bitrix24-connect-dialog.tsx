@@ -1,6 +1,9 @@
 import { useId, useLayoutEffect, useState } from 'react'
 import { LoaderCircle } from 'lucide-react'
-import { taskProviderErrorMessage, taskProviderErrorText } from '@/lib/task-provider-error-copy'
+import {
+  taskProviderErrorMessage,
+  taskProviderErrorText
+} from '@/lib/work-items/task-provider-error-copy'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -16,7 +19,7 @@ import { useMountedRef } from '@/hooks/useMountedRef'
 import { refreshBitrix24ConnectionStatus } from '@/hooks/use-bitrix24-connection-status'
 import { bitrix24Connect } from '@/runtime/runtime-bitrix24-client'
 import { preventOutsideDismissWhenDirty } from '@/lib/outside-dismiss-guard'
-import { translate } from '@/i18n/i18n'
+import { useTranslate } from '@/i18n/use-translate'
 
 type ConnectState = 'idle' | 'connecting' | 'error'
 
@@ -29,6 +32,7 @@ export function Bitrix24ConnectDialog({
   onOpenChange: (open: boolean) => void
   onConnected?: () => void
 }): React.JSX.Element {
+  const t = useTranslate()
   const mountedRef = useMountedRef()
   const inputId = useId()
   const [webhookUrl, setWebhookUrl] = useState('')
@@ -88,7 +92,7 @@ export function Bitrix24ConnectDialog({
         setConnectError(
           error instanceof Error
             ? taskProviderErrorText(error.message)
-            : translate('components.bitrix24ConnectDialog.failed', 'Connection failed')
+            : t('components.bitrix24ConnectDialog.failed', 'Connection failed')
         )
       }
     }
@@ -104,10 +108,10 @@ export function Bitrix24ConnectDialog({
       >
         <DialogHeader>
           <DialogTitle>
-            {translate('components.bitrix24ConnectDialog.title', 'Connect Bitrix24')}
+            {t('components.bitrix24ConnectDialog.title', 'Connect Bitrix24')}
           </DialogTitle>
           <DialogDescription>
-            {translate(
+            {t(
               'components.bitrix24ConnectDialog.description',
               'Paste an incoming webhook URL from your Bitrix24 portal. Orca stores it on this desktop and uses it to read tasks.'
             )}
@@ -123,7 +127,7 @@ export function Bitrix24ConnectDialog({
         >
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={inputId}>
-              {translate('components.bitrix24ConnectDialog.webhookLabel', 'Incoming webhook URL')}
+              {t('components.bitrix24ConnectDialog.webhookLabel', 'Incoming webhook URL')}
             </Label>
             <Input
               id={inputId}
@@ -132,7 +136,7 @@ export function Bitrix24ConnectDialog({
               spellCheck={false}
               value={webhookUrl}
               disabled={connectState === 'connecting'}
-              placeholder={translate(
+              placeholder={t(
                 'components.bitrix24ConnectDialog.webhookPlaceholder',
                 'https://portal.bitrix24.ru/rest/1/token/'
               )}
@@ -142,7 +146,7 @@ export function Bitrix24ConnectDialog({
               }}
             />
             <p className="text-xs text-muted-foreground">
-              {translate(
+              {t(
                 'components.bitrix24ConnectDialog.hint',
                 'Create it in Bitrix24 under Developer resources → Other → Incoming webhook. Required scopes: task, tasks, sonet_group.'
               )}
@@ -160,16 +164,16 @@ export function Bitrix24ConnectDialog({
               onClick={() => handleOpenChange(false)}
               disabled={connectState === 'connecting'}
             >
-              {translate('components.bitrix24ConnectDialog.cancel', 'Cancel')}
+              {t('components.bitrix24ConnectDialog.cancel', 'Cancel')}
             </Button>
             <Button type="submit" disabled={!webhookUrl.trim() || connectState === 'connecting'}>
               {connectState === 'connecting' ? (
                 <>
                   <LoaderCircle className="mr-1.5 size-3.5 animate-spin" />
-                  {translate('components.bitrix24ConnectDialog.connecting', 'Connecting...')}
+                  {t('components.bitrix24ConnectDialog.connecting', 'Connecting...')}
                 </>
               ) : (
-                translate('components.bitrix24ConnectDialog.connect', 'Connect')
+                t('components.bitrix24ConnectDialog.connect', 'Connect')
               )}
             </Button>
           </DialogFooter>

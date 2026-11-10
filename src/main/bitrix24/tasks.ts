@@ -61,7 +61,7 @@ function collectTaskRows(result: unknown): Record<string, unknown>[] {
 }
 
 export async function listTasks(args: Bitrix24ListTasksArgs): Promise<Bitrix24TaskListPage> {
-  const credential = getStoredCredential()
+  const credential = await getStoredCredential()
   const { result, next, total } = await bitrix24Request<unknown>('tasks.task.list', {
     filter: buildTaskFilter(args, credential.userId),
     select: TASK_SELECT,
@@ -76,7 +76,7 @@ export async function listTasks(args: Bitrix24ListTasksArgs): Promise<Bitrix24Ta
 }
 
 export async function getTask(taskId: string): Promise<Bitrix24TaskDetail> {
-  const credential = getStoredCredential()
+  const credential = await getStoredCredential()
   const { result } = await bitrix24Request<unknown>('tasks.task.get', { taskId })
   const task = isRecord(result) && 'task' in result ? result.task : result
   if (!isRecord(task)) {

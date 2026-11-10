@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import type { AgentCatalogEntry } from '@/lib/agent-catalog/agent-catalog'
 import { cn } from '@/lib/class-names'
@@ -18,7 +18,8 @@ export function AgentDetectionCatalog({
   activeServerEnvironmentId,
   activeServerName,
   onRefresh,
-  getRowProps
+  getRowProps,
+  afterDetectedAgents
 }: {
   detectedAgents: AgentCatalogEntry[]
   undetectedAgents: AgentCatalogEntry[]
@@ -29,6 +30,7 @@ export function AgentDetectionCatalog({
   activeServerName: string | null
   onRefresh: () => void
   getRowProps: (agent: AgentCatalogEntry, isDetected: boolean) => AgentCatalogRowProps
+  afterDetectedAgents?: ReactNode
 }): React.JSX.Element {
   const t = useTranslate()
   return (
@@ -56,8 +58,12 @@ export function AgentDetectionCatalog({
           const indexInSection = installed ? index : index - detectedAgents.length
           const firstInSection = indexInSection === 0
           const lastInSection = indexInSection === sectionLength - 1
+          const startsUndetected = index === detectedAgents.length
           return (
             <Fragment key={agent.id}>
+              {startsUndetected && afterDetectedAgents ? (
+                <div className="mt-8">{afterDetectedAgents}</div>
+              ) : null}
               {firstInSection ? (
                 <SettingsGroupHeader
                   className={cn('mb-3', index > 0 && 'mt-8')}

@@ -4,15 +4,16 @@ import { Bitrix24Icon } from '@/components/icons/Bitrix24Icon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { openAppHttpLink } from '@/lib/app-http-link-open'
+import { openAppHttpLink } from '@/lib/browser/navigation/app-http-link-open'
 import { translate } from '@/i18n/i18n'
+import { useTranslate } from '@/i18n/use-translate'
 import { useAppStore } from '@/store'
-import { useRepoById } from '@/store/selectors'
+import { useRepoById } from '@/store/repos/use-repository-catalog'
 import type {
   Bitrix24TaskFilter,
   Bitrix24TaskSummary
 } from '../../../../shared/bitrix24/bitrix24-types'
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/class-names'
 import { formatRelativeTime } from '../task-page/task-page-source-context'
 import { Bitrix24TaskDetail } from '../task-page/bitrix24/Detail'
 import {
@@ -44,6 +45,7 @@ function SidebarTaskRow({
   task: Bitrix24TaskSummary
   onOpen: () => void
 }): React.JSX.Element {
+  const t = useTranslate()
   return (
     <div
       role="button"
@@ -70,7 +72,7 @@ function SidebarTaskRow({
             event.stopPropagation()
             openAppHttpLink(task.url, { event })
           }}
-          aria-label={translate('components.bitrix24TaskList.openInBitrix24', 'Open in Bitrix24')}
+          aria-label={t('components.bitrix24TaskList.openInBitrix24', 'Open in Bitrix24')}
         >
           <ExternalLink className="size-3.5" />
         </button>
@@ -91,6 +93,7 @@ function SidebarTaskRow({
 }
 
 function Bitrix24TasksPanelBody(): React.JSX.Element {
+  const t = useTranslate()
   const {
     checking,
     connected,
@@ -129,16 +132,16 @@ function Bitrix24TasksPanelBody(): React.JSX.Element {
         <div className="flex flex-col items-center px-4 py-12 text-center">
           <Bitrix24Icon className="mb-3 size-8 text-muted-foreground/60" />
           <p className="text-sm font-medium text-foreground">
-            {translate('components.bitrix24TaskList.connectTitle', 'Connect Bitrix24')}
+            {t('components.bitrix24TaskList.connectTitle', 'Connect Bitrix24')}
           </p>
           <p className="mt-1.5 text-xs text-muted-foreground">
-            {translate(
+            {t(
               'components.bitrix24TaskList.connectDescription',
               'Browse tasks from your Bitrix24 projects and start workspaces from them.'
             )}
           </p>
           <Button className="mt-4" size="sm" onClick={() => setConnectOpen(true)}>
-            {translate('components.bitrix24TaskList.connectAction', 'Connect Bitrix24')}
+            {t('components.bitrix24TaskList.connectAction', 'Connect Bitrix24')}
           </Button>
         </div>
         <Bitrix24ConnectDialog open={connectOpen} onOpenChange={setConnectOpen} />
@@ -160,13 +163,13 @@ function Bitrix24TasksPanelBody(): React.JSX.Element {
               variant="ghost"
               size="icon-xs"
               onClick={refresh}
-              aria-label={translate('components.bitrix24Filters.refresh', 'Refresh tasks')}
+              aria-label={t('components.bitrix24Filters.refresh', 'Refresh tasks')}
             >
               <RefreshCw className={cn('size-3.5', loading && 'animate-spin')} />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="left" sideOffset={6}>
-            {translate('components.bitrix24Filters.refresh', 'Refresh tasks')}
+            {t('components.bitrix24Filters.refresh', 'Refresh tasks')}
           </TooltipContent>
         </Tooltip>
       </div>
@@ -202,8 +205,8 @@ function Bitrix24TasksPanelBody(): React.JSX.Element {
                 submitSearch()
               }
             }}
-            placeholder={translate('components.bitrix24Filters.search', 'Search title')}
-            aria-label={translate('components.bitrix24Filters.search', 'Search title')}
+            placeholder={t('components.bitrix24Filters.search', 'Search title')}
+            aria-label={t('components.bitrix24Filters.search', 'Search title')}
             density="compact"
             adornment="trailing"
           />
@@ -211,7 +214,7 @@ function Bitrix24TasksPanelBody(): React.JSX.Element {
             <button
               type="button"
               onClick={clearSearch}
-              aria-label={translate('components.bitrix24Filters.clearSearch', 'Clear search')}
+              aria-label={t('components.bitrix24Filters.clearSearch', 'Clear search')}
               className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
             >
               <X className="size-3" />
@@ -244,16 +247,14 @@ function Bitrix24TasksPanelBody(): React.JSX.Element {
         {!loading && tasks.length === 0 && !error ? (
           <div className="px-4 py-10 text-center">
             <p className="text-sm font-medium text-foreground">
-              {translate('components.bitrix24TaskList.emptyTitle', 'No Bitrix24 tasks')}
+              {t('components.bitrix24TaskList.emptyTitle', 'No Bitrix24 tasks')}
             </p>
             <p className="mt-1.5 text-xs text-muted-foreground">
               {scope
-                ? translate(
-                    'components.bitrix24TaskList.emptyInProject',
-                    'Nothing matches in {{name}}.',
-                    { name: scope.project.groupName }
-                  )
-                : translate(
+                ? t('components.bitrix24TaskList.emptyInProject', 'Nothing matches in {{name}}.', {
+                    name: scope.project.groupName
+                  })
+                : t(
                     'components.bitrix24TaskList.emptyDescription',
                     'Nothing matches the current filter.'
                   )}
@@ -276,10 +277,10 @@ function Bitrix24TasksPanelBody(): React.JSX.Element {
               {loadingMore ? (
                 <>
                   <LoaderCircle className="mr-1.5 size-3.5 animate-spin" />
-                  {translate('components.bitrix24TaskList.loadingMore', 'Loading...')}
+                  {t('components.bitrix24TaskList.loadingMore', 'Loading...')}
                 </>
               ) : (
-                translate('components.bitrix24TaskList.loadMore', 'Load more')
+                t('components.bitrix24TaskList.loadMore', 'Load more')
               )}
             </Button>
           </div>
@@ -291,6 +292,7 @@ function Bitrix24TasksPanelBody(): React.JSX.Element {
 }
 
 export default function Bitrix24TasksPanel(): React.JSX.Element {
+  const t = useTranslate()
   const activeWorktreeId = useAppStore((s) => s.activeWorktreeId)
   const repoId = useAppStore((s) =>
     activeWorktreeId ? (s.getKnownWorktreeById(activeWorktreeId)?.repoId ?? null) : null
@@ -303,10 +305,10 @@ export default function Bitrix24TasksPanel(): React.JSX.Element {
       <div className="flex flex-col items-center px-4 py-12 text-center">
         <Bitrix24Icon className="mb-3 size-8 text-muted-foreground/60" />
         <p className="text-sm font-medium text-foreground">
-          {translate('components.bitrix24Sidebar.noProjectTitle', 'No Bitrix24 project')}
+          {t('components.bitrix24Sidebar.noProjectTitle', 'No Bitrix24 project')}
         </p>
         <p className="mt-1.5 text-xs text-muted-foreground">
-          {translate(
+          {t(
             'components.bitrix24Sidebar.noProjectDescription',
             'Choose a default Bitrix24 project for this repo in settings to see its tasks here.'
           )}

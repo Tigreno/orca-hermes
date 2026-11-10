@@ -42,7 +42,6 @@ import {
 import { AutomationListLastRunCell } from './AutomationListLastRunCell'
 import { formatAutomationDateTimeWithRelative } from '../automation-page-parts'
 import { getAutomationTargetAvailability } from '../hosts/automation-target-availability'
-import { getAgentLabel } from '../authoring/automation-draft-model'
 import { automationProjectName, type AutomationListRow } from './automation-list-row-identity'
 import { formatAutomationUsageSummary } from '../runs/automation-usage-model'
 import { AUTOMATIONS_TABLE_GRID_CLASS } from './automations-table-layout'
@@ -57,7 +56,8 @@ import {
 } from '@/lib/list-interaction/list-row-interaction'
 import { AutomationListStatusCell } from './AutomationListStatusCell'
 import { useIntlLocale, useTranslate } from '@/i18n/use-translate'
-import { useAppStore } from '@/store/index'
+import { useAutomationAgentLabel } from '../use-automation-agent-label'
+import { useAppStore } from '@/store'
 import { wslMovedProjectForAutomation } from '@/store/repos/wsl-moved-projects'
 
 export type AutomationListLocalRowProps = {
@@ -117,6 +117,7 @@ export function AutomationListLocalRow({
 }: AutomationListLocalRowProps): React.JSX.Element {
   const t = useTranslate()
   const intlLocale = useIntlLocale()
+  const getAutomationAgentLabel = useAutomationAgentLabel()
   const allows = (row: AutomationListRow, action: AutomationRowAction): boolean =>
     isActionEnabled?.(row, action) ?? true
   const { automation } = row
@@ -153,7 +154,7 @@ export function AutomationListLocalRow({
   const movedToDistro = useAppStore(
     (state) => wslMovedProjectForAutomation(state.wslMovedProjects, automation)?.distro ?? null
   )
-  const agentLabel = getAgentLabel(automation.agentId)
+  const agentLabel = getAutomationAgentLabel(automation)
   const hostId =
     automation.runContext?.hostId ??
     (automationRepo ? getRepoExecutionHostId(automationRepo) : null)

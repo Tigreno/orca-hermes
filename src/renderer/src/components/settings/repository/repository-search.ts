@@ -17,6 +17,7 @@ import {
 } from './worktrees/repository-git-worktree-search-entries'
 import { getRepositoryFormatterSearchEntry } from './RepositoryFormatterSection'
 import { getRepositoryAgentTrustSearchEntry } from './RepositoryAgentTrustSection'
+import { getRepositoryTaskTrackerSearchParts } from './repository-task-tracker-search'
 
 type RepositoryPaneSearchOptions = {
   isLocalWindowsProject?: boolean
@@ -35,25 +36,7 @@ function getRepositorySearchParts(
     (Boolean(options.windowsRuntimeSupported) &&
       getRepoExecutionHostId(repo) === LOCAL_EXECUTION_HOST_ID)
 
-  const jira = {
-    title: t('components.RepositoryJiraProjectSection.title', 'Default Jira project'),
-    description: t(
-      'components.RepositoryJiraProjectSection.description',
-      'Default the Jira issue picker and Tasks list to this project. You can change it for each worktree.'
-    ),
-    keywords: [
-      repo.displayName,
-      ...translateSearchKeyword('components.RepositoryJiraProjectSection.keywordJira', 'jira'),
-      ...translateSearchKeyword(
-        'components.RepositoryJiraProjectSection.keywordDefaultProject',
-        'default project'
-      ),
-      ...translateSearchKeyword(
-        'components.RepositoryJiraProjectSection.keywordIssuePicker',
-        'issue picker'
-      )
-    ]
-  }
+  const { jira, bitrix24 } = getRepositoryTaskTrackerSearchParts(repo, t, translateSearchKeyword)
   const displayName = {
     title: t('auto.components.settings.repository.search.7f380f89ea', 'Display name'),
     description: t(
@@ -221,6 +204,7 @@ function getRepositorySearchParts(
   return {
     agentTrust: getRepositoryAgentTrustSearchEntry(),
     jira,
+    bitrix24,
     displayName,
     icon,
     github,
@@ -243,6 +227,7 @@ export function getRepositoryPaneSearchEntries(
     getRepositoryFormatterSearchEntry(t),
     parts.agentTrust,
     parts.jira,
+    parts.bitrix24,
     parts.displayName,
     parts.icon
   ]
@@ -278,7 +263,7 @@ export function getRepositoryPaneSearchMetadata(
 ) {
   const parts = getRepositorySearchParts(repo, options, t)
   const worktrees = isFolderRepo(repo) ? undefined : getRepositoryGitWorktreeSearchMetadata(repo, t)
-  const identity = [parts.agentTrust, parts.jira, parts.displayName, parts.icon]
+  const identity = [parts.agentTrust, parts.jira, parts.bitrix24, parts.displayName, parts.icon]
   if (parts.github) {
     identity.push(parts.github)
   }

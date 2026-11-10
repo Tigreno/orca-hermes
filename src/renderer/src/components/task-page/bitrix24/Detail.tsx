@@ -9,14 +9,29 @@ import {
   SheetHeader,
   SheetTitle
 } from '@/components/ui/sheet'
-import { openAppHttpLink } from '@/lib/app-http-link-open'
-import { translate } from '@/i18n/i18n'
+import { openAppHttpLink } from '@/lib/browser/navigation/app-http-link-open'
+import { useTranslate } from '@/i18n/use-translate'
 import { formatRelativeTime } from '../task-page-source-context'
 import { useBitrix24TaskPage } from './task-page-bitrix24-context'
 import { getBitrix24StatusLabel, getBitrix24StatusTone } from './task-page-bitrix24-status'
-import { sendBitrix24TaskToActiveTerminal } from './send-bitrix24-task-to-terminal'
+import {
+  sendBitrix24TaskToActiveTerminal,
+  type Bitrix24TaskTerminalSendResult
+} from './send-bitrix24-task-to-terminal'
+import type { Bitrix24TaskDetail as Bitrix24TaskItem } from '../../../../../shared/bitrix24/bitrix24-types'
+
+async function readBitrix24SendOutcome(
+  task: Bitrix24TaskItem
+): Promise<Bitrix24TaskTerminalSendResult> {
+  try {
+    return await sendBitrix24TaskToActiveTerminal(task)
+  } catch {
+    return 'rejected'
+  }
+}
 
 export function Bitrix24TaskDetail(): React.JSX.Element {
+  const t = useTranslate()
   const { selectedTaskId, selectedTask, detailLoading, detailError, closeTask, startWorkspace } =
     useBitrix24TaskPage()
   const [sendingToTerminal, setSendingToTerminal] = useState(false)
@@ -26,29 +41,18 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
       return
     }
     setSendingToTerminal(true)
-    try {
-      const result = await sendBitrix24TaskToActiveTerminal(selectedTask)
-      if (result === 'sent') {
-        toast.success(
-          translate('components.bitrix24TaskDetail.sentToTerminal', 'Task sent to terminal.')
-        )
-      } else if (result === 'no-terminal') {
-        toast.error(
-          translate(
-            'components.bitrix24TaskDetail.noTerminal',
-            'Open a terminal in this workspace first.'
-          )
-        )
-      } else {
-        toast.error(
-          translate(
-            'components.bitrix24TaskDetail.sendFailed',
-            'Could not send the task to the terminal.'
-          )
-        )
-      }
-    } finally {
-      setSendingToTerminal(false)
+    const result = await readBitrix24SendOutcome(selectedTask)
+    setSendingToTerminal(false)
+    if (result === 'sent') {
+      toast.success(t('components.bitrix24TaskDetail.sentToTerminal', 'Task sent to terminal.'))
+    } else if (result === 'no-terminal') {
+      toast.error(
+        t('components.bitrix24TaskDetail.noTerminal', 'Open a terminal in this workspace first.')
+      )
+    } else {
+      toast.error(
+        t('components.bitrix24TaskDetail.sendFailed', 'Could not send the task to the terminal.')
+      )
     }
   }
 
@@ -57,11 +61,10 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
       <SheetContent side="right" className="w-full sm:max-w-[560px]">
         <SheetHeader>
           <SheetTitle>
-            {selectedTask?.title ??
-              translate('components.bitrix24TaskDetail.title', 'Bitrix24 task')}
+            {selectedTask?.title ?? t('components.bitrix24TaskDetail.title', 'Bitrix24 task')}
           </SheetTitle>
           <SheetDescription>
-            {translate(
+            {t(
               'components.bitrix24TaskDetail.description',
               'Read task details and start a workspace.'
             )}
@@ -71,7 +74,7 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
           {detailLoading && !selectedTask ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <LoaderCircle className="size-4 animate-spin" />
-              {translate('components.bitrix24TaskDetail.loading', 'Loading task...')}
+              {t('components.bitrix24TaskDetail.loading', 'Loading task...')}
             </div>
           ) : null}
           {detailError ? (
@@ -90,7 +93,7 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
                   {getBitrix24StatusLabel(selectedTask.status)}
                 </span>
                 <span>
-                  {translate('components.bitrix24TaskDetail.id', 'Task #{{id}}', {
+                  {t('components.bitrix24TaskDetail.id', 'Task #{{id}}', {
                     id: selectedTask.id
                   })}
                 </span>
@@ -100,25 +103,25 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <dt className="text-xs text-muted-foreground">
-                    {translate('components.bitrix24TaskDetail.responsible', 'Responsible')}
+                    {t('components.bitrix24TaskDetail.responsible', 'Responsible')}
                   </dt>
                   <dd>{selectedTask.responsible?.name ?? '—'}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">
-                    {translate('components.bitrix24TaskDetail.creator', 'Creator')}
+                    {t('components.bitrix24TaskDetail.creator', 'Creator')}
                   </dt>
                   <dd>{selectedTask.creator?.name ?? '—'}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">
-                    {translate('components.bitrix24TaskDetail.deadline', 'Deadline')}
+                    {t('components.bitrix24TaskDetail.deadline', 'Deadline')}
                   </dt>
                   <dd>{selectedTask.deadline ? formatRelativeTime(selectedTask.deadline) : '—'}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">
-                    {translate('components.bitrix24TaskDetail.updated', 'Updated')}
+                    {t('components.bitrix24TaskDetail.updated', 'Updated')}
                   </dt>
                   <dd>
                     {selectedTask.changedDate ? formatRelativeTime(selectedTask.changedDate) : '—'}
@@ -128,17 +131,17 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
 
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {translate('components.bitrix24TaskDetail.descriptionTitle', 'Description')}
+                  {t('components.bitrix24TaskDetail.descriptionTitle', 'Description')}
                 </p>
                 <p className="whitespace-pre-wrap text-sm text-foreground">
                   {selectedTask.descriptionText ||
-                    translate('components.bitrix24TaskDetail.noDescription', 'No description.')}
+                    t('components.bitrix24TaskDetail.noDescription', 'No description.')}
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" onClick={() => startWorkspace(selectedTask)}>
-                  {translate('components.bitrix24TaskDetail.startWorkspace', 'Start workspace')}
+                  {t('components.bitrix24TaskDetail.startWorkspace', 'Start workspace')}
                 </Button>
                 <Button
                   size="sm"
@@ -151,7 +154,7 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
                   ) : (
                     <Terminal className="mr-1.5 size-3.5" />
                   )}
-                  {translate('components.bitrix24TaskDetail.sendToTerminal', 'Send to terminal')}
+                  {t('components.bitrix24TaskDetail.sendToTerminal', 'Send to terminal')}
                 </Button>
                 <Button
                   size="sm"
@@ -159,7 +162,7 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
                   onClick={(event) => openAppHttpLink(selectedTask.url, { event })}
                 >
                   <ExternalLink className="mr-1.5 size-3.5" />
-                  {translate('components.bitrix24TaskDetail.openInBitrix24', 'Open in Bitrix24')}
+                  {t('components.bitrix24TaskDetail.openInBitrix24', 'Open in Bitrix24')}
                 </Button>
               </div>
             </div>

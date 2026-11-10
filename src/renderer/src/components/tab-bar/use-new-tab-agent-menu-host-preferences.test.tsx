@@ -18,6 +18,7 @@ import {
 } from '../agent/use-agent-launch-picker-inventory'
 
 import { useNewTabAgentMenuRows } from './use-new-tab-agent-menu-rows'
+import { isInstalledAgentMenuRow } from '../../../../shared/agent-launch/picker/agent-launch-picker-rows'
 
 it('ignores old reads across host switches, restarts, and re-pairing', async () => {
   const old = Promise.withResolvers<{ settings: typeof server }>()
@@ -34,15 +35,17 @@ it('ignores old reads across host switches, restarts, and re-pairing', async () 
   await act(async () => {})
   hook.rerender({ environmentId: 'beta' })
   await act(async () => {})
-  expect(hook.result.current.state === 'settled' && hook.result.current.rows[0]?.agent).toBe(
-    'codex'
-  )
+  expect(
+    hook.result.current.state === 'settled' &&
+      hook.result.current.rows.find(isInstalledAgentMenuRow)?.agent
+  ).toBe('codex')
   await act(async () =>
     old.resolve({ settings: projectAgentLaunchSettings({ disabledTuiAgents: ['codex'] }) })
   )
-  expect(hook.result.current.state === 'settled' && hook.result.current.rows[0]?.agent).toBe(
-    'codex'
-  )
+  expect(
+    hook.result.current.state === 'settled' &&
+      hook.result.current.rows.find(isInstalledAgentMenuRow)?.agent
+  ).toBe('codex')
   const restarted = Promise.withResolvers<{ settings: typeof server }>()
   rpc.call.mockReturnValueOnce(restarted.promise)
   act(() =>
@@ -63,9 +66,10 @@ it('ignores old reads across host switches, restarts, and re-pairing', async () 
   await act(async () =>
     restarted.resolve({ settings: projectAgentLaunchSettings({ disabledTuiAgents: ['codex'] }) })
   )
-  expect(hook.result.current.state === 'settled' && hook.result.current.rows[0]?.agent).toBe(
-    'codex'
-  )
+  expect(
+    hook.result.current.state === 'settled' &&
+      hook.result.current.rows.find(isInstalledAgentMenuRow)?.agent
+  ).toBe('codex')
 })
 
 it('reopens a freshly mounted menu with the last host answer, then revalidates', async () => {
@@ -79,15 +83,17 @@ it('reopens a freshly mounted menu with the last host answer, then revalidates',
   const second = renderHook(() =>
     useNewTabAgentMenuRows('wt', true, { kind: 'runtime', environmentId: 'alpha' })
   )
-  expect(second.result.current.state === 'settled' && second.result.current.rows[0]?.agent).toBe(
-    'codex'
-  )
+  expect(
+    second.result.current.state === 'settled' &&
+      second.result.current.rows.find(isInstalledAgentMenuRow)?.agent
+  ).toBe('codex')
   await act(async () =>
     pending.resolve({ settings: projectAgentLaunchSettings({ defaultTuiAgent: 'claude' }) })
   )
-  expect(second.result.current.state === 'settled' && second.result.current.rows[0]?.agent).toBe(
-    'claude'
-  )
+  expect(
+    second.result.current.state === 'settled' &&
+      second.result.current.rows.find(isInstalledAgentMenuRow)?.agent
+  ).toBe('claude')
 })
 
 it('stops waiting on a stalled host, then applies its late answer', async () => {
@@ -100,13 +106,15 @@ it('stops waiting on a stalled host, then applies its late answer', async () => 
     )
     expect(hook.result.current.state).toBe('loading')
     await act(async () => vi.advanceTimersByTime(3_000))
-    expect(hook.result.current.state === 'settled' && hook.result.current.rows[0]?.agent).toBe(
-      'claude'
-    )
+    expect(
+      hook.result.current.state === 'settled' &&
+        hook.result.current.rows.find(isInstalledAgentMenuRow)?.agent
+    ).toBe('claude')
     await act(async () => stalled.resolve({ settings: server }))
-    expect(hook.result.current.state === 'settled' && hook.result.current.rows[0]?.agent).toBe(
-      'codex'
-    )
+    expect(
+      hook.result.current.state === 'settled' &&
+        hook.result.current.rows.find(isInstalledAgentMenuRow)?.agent
+    ).toBe('codex')
   } finally {
     vi.useRealTimers()
   }

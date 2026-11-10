@@ -11,6 +11,8 @@ import {
 import React, { useCallback } from 'react'
 import { toast } from 'sonner'
 import { launchAgentInNewTab } from '@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab'
+import { launchCustomAgentInNewTab } from '@/lib/launch-custom-agent-in-new-tab'
+import { getDefaultCustomAgentProfile } from '../../../../shared/custom-agent-profile'
 import { newAgentLaunchRequestId } from '@/lib/agent-session/launch/routing/agent-launch-request-id'
 import { captureNativeChatComposerFocusIntent } from '@/components/native-chat/composer/focus/native-chat-composer-focus-intent'
 import {
@@ -19,6 +21,7 @@ import {
 } from '@/lib/agent-session/launch/prompt/new-agent-prompt-outcome'
 import { activeAgentNotesSendFailureMessage } from '@/lib/agent-session/messaging/terminal/active-agent-note-send-result'
 import { AgentSettingsMenuItem } from '@/components/agent/AgentSettingsMenuItem'
+import { CustomAgentMenuItem } from './CustomAgentMenuItem'
 import { TabAgentSurfaceChoiceRow } from './TabAgentSurfaceChoiceRow'
 import {
   DropdownMenuItem,
@@ -36,7 +39,10 @@ import { translate } from '@/i18n/i18n'
 import { useTranslate } from '@/i18n/use-translate'
 import { useUiLanguageRevision } from '@/i18n/use-ui-language-revision'
 import { cn } from '@/lib/class-names'
-import type { NewTabAgentMenuRow } from '../../../../shared/agent-launch/picker/agent-launch-picker-rows'
+import type {
+  InstalledAgentMenuRow,
+  NewTabAgentMenuRow
+} from '../../../../shared/agent-launch/picker/agent-launch-picker-rows'
 import { useNewTabAgentMenuRows, type NewTabAgentMenuModel } from './use-new-tab-agent-menu-rows'
 import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
 import { chatUnavailableLabel, rowTitle, rowLabel, rowId } from './tab-agent-row-presentation'
@@ -92,6 +98,17 @@ export function useTabAgentMenuLaunch({
           readAgentMenuTerminalPending(useAppStore.getState(), { worktreeId }))
       ) {
         return false
+      }
+      if (row.kind === 'custom') {
+        const launched = launchCustomAgentInNewTab({
+          profileId: row.profile.id,
+          worktreeId,
+          groupId
+        })
+        if (launched) {
+          onFocusTerminal(launched.tabId)
+        }
+        return launched !== null
       }
       const { agent } = row
       const entry = getCatalogEntry(agent)
@@ -202,6 +219,10 @@ export function ProjectedAgentMenuItems({
 }): React.JSX.Element {
   const t = useTranslate()
   const desktopDefaultAgent = useAppStateValue((s) => s.settings?.defaultTuiAgent)
+  // A custom default already claims the new-agent shortcut, so the built-in row must not show it too.
+  const hasCustomDefault = useAppStore(
+    (s) => getDefaultCustomAgentProfile(s.settings?.customAgentProfiles) !== null
+  )
   const newAgentShortcut = useOptionalShortcutLabel('tab.newAgent')
   const shortcutLabels = useAgentMenuShortcutLabels(pickerInventory ? model : undefined)
   const openAgentSettings = useCallback(() => {
@@ -259,16 +280,41 @@ export function ProjectedAgentMenuItems({
         </DropdownMenuItem>
       ) : null}
       {pickerInventory ? (
-        <SubscribedAgentLaunchPickerMenu
-          shortcutLabels={shortcutLabels}
-          model={model}
-          inventory={pickerInventory}
-          runLaunch={runLaunch}
-          onSelectAgent={onSelectPickerAgent}
-          hideSearch={hidePickerSearch}
-        />
+        <>
+          {/* Custom profiles are not picker entries, so the picker must not hide their rows. */}
+          {rows.map((row) =>
+            row.kind === 'custom' ? (
+              <CustomAgentMenuItem
+                key={rowId(row)}
+                row={row}
+                disabled={disabled}
+                runLaunch={runLaunch}
+                shortcut={newAgentShortcut}
+              />
+            ) : null
+          )}
+          <SubscribedAgentLaunchPickerMenu
+            shortcutLabels={shortcutLabels}
+            model={model}
+            inventory={pickerInventory}
+            runLaunch={runLaunch}
+            onSelectAgent={onSelectPickerAgent}
+            hideSearch={hidePickerSearch}
+          />
+        </>
       ) : (
         rows.map((row, index) => {
+          if (row.kind === 'custom') {
+            return (
+              <CustomAgentMenuItem
+                key={rowId(row)}
+                row={row}
+                disabled={disabled}
+                runLaunch={runLaunch}
+                shortcut={newAgentShortcut}
+              />
+            )
+          }
           const { agent } = row
           const label = getCatalogEntry(agent)?.label ?? agent
           // Chat rows come first; the rows that open a terminal start their own group.
@@ -285,7 +331,10 @@ export function ProjectedAgentMenuItems({
             )
           }
           const showsDefaultAgentShortcut =
-            newAgentShortcut !== null && defaultAgent !== 'blank' && agent === defaultAgent
+            newAgentShortcut !== null &&
+            defaultAgent !== 'blank' &&
+            agent === defaultAgent &&
+            !hasCustomDefault
           const pendingReason = terminalPendingReason(model.terminalPending, row, t)
           const rowContent = (
             <>
@@ -342,7 +391,7 @@ export function ProjectedAgentMenuItems({
 
 /** The same agent on the other surface: a chat's detected CLI, or a CLI-set agent's chat. */
 function otherSurfaceRow(
-  row: Exclude<NewTabAgentMenuRow, { kind: 'chat-unavailable' }>,
+  row: InstalledAgentMenuRow,
   detectedIds: readonly TuiAgent[] | null
 ): NewTabAgentMenuRow | null {
   const { agent, executionHostId } = row

@@ -17,7 +17,8 @@ import type { Translate } from '@/i18n/use-translate'
 import type { ActiveOption } from './tab-create-entry-active-option'
 
 export type TabAgentLaunchOption = {
-  agent: TuiAgent
+  /** Absent for custom-agent rows: a profile has no built-in agent identity. */
+  agent?: TuiAgent
   aliases: readonly string[]
   label: string
   disabled?: boolean
@@ -86,10 +87,19 @@ export function buildTabAgentLaunchOptionsFromRows(
   t?: Translate
 ): TabAgentLaunchOption[] {
   return rows.map((row) => {
-    const base = buildTabAgentLaunchOptions([row.agent], commandOverrides)[0]
+    if (row.kind === 'custom') {
+      return {
+        aliases: [row.profile.name],
+        label: row.profile.name,
+        row,
+        id: rowId(row)
+      }
+    }
+    const agentRow: Exclude<NewTabAgentMenuRow, { kind: 'custom' }> = row
+    const base = buildTabAgentLaunchOptions([agentRow.agent], commandOverrides)[0]
     return {
       ...base,
-      agent: row.agent,
+      agent: agentRow.agent,
       aliases: base?.aliases ?? [],
       label: rowLabel(row, t),
       disabled: row.kind === 'chat-unavailable',

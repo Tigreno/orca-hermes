@@ -10,6 +10,7 @@ const SourceControl = lazy(() => import('./source-control/panel/SourceControl'))
 const ChecksPanel = lazy(() => import('./checks-panel/ChecksPanel'))
 const PortsPanel = lazy(() => import('./PortsPanel'))
 const AiVaultSidebarPanel = lazy(() => import('./ai-vault/panel/AiVaultSidebarPanel'))
+const Bitrix24TasksPanel = lazy(() => import('./Bitrix24TasksPanel'))
 const FolderWorkspaceWorktreesPanel = lazy(() => import('./FolderWorkspaceWorktreesPanel'))
 const FolderWorkspacePrChecksPanel = lazy(
   () => import('./hosted-review/folder-checks/FolderWorkspacePrChecksPanel')
@@ -57,6 +58,7 @@ export function RightSidebarPanelContent({
             onFocusSearchHandled={onVaultSearchFocusHandled}
           />
         )}
+        {effectiveTab === 'bitrix24' && <Bitrix24TasksPanel />}
         {effectiveTab === 'workspaces' && <FolderWorkspaceWorktreesPanel />}
         {effectiveTab === 'pr-checks' && (
           <FolderWorkspacePrChecksPanel

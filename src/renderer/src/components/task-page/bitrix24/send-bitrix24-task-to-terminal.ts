@@ -1,5 +1,5 @@
 import type { Bitrix24TaskDetail } from '../../../../../shared/bitrix24/bitrix24-types'
-import { sendAgentDraftPasteContent } from '@/lib/agent-draft-paste-content'
+import { sendAgentDraftPasteContent } from '@/lib/agent-session/messaging/paste/agent-draft-paste-content'
 import { useAppStore } from '@/store/index'
 import { resolveWorktreeTerminalPtyId } from '@/store/terminals/worktree-terminal-pty'
 

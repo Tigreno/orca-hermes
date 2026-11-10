@@ -1,5 +1,6 @@
-import { Check } from 'lucide-react'
+import { Check, Terminal } from 'lucide-react'
 import type { TuiAgent } from '../../../../../../shared/agent-launch/catalog/tui-agent'
+import type { CustomAgentProfile } from '../../../../../../shared/custom-agent-profile'
 
 import type { AgentCatalogEntry } from '@/lib/agent-catalog/agent-catalog'
 import { AgentIcon } from '@/components/agent/icons/AgentIcon'
@@ -38,15 +39,20 @@ function DefaultAgentPill({
 
 export function AgentDefaultSetting({
   defaultAgent,
+  defaultCustomAgent,
   detectedIds,
   enabledDetectedAgents,
   catalog,
   description,
   onSetDefault,
+  onSetCustomDefault,
   defaultOpensAsChat = false,
   permissions
 }: {
   defaultAgent: TuiAgent | 'blank' | null
+  // Custom-agent default support landed in the upstream cherry-pick; kept
+  // optional here so callers without that wiring still type-check.
+  defaultCustomAgent?: CustomAgentProfile | null
   detectedIds: Set<string> | null
   /** The saved default opens as a chat on this host without its CLI. */
   defaultOpensAsChat?: boolean
@@ -54,6 +60,7 @@ export function AgentDefaultSetting({
   catalog: AgentCatalogEntry[]
   description: string
   onSetDefault: (agent: TuiAgent | 'blank' | null) => void
+  onSetCustomDefault?: (profileId: string) => void
   permissions: React.ReactNode
 }): React.JSX.Element {
   const t = useTranslate()
@@ -73,14 +80,14 @@ export function AgentDefaultSetting({
     >
       <div className="flex flex-wrap gap-2 py-4">
         <DefaultAgentPill
-          active={defaultAgent === null}
+          active={defaultAgent === null && !defaultCustomAgent}
           onClick={() => onSetDefault(defaultAgent === null ? 'blank' : null)}
         >
-          {defaultAgent === null && <Check className="size-3.5" />}
+          {defaultAgent === null && !defaultCustomAgent && <Check className="size-3.5" />}
           {t('auto.components.settings.AgentsPane.92033495ff', 'Auto')}
         </DefaultAgentPill>
         {defaultAgentPills.map((agent) => {
-          const isActive = defaultAgent === agent.id
+          const isActive = !defaultCustomAgent && defaultAgent === agent.id
           const isUndetected =
             detectedIds !== null && !detectedIds.has(agent.id) && !(isActive && defaultOpensAsChat)
           return (
@@ -103,6 +110,17 @@ export function AgentDefaultSetting({
             </DefaultAgentPill>
           )
         })}
+        {defaultCustomAgent ? (
+          <DefaultAgentPill active onClick={() => onSetCustomDefault?.(defaultCustomAgent.id)}>
+            {defaultCustomAgent.baseAgent ? (
+              <AgentIcon agent={defaultCustomAgent.baseAgent} size={14} />
+            ) : (
+              <Terminal className="size-3.5" />
+            )}
+            {defaultCustomAgent.name}
+            <Check className="size-3.5" />
+          </DefaultAgentPill>
+        ) : null}
       </div>
       <div data-settings-row="" className="py-3">
         {permissions}

@@ -3,7 +3,6 @@ import { Pencil, Pause, Play, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { getAgentCatalog } from '@/lib/agent-catalog/agent-catalog'
 import { AgentIcon } from '@/components/agent/icons/AgentIcon'
 import type { Automation } from '../../../../../shared/automations/automation-definition'
 import type { AutomationRun } from '../../../../../shared/automations/history/automation-run'
@@ -24,6 +23,7 @@ import { translate } from '@/i18n/i18n'
 import { useIntlLocale, useTranslate, type Translate } from '@/i18n/use-translate'
 import { AutomationPromptDisclosure } from './AutomationPromptDisclosure'
 import { automationRunErrorText } from '../runs/automation-run-error-copy'
+import { useAutomationAgentLabel } from '../use-automation-agent-label'
 
 type AutomationDetailProps = {
   automation: Automation | null
@@ -132,6 +132,7 @@ export function AutomationDetail({
 }: AutomationDetailProps): React.JSX.Element {
   const t = useTranslate()
   const intlLocale = useIntlLocale()
+  const getAutomationAgentLabel = useAutomationAgentLabel()
   if (!automation) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -157,8 +158,7 @@ export function AutomationDetail({
       : usageSummary.unavailableRuns > 0
         ? t('auto.components.automations.AutomationDetail.usageUnavailable', 'Unavailable')
         : t('auto.components.automations.AutomationDetail.noRuns', 'No runs')
-  const agentLabel =
-    getAgentCatalog().find((agent) => agent.id === automation.agentId)?.label ?? automation.agentId
+  const agentLabel = getAutomationAgentLabel(automation)
   const runLocationLabel =
     automation.workspaceMode === 'new_per_run'
       ? (automation.baseBranch ??

@@ -2,9 +2,10 @@ import React from 'react'
 import { ChevronsUpDown, Terminal, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { AgentIcon, type AgentCatalogEntry } from '@/lib/agent-catalog'
-import { cn } from '@/lib/utils'
-import { translate } from '@/i18n/i18n'
+import type { AgentCatalogEntry } from '@/lib/agent-catalog/agent-catalog'
+import { AgentIcon } from '@/components/agent/icons/AgentIcon'
+import { cn } from '@/lib/class-names'
+import { useTranslate } from '@/i18n/use-translate'
 import { rowLabel } from '@/components/tab-bar/tab-agent-row-presentation'
 import { AgentIconLabel } from './agent-combobox-items'
 import type { TuiAgent } from '../../../../shared/agent-launch/catalog/tui-agent'
@@ -26,12 +27,13 @@ export function AgentComboboxTriggerContent({
   allowBlankTerminal: boolean
   blankText: string
 }): React.JSX.Element {
+  const t = useTranslate()
   return (
     <>
       <span className={cn('inline-flex min-w-0 flex-1', canClear && 'pr-8')}>
         {selectionCleared ? (
           <span className="truncate text-muted-foreground">
-            {translate('components.agentSessionContinuation.selectAgent', 'Select an Agent')}
+            {t('components.agentSessionContinuation.selectAgent', 'Select an Agent')}
           </span>
         ) : selectedCustomAgent ? (
           <AgentIconLabel
@@ -51,7 +53,7 @@ export function AgentComboboxTriggerContent({
             label={
               allowBlankTerminal
                 ? blankText
-                : translate('components.agentSessionContinuation.selectAgent', 'Select an Agent')
+                : t('components.agentSessionContinuation.selectAgent', 'Select an Agent')
             }
           />
         )}
@@ -68,7 +70,8 @@ export function AgentComboboxClearButton({
   disabled?: boolean
   onClear: () => void
 }): React.JSX.Element {
-  const label = translate('components.agentCombobox.clearSelection', 'Clear agent selection')
+  const t = useTranslate()
+  const label = t('components.agentCombobox.clearSelection', 'Clear agent selection')
   return (
     <Tooltip>
       <TooltipTrigger asChild>

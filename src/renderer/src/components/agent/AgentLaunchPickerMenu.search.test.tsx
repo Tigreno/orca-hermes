@@ -62,6 +62,10 @@ it('includes blank terminal in keyboard results and filters it for agent and mod
               }
               onSelectBlankTerminal={() => setSelection('blank')}
               runLaunch={(row, draft) => {
+                if (row.kind === 'custom') {
+                  setSelection(`${row.profile.id}:${draft?.choices.model ?? ''}`)
+                  return
+                }
                 setSelection(`${row.agent}:${draft?.choices.model ?? ''}`)
               }}
             />

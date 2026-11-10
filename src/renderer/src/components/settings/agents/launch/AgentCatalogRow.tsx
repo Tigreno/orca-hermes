@@ -278,12 +278,12 @@ export function AgentCatalogRow({
               size="icon-sm"
               onClick={onDuplicateAsCustom}
               disabled={duplicateAsCustomDisabled}
-              aria-label={translate(
+              aria-label={t(
                 'auto.components.settings.AgentCatalogRow.duplicateAsCustom',
                 'Duplicate {{value0}} as custom agent',
                 { value0: label }
               )}
-              title={translate(
+              title={t(
                 'auto.components.settings.AgentCatalogRow.duplicateAsCustom',
                 'Duplicate {{value0}} as custom agent',
                 { value0: label }

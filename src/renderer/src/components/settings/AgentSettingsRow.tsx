@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { translate } from '@/i18n/i18n'
+import { cn } from '@/lib/class-names'
+import { useTranslate } from '@/i18n/use-translate'
 import { Button } from '../ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 import { SettingsBadge, SettingsSegmentedControl } from './form-controls/SettingsFormControls'
@@ -50,6 +50,7 @@ export function AgentAvailabilityControl({
   isEnabled: boolean
   onSetEnabled: (enabled: boolean) => void
 }): React.JSX.Element {
+  const t = useTranslate()
   const value: AgentAvailability = isEnabled ? 'enabled' : 'disabled'
   return (
     <SettingsSegmentedControl<AgentAvailability>
@@ -59,20 +60,18 @@ export function AgentAvailabilityControl({
           onSetEnabled(next === 'enabled')
         }
       }}
-      ariaLabel={translate(
-        'auto.components.settings.AgentsPane.1c9a9679ec',
-        '{{value0}} availability',
-        { value0: label }
-      )}
+      ariaLabel={t('auto.components.settings.AgentsPane.1c9a9679ec', '{{value0}} availability', {
+        value0: label
+      })}
       size="sm"
       options={[
         {
           value: 'enabled',
-          label: translate('auto.components.settings.AgentsPane.d4d2a45d63', 'Enabled')
+          label: t('auto.components.settings.AgentsPane.d4d2a45d63', 'Enabled')
         },
         {
           value: 'disabled',
-          label: translate('auto.components.settings.AgentsPane.8dc0192e48', 'Disabled')
+          label: t('auto.components.settings.AgentsPane.8dc0192e48', 'Disabled')
         }
       ]}
     />
@@ -110,6 +109,7 @@ export function AgentSettingsRow({
   children?: ReactNode
   muted?: boolean
 }): React.JSX.Element {
+  const t = useTranslate()
   return (
     <div className={cn('py-3', muted && 'opacity-70')}>
       <div className="flex flex-wrap items-start gap-3">
@@ -121,7 +121,7 @@ export function AgentSettingsRow({
             <span className="text-sm font-medium leading-none">{label}</span>
             {!isEnabled ? (
               <SettingsBadge tone="muted">
-                {translate('auto.components.settings.AgentsPane.8dc0192e48', 'Disabled')}
+                {t('auto.components.settings.AgentsPane.8dc0192e48', 'Disabled')}
               </SettingsBadge>
             ) : null}
           </div>
@@ -143,15 +143,15 @@ export function AgentSettingsRow({
                 onClick={onSetDefault}
                 title={
                   isDefault
-                    ? translate('auto.components.settings.AgentsPane.d7625cf8b2', 'Default agent')
-                    : translate('auto.components.settings.AgentsPane.5f986a9b92', 'Set as default')
+                    ? t('auto.components.settings.AgentsPane.d7625cf8b2', 'Default agent')
+                    : t('auto.components.settings.AgentsPane.5f986a9b92', 'Set as default')
                 }
                 className="h-7 w-full justify-center gap-1 text-xs"
               >
                 {isDefault ? <Check className="size-3" /> : null}
                 {isDefault
-                  ? translate('auto.components.settings.AgentsPane.24e032fa34', 'Default')
-                  : translate('auto.components.settings.AgentsPane.959b67385b', 'Set default')}
+                  ? t('auto.components.settings.AgentsPane.24e032fa34', 'Default')
+                  : t('auto.components.settings.AgentsPane.959b67385b', 'Set default')}
               </Button>
             ) : null}
           </div>
@@ -167,11 +167,11 @@ export function AgentSettingsRow({
                 aria-label={
                   toggleDetailsLabel ??
                   (detailsOpen
-                    ? translate(
+                    ? t(
                         'auto.components.settings.AgentsPane.cea7d97be1',
                         'Collapse command override'
                       )
-                    : translate(
+                    : t(
                         'auto.components.settings.AgentsPane.dc4a2ffdc0',
                         'Expand command override'
                       ))

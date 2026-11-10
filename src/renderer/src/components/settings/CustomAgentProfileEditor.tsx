@@ -1,7 +1,8 @@
 import { useId, useRef } from 'react'
 import { Plus, X } from 'lucide-react'
-import type { AgentCatalogEntry } from '@/lib/agent-catalog'
+import type { AgentCatalogEntry } from '@/lib/agent-catalog/agent-catalog'
 import { translate } from '@/i18n/i18n'
+import { useTranslate } from '@/i18n/use-translate'
 import {
   normalizeCustomAgentProfile,
   type CustomAgentProfile
@@ -84,6 +85,7 @@ export function CustomAgentProfileEditor({
   onSave: () => void
   onCancel: () => void
 }): React.JSX.Element {
+  const t = useTranslate()
   const { profile } = editor
   const errors = validateCustomAgentDraft(profile, profiles, catalog, editor.originalId)
   const argumentsId = useId()
@@ -91,16 +93,12 @@ export function CustomAgentProfileEditor({
   const executableErrorId = `${profile.id}-executable-error`
   const argumentInputRefs = useRef<(HTMLInputElement | null)[]>([])
   const addArgumentRef = useRef<HTMLButtonElement | null>(null)
-  const argumentIdsRef = useRef(profile.args.map((_, index) => `${profile.id}-argument-${index}`))
-  const nextArgumentIdRef = useRef(profile.args.length)
   const setArgs = (args: string[]): void => onChange({ ...profile, args })
   const addArgument = (): void => {
-    argumentIdsRef.current.push(`${profile.id}-argument-${nextArgumentIdRef.current++}`)
     setArgs([...profile.args, ''])
   }
   const removeArgument = (index: number): void => {
     const next = profile.args.filter((_, argIndex) => argIndex !== index)
-    argumentIdsRef.current.splice(index, 1)
     setArgs(next)
     requestAnimationFrame(() => {
       if (next.length === 0) {
@@ -121,7 +119,7 @@ export function CustomAgentProfileEditor({
     >
       <div className="space-y-1.5">
         <Label htmlFor={`${profile.id}-name`}>
-          {translate('auto.components.settings.CustomAgentProfileEditor.name', 'Name')}
+          {t('auto.components.settings.CustomAgentProfileEditor.name', 'Name')}
         </Label>
         <Input
           ref={nameInputRef}
@@ -140,12 +138,12 @@ export function CustomAgentProfileEditor({
 
       <div className="space-y-1.5">
         <Label htmlFor={`${profile.id}-executable`}>
-          {translate('auto.components.settings.CustomAgentProfileEditor.executable', 'Executable')}
+          {t('auto.components.settings.CustomAgentProfileEditor.executable', 'Executable')}
         </Label>
         <Input
           id={`${profile.id}-executable`}
           value={profile.executable}
-          placeholder={translate(
+          placeholder={t(
             'auto.components.settings.CustomAgentProfileEditor.executablePlaceholder',
             'codex'
           )}
@@ -163,7 +161,7 @@ export function CustomAgentProfileEditor({
       <div className="space-y-2" role="group" aria-labelledby={argumentsId}>
         <div className="flex items-center justify-between gap-2">
           <Label id={argumentsId}>
-            {translate('auto.components.settings.CustomAgentProfileEditor.arguments', 'Arguments')}
+            {t('auto.components.settings.CustomAgentProfileEditor.arguments', 'Arguments')}
           </Label>
           <Button
             ref={addArgumentRef}
@@ -173,20 +171,17 @@ export function CustomAgentProfileEditor({
             onClick={addArgument}
           >
             <Plus className="size-3" />
-            {translate(
-              'auto.components.settings.CustomAgentProfileEditor.addArgument',
-              'Add argument'
-            )}
+            {t('auto.components.settings.CustomAgentProfileEditor.addArgument', 'Add argument')}
           </Button>
         </div>
         {profile.args.map((arg, index) => (
-          <div key={argumentIdsRef.current[index]} className="flex items-center gap-1.5">
+          <div key={`${profile.id}-argument-${index}`} className="flex items-center gap-1.5">
             <Input
               ref={(node) => {
                 argumentInputRefs.current[index] = node
               }}
               value={arg}
-              aria-label={translate(
+              aria-label={t(
                 'auto.components.settings.CustomAgentProfileEditor.argumentNumber',
                 'Argument {{value0}}',
                 { value0: String(index + 1) }
@@ -200,7 +195,7 @@ export function CustomAgentProfileEditor({
               }
             />
             <AgentRowAction
-              label={translate(
+              label={t(
                 'auto.components.settings.CustomAgentProfileEditor.removeArgument',
                 'Remove argument {{value0}}',
                 { value0: String(index + 1) }
@@ -225,12 +220,12 @@ export function CustomAgentProfileEditor({
       ) : null}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={saving}>
-          {translate('auto.components.settings.CustomAgentProfileEditor.cancel', 'Cancel')}
+          {t('auto.components.settings.CustomAgentProfileEditor.cancel', 'Cancel')}
         </Button>
         <Button type="submit" size="sm" disabled={saving || Object.keys(errors).length > 0}>
           {saving
-            ? translate('auto.components.settings.CustomAgentProfileEditor.saving', 'Saving…')
-            : translate('auto.components.settings.CustomAgentProfileEditor.save', 'Save')}
+            ? t('auto.components.settings.CustomAgentProfileEditor.saving', 'Saving…')
+            : t('auto.components.settings.CustomAgentProfileEditor.save', 'Save')}
         </Button>
       </div>
     </form>

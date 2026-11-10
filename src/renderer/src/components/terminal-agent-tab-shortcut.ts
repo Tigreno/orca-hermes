@@ -11,10 +11,12 @@ import {
 } from '@/lib/agent-session/launch/shortcuts/agent-tab-shortcuts'
 import { chosenAgentChatUnlearned } from '@/lib/agent-session/launch/inventory/host-chat-program'
 import { worktreeLaunchWorkspace } from '@/lib/agent-session/launch/routing/agent-launch-route-input'
+import { getDefaultCustomAgentProfile } from '../../../shared/custom-agent-profile'
 
 export type TerminalAgentTabShortcut = {
   actionId: KeybindingActionId | null
   agent: TuiAgent | null
+  customAgentProfileId: string | null
   /** Set when the cached list has no usable agent; settles once the workspace's host answers. */
   pendingAgent?: Promise<TuiAgent | null>
 }
@@ -75,19 +77,27 @@ export function resolveTerminalAgentTabShortcut({
   matchShortcut: (actionId: KeybindingActionId) => boolean
   includeTerminal?: boolean
 }): TerminalAgentTabShortcut {
+  const state = useAppStore.getState()
   const action = resolveAgentTabShortcutAction(
     readAgentTabShortcutActions(activeWorktreeId, keybindings),
     (actionId) => (includeTerminal || actionId !== 'tab.newTerminal') && matchShortcut(actionId)
   )
   if (!action) {
-    return { actionId: null, agent: null }
+    return { actionId: null, agent: null, customAgentProfileId: null }
   }
   const { actionId, agent } = action
+  if (actionId === 'tab.newAgent') {
+    const customAgent = getDefaultCustomAgentProfile(state.settings?.customAgentProfiles)
+    if (customAgent) {
+      return { actionId, agent: null, customAgentProfileId: customAgent.id }
+    }
+  }
   return actionId === 'tab.newAgent' && !agent
     ? {
         actionId,
         agent,
+        customAgentProfileId: null,
         pendingAgent: resolveDefaultAgentForWorktreeNewTab(useAppStore.getState, activeWorktreeId)
       }
-    : { actionId, agent }
+    : { actionId, agent, customAgentProfileId: null }
 }

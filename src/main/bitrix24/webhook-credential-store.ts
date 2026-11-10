@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -30,19 +30,15 @@ function getTokenPath(portalHost: string): string {
   return join(getBitrix24TokenDir(), `${Buffer.from(portalHost).toString('base64url')}.enc`)
 }
 
-function ensureDir(dir: string): void {
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true })
-  }
-}
-
-function readWebhookFile(): Bitrix24WebhookFile | null {
-  const path = getWebhookFilePath()
-  if (!existsSync(path)) {
+async function readWebhookFile(): Promise<Bitrix24WebhookFile | null> {
+  let raw: string
+  try {
+    raw = await readFile(getWebhookFilePath(), 'utf-8')
+  } catch {
     return null
   }
   try {
-    const parsed: unknown = JSON.parse(readFileSync(path, { encoding: 'utf-8' }))
+    const parsed: unknown = JSON.parse(raw)
     if (
       !parsed ||
       typeof parsed !== 'object' ||
@@ -64,17 +60,25 @@ function readWebhookFile(): Bitrix24WebhookFile | null {
   }
 }
 
-export function readWebhookCredential(): Bitrix24WebhookCredential | null {
-  const file = readWebhookFile()
+async function readTokenFile(portalHost: string): Promise<Buffer | null> {
+  try {
+    return await readFile(getTokenPath(portalHost))
+  } catch {
+    return null
+  }
+}
+
+export async function readWebhookCredential(): Promise<Bitrix24WebhookCredential | null> {
+  const file = await readWebhookFile()
   if (!file) {
     return null
   }
-  const path = getTokenPath(file.portalHost)
-  if (!existsSync(path)) {
+  const raw = await readTokenFile(file.portalHost)
+  if (!raw) {
     return null
   }
   try {
-    const token = readStoredCredentialToken('Bitrix24', readFileSync(path))
+    const token = readStoredCredentialToken('Bitrix24', raw)
     return token ? { portalHost: file.portalHost, userId: file.userId, token } : null
   } catch (error) {
     if (error instanceof CredentialDecryptionError) {
@@ -84,34 +88,34 @@ export function readWebhookCredential(): Bitrix24WebhookCredential | null {
   }
 }
 
-export function hasStoredWebhook(): boolean {
-  const file = readWebhookFile()
-  return file !== null && existsSync(getTokenPath(file.portalHost))
+export async function hasStoredWebhook(): Promise<boolean> {
+  const file = await readWebhookFile()
+  return file !== null && (await readTokenFile(file.portalHost)) !== null
 }
 
-export function saveWebhookCredential(credential: Bitrix24WebhookCredential): void {
-  ensureDir(getOrcaDir())
-  ensureDir(getBitrix24TokenDir())
+export async function saveWebhookCredential(credential: Bitrix24WebhookCredential): Promise<void> {
+  await mkdir(getOrcaDir(), { recursive: true })
+  await mkdir(getBitrix24TokenDir(), { recursive: true })
   writeEncryptedCredential('Bitrix24', getTokenPath(credential.portalHost), credential.token)
   const file: Bitrix24WebhookFile = {
     version: 1,
     portalHost: credential.portalHost,
     userId: credential.userId
   }
-  writeFileSync(getWebhookFilePath(), JSON.stringify(file, null, 2), {
+  await writeFile(getWebhookFilePath(), JSON.stringify(file, null, 2), {
     encoding: 'utf-8',
     mode: 0o600
   })
 }
 
-export function clearWebhookCredential(): void {
-  const file = readWebhookFile()
+export async function clearWebhookCredential(): Promise<void> {
+  const file = await readWebhookFile()
   if (file) {
     try {
-      unlinkSync(getTokenPath(file.portalHost))
+      await unlink(getTokenPath(file.portalHost))
     } catch {}
   }
   try {
-    unlinkSync(getWebhookFilePath())
+    await unlink(getWebhookFilePath())
   } catch {}
 }

@@ -148,7 +148,15 @@ export function LandingAgentResults({
           selection="palette"
           onSelect={() => runLaunch(row)}
         >
-          <AgentIcon agent={row.agent} size={16} />
+          {row.kind === 'custom' ? (
+            row.profile.baseAgent ? (
+              <AgentIcon agent={row.profile.baseAgent} size={16} />
+            ) : (
+              <Bot size={16} />
+            )
+          ) : (
+            <AgentIcon agent={row.agent} size={16} />
+          )}
           <span className="min-w-0 flex-1 truncate">{rowLabel(row, t)}</span>
         </CommandItem>
       ))}

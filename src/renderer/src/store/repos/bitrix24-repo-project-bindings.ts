@@ -1,7 +1,10 @@
 import type { Repo } from '../../../../shared/repo-types'
 import type { Bitrix24ProjectReference } from '../../../../shared/bitrix24/project-reference'
-import { bitrix24RepoProjectBindings } from '../../runtime/runtime-bitrix24-client'
-import { getRepoHostIdentity } from '../slices/repo-host-identity'
+import {
+  bitrix24RepoProjectBindings,
+  bitrix24SetRepoProjectBinding
+} from '../../runtime/runtime-bitrix24-client'
+import { getRepoHostIdentity } from '../../../../shared/repo-host-identity'
 
 /** Bindings live on the desktop, so a failed read must not hide the rest of the catalog. */
 export async function readBitrix24RepoProjectBindings(): Promise<
@@ -11,6 +14,18 @@ export async function readBitrix24RepoProjectBindings(): Promise<
     return await bitrix24RepoProjectBindings()
   } catch {
     return {}
+  }
+}
+
+/** Removing a repo drops its desktop binding; a failure there must not block the removal. */
+export async function clearBitrix24RepoProjectBinding(
+  repoId: string,
+  hostId: string
+): Promise<void> {
+  try {
+    await bitrix24SetRepoProjectBinding({ repoId, hostId, project: null })
+  } catch (error) {
+    console.warn('[repos] failed to drop desktop Bitrix24 project binding', error)
   }
 }
 

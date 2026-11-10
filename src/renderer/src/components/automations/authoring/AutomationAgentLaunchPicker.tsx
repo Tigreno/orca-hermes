@@ -16,11 +16,16 @@ import { AUTOMATION_LAUNCH_SETUP_RUNTIME_CAPABILITY } from '../../../../../share
 import { automationLegacyArguments } from '../../../../../shared/automations/launch/automation-legacy-arguments'
 import type { AutomationAuthorityRef } from '../../../../../shared/automations/ownership/automation-owner-ref'
 import { Button } from '@/components/ui/button'
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { useTranslate } from '@/i18n/use-translate'
 import { draftExtraAgentArgsNeedFreshSession } from './automation-draft-model'
 import type { AgentDetectionTarget } from '@/hooks/useDetectedAgents'
 import type { AgentPickerEntry } from '../../../../../shared/agent-launch/picker/agent-launch-picker'
 import type { NewTabAgentMenuModel } from '@/components/tab-bar/new-tab-agent-menu-model'
+import {
+  isCustomAgentProfileEnabled,
+  normalizeCustomAgentProfiles
+} from '../../../../../shared/custom-agent-profile'
 import { useAutomationAgentPickerEntries } from './use-automation-agent-picker-entries'
 import { AutomationExtraAgentArgsField } from './AutomationExtraAgentArgsField'
 import { AutomationSurfaceField } from './AutomationSurfaceField'
@@ -65,6 +70,13 @@ export function AutomationAgentLaunchPicker({
   const state = useAppStore(selectAgentLaunchRouteView)
   const [menuOpen, setMenuOpen] = useState(false)
   const [catalogAgent, setCatalogAgent] = useState<AgentPickerEntry['agent']>()
+  const customProfiles = useMemo(
+    () => normalizeCustomAgentProfiles(settings?.customAgentProfiles),
+    [settings?.customAgentProfiles]
+  )
+  const selectedCustomProfile = customProfiles.find(
+    (profile) => profile.id === draft.customAgentProfileId
+  )
   const route = buildAgentLaunchRouteInput(state, { agent: draft.agentId, workspace })
   const host = parseExecutionHostId(route.executionHostId)
   const detectionTarget: AgentDetectionTarget | undefined =
@@ -95,6 +107,7 @@ export function AutomationAgentLaunchPicker({
     : legacyArgumentsDraft(draft)
   const showLegacyArguments =
     surface === 'terminal' &&
+    !draft.customAgentProfileId &&
     (!modern || Boolean(draft.extraAgentArgs || draft.launchArgumentsInput))
   const model: NewTabAgentMenuModel = useMemo(
     () => ({
@@ -147,10 +160,27 @@ export function AutomationAgentLaunchPicker({
   const scope = useAgentPickerDraftScope(JSON.stringify([workspace, authority, draft.agentId]))
   const onPick = useCallback<ComponentProps<typeof AgentLaunchPicker>['onPick']>(
     (agentId, accepted, _entry, pickedSurface) =>
-      onDraftChange((current) =>
-        pickAutomationLaunch(current, agentId, accepted, pickedSurface, modern, surface)
-      ),
+      onDraftChange((current) => ({
+        ...pickAutomationLaunch(current, agentId, accepted, pickedSurface, modern, surface),
+        customAgentProfileId: null
+      })),
     [onDraftChange, modern, surface]
+  )
+  const pickCustomProfile = useCallback(
+    (profileId: string) => {
+      const profile = customProfiles.find((candidate) => candidate.id === profileId)
+      if (!profile?.baseAgent) {
+        return
+      }
+      onDraftChange((current) => ({
+        ...current,
+        agentId: profile.baseAgent!,
+        customAgentProfileId: profile.id,
+        // Why: a custom profile owns its arguments, so saved extras cannot apply.
+        extraAgentArgs: ''
+      }))
+    },
+    [customProfiles, onDraftChange]
   )
   return (
     <>
@@ -160,14 +190,28 @@ export function AutomationAgentLaunchPicker({
         agent={draft.agentId}
         draftScope={scope}
         triggerLabel={
-          visibleAgents.find((agent) => agent.id === draft.agentId)?.label ?? draft.agentId
+          selectedCustomProfile?.name ??
+          visibleAgents.find((agent) => agent.id === draft.agentId)?.label ??
+          draft.agentId
         }
         setupDisabled={!modern}
         draftForEntry={draftForEntry}
         onOpenChange={setMenuOpen}
         onCatalogOpen={setCatalogAgent}
         onPick={onPick}
-      />
+      >
+        {customProfiles.filter(isCustomAgentProfileEnabled).map((profile) => (
+          <DropdownMenuItem
+            key={profile.id}
+            variant="launch"
+            className="h-9"
+            data-search-custom-agent={profile.id}
+            onSelect={() => pickCustomProfile(profile.id)}
+          >
+            {profile.name}
+          </DropdownMenuItem>
+        ))}
+      </AgentLaunchPicker>
       {!modern ? (
         <AutomationSurfaceField
           draft={draft}

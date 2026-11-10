@@ -6,10 +6,10 @@ import type {
   Bitrix24TaskSummary
 } from '../../../../../shared/bitrix24/bitrix24-types'
 import type { Bitrix24ProjectReference } from '../../../../../shared/bitrix24/project-reference'
-import { buildTaskSourceContextFromRepo } from '../../../../../shared/task-source-context'
+import { buildTaskSourceContextFromRepo } from '../../../../../shared/work-items/task-source-context'
 import { getLinkedWorkItemSuggestedName } from '../../../../../shared/workspace-name'
-import type { LinkedWorkItemSummary } from '@/lib/new-workspace'
-import { getRepoWorkspaceCreationTargetHint } from '@/lib/project-host-workspace-target'
+import type { LinkedWorkItemSummary } from '@/lib/workspace/creation/new-workspace'
+import { getRepoWorkspaceCreationTargetHint } from '@/lib/workspace/creation/project-host-workspace-target'
 import {
   refreshBitrix24ConnectionStatus,
   useBitrix24ConnectionStatus

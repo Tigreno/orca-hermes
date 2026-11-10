@@ -120,7 +120,7 @@ export function useRightSidebarActivityItems({
       {
         id: 'bitrix24',
         icon: Bitrix24Icon,
-        title: translate('components.bitrix24Sidebar.title', 'Bitrix24 tasks'),
+        title: t('components.bitrix24Sidebar.title', 'Bitrix24 tasks'),
         shortcut: '',
         bitrix24Only: true
       },

@@ -1,9 +1,37 @@
 import { useCallback, useRef } from 'react'
-import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
+import { focusTerminalTabSurface } from '@/components/terminal-pane/input/focus/focus-terminal-tab-surface'
 import { useAppStore } from '@/store'
 
 const TERMINAL_FOCUS_RETRY_MS = 50
 const TERMINAL_FOCUS_TIMEOUT_MS = 5000
+
+type TimeoutHandleRef = { current: number | null }
+
+function scheduleTerminalFocusRetry(
+  previousActiveTabId: string | null,
+  expiresAt: number,
+  retryRef: TimeoutHandleRef
+): void {
+  const attempt = (now: number): void => {
+    const state = useAppStore.getState()
+    if (
+      (state.activeTabType === 'terminal' || state.activeTabType === 'simulator') &&
+      state.activeTabId &&
+      state.activeTabId !== previousActiveTabId
+    ) {
+      focusTerminalTabSurface(state.activeTabId)
+      return
+    }
+    if (now >= expiresAt) {
+      return
+    }
+    retryRef.current = window.setTimeout(() => {
+      retryRef.current = null
+      attempt(Date.now())
+    }, TERMINAL_FOCUS_RETRY_MS)
+  }
+  attempt(Date.now())
+}
 
 export type NewTabMenuPendingFocus = {
   /** Focus the tab that becomes active once the menu closes. */
@@ -42,28 +70,6 @@ export function useNewTabMenuPendingFocus(): NewTabMenuPendingFocus {
     }
   }, [])
 
-  const focusNewActiveTerminalWhenReady = useCallback(
-    (previousActiveTabId: string | null, expiresAt: number, now: number): void => {
-      const state = useAppStore.getState()
-      if (
-        (state.activeTabType === 'terminal' || state.activeTabType === 'simulator') &&
-        state.activeTabId &&
-        state.activeTabId !== previousActiveTabId
-      ) {
-        focusTerminalTabSurface(state.activeTabId)
-        return
-      }
-      if (now >= expiresAt) {
-        return
-      }
-      retryRef.current = window.setTimeout(() => {
-        retryRef.current = null
-        focusNewActiveTerminalWhenReady(previousActiveTabId, expiresAt, Date.now())
-      }, TERMINAL_FOCUS_RETRY_MS)
-    },
-    []
-  )
-
   const queueFocus = useCallback(
     (focus: () => void, synchronous?: true): void => {
       clearAnimation()
@@ -77,13 +83,13 @@ export function useNewTabMenuPendingFocus(): NewTabMenuPendingFocus {
     const previousActiveTabId = useAppStore.getState().activeTabId
     queueFocus(() => {
       // Why: paired web/SSH tab creation is async; await the host snapshot's new terminal instead of the pre-existing active tab.
-      focusNewActiveTerminalWhenReady(
+      scheduleTerminalFocusRetry(
         previousActiveTabId,
         Date.now() + TERMINAL_FOCUS_TIMEOUT_MS,
-        Date.now()
+        retryRef
       )
     })
-  }, [focusNewActiveTerminalWhenReady, queueFocus])
+  }, [queueFocus])
 
   const queueTerminalTabFocus = useCallback(
     (tabId: string): void => queueFocus(() => focusTerminalTabSurface(tabId)),

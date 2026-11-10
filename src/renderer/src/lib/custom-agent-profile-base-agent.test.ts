@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AgentCatalogEntry } from '@/lib/agent-catalog'
+import type { AgentCatalogEntry } from '@/lib/agent-catalog/agent-catalog'
 import { resolveCustomAgentProfileBaseAgent } from './custom-agent-profile-base-agent'
 
 // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the resolver reads only `id` and `cmd`.

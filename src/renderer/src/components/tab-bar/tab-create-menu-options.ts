@@ -148,6 +148,30 @@ export function buildTabCreateMenuOptions(
     })
   }
 
+  for (const entry of context.customAgents ?? []) {
+    const label = translate(
+      'auto.components.tab.bar.tab.create.menu.options.newCustomAgentNamed',
+      'New Terminal: {{value0}}',
+      { value0: entry.name }
+    )
+    options.push({
+      id: `new-custom-agent:${entry.id}`,
+      kind: 'new-custom-agent',
+      label,
+      customProfileId: entry.id,
+      keywords: [
+        translate('auto.components.tab.bar.tab.create.menu.options.5501c2fb7a', 'terminal'),
+        translate('auto.components.tab.bar.tab.create.menu.options.newCustomAgent', 'custom agent'),
+        translate(
+          'auto.components.tab.bar.tab.create.menu.options.newCustomAgentKeyword',
+          'new agent'
+        ),
+        entry.name,
+        label
+      ]
+    })
+  }
+
   if (context.hasNewBrowser) {
     const label = t('auto.components.tab.bar.TabBar.4833fb2cbe', 'New Browser Tab')
     options.push({
