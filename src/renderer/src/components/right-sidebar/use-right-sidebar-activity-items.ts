@@ -21,6 +21,7 @@ import { useShortcutLabel } from '@/hooks/useShortcutLabel'
 import { translate } from '@/i18n/i18n'
 import { useUiLanguageRevision } from '@/i18n/use-ui-language-revision'
 import { AgentSessionHistoryIcon } from './agent-session-history-icon'
+import { Bitrix24Icon } from '@/components/icons/Bitrix24Icon'
 import type { ActivityBarItem } from './activity-bar-buttons'
 
 export type RightSidebarActivityItems = {
@@ -47,6 +48,15 @@ export function useRightSidebarActivityItems({
     activeWorktreeId ? (s.getKnownWorktreeById(activeWorktreeId) ?? null) : null
   )
   const activeRepo = useRepoById(activeWorktree?.repoId ?? null)
+  // Why: the Bitrix24 tab must survive reopening the sidebar, when the gated active worktree is null.
+  const activeWorktreeIdForBitrix24 = useAppStore((s) => s.activeWorktreeId)
+  const activeRepoIdForBitrix24 = useAppStore((s) =>
+    activeWorktreeIdForBitrix24
+      ? (s.getKnownWorktreeById(activeWorktreeIdForBitrix24)?.repoId ?? null)
+      : null
+  )
+  const activeRepoForBitrix24 = useRepoById(activeRepoIdForBitrix24)
+  const hasBitrix24Project = activeRepoForBitrix24?.defaultBitrix24Project != null
   const activeWorkspaceScope = parseWorkspaceKey(activeWorktreeId ?? '')
   const isFolderWorkspace = activeWorkspaceScope?.type === 'folder'
   const isFolder = isFolderWorkspace || (activeRepo ? isFolderRepo(activeRepo) : false)
@@ -110,6 +120,13 @@ export function useRightSidebarActivityItems({
         gitOnly: true
       },
       {
+        id: 'bitrix24',
+        icon: Bitrix24Icon,
+        title: translate('components.bitrix24Sidebar.title', 'Bitrix24 tasks'),
+        shortcut: '',
+        bitrix24Only: true
+      },
+      {
         id: 'checks',
         icon: ListChecks,
         title: translate('auto.components.right.sidebar.index.83a10e3c44', 'Checks'),
@@ -130,6 +147,7 @@ export function useRightSidebarActivityItems({
     [
       checksShortcut,
       explorerShortcut,
+      hasBitrix24Project,
       pluginPanelErrors,
       visiblePluginPanels,
       portsShortcut,
@@ -143,9 +161,10 @@ export function useRightSidebarActivityItems({
       getVisibleRightSidebarActivityItems(activityItems, {
         isFolder,
         isFolderWorkspace,
-        hasSshHost
+        hasSshHost,
+        hasBitrix24Project
       }),
-    [activityItems, isFolder, isFolderWorkspace, hasSshHost]
+    [activityItems, isFolder, isFolderWorkspace, hasSshHost, hasBitrix24Project]
   )
 
   const activeFolderWorkspaceKey = isFolderWorkspace ? (activeWorktreeId ?? null) : null

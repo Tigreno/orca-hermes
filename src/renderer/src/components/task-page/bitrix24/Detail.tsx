@@ -1,4 +1,6 @@
-import { ExternalLink, LoaderCircle } from 'lucide-react'
+import { useState } from 'react'
+import { ExternalLink, LoaderCircle, Terminal } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -12,10 +14,44 @@ import { translate } from '@/i18n/i18n'
 import { formatRelativeTime } from '../task-page-source-context'
 import { useBitrix24TaskPage } from './task-page-bitrix24-context'
 import { getBitrix24StatusLabel, getBitrix24StatusTone } from './task-page-bitrix24-status'
+import { sendBitrix24TaskToActiveTerminal } from './send-bitrix24-task-to-terminal'
 
 export function Bitrix24TaskDetail(): React.JSX.Element {
   const { selectedTaskId, selectedTask, detailLoading, detailError, closeTask, startWorkspace } =
     useBitrix24TaskPage()
+  const [sendingToTerminal, setSendingToTerminal] = useState(false)
+
+  const sendToTerminal = async (): Promise<void> => {
+    if (!selectedTask || sendingToTerminal) {
+      return
+    }
+    setSendingToTerminal(true)
+    try {
+      const result = await sendBitrix24TaskToActiveTerminal(selectedTask)
+      if (result === 'sent') {
+        toast.success(
+          translate('components.bitrix24TaskDetail.sentToTerminal', 'Task sent to terminal.')
+        )
+      } else if (result === 'no-terminal') {
+        toast.error(
+          translate(
+            'components.bitrix24TaskDetail.noTerminal',
+            'Open a terminal in this workspace first.'
+          )
+        )
+      } else {
+        toast.error(
+          translate(
+            'components.bitrix24TaskDetail.sendFailed',
+            'Could not send the task to the terminal.'
+          )
+        )
+      }
+    } finally {
+      setSendingToTerminal(false)
+    }
+  }
+
   return (
     <Sheet open={selectedTaskId !== null} onOpenChange={(open) => !open && closeTask()}>
       <SheetContent side="right" className="w-full sm:max-w-[560px]">
@@ -103,6 +139,19 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" onClick={() => startWorkspace(selectedTask)}>
                   {translate('components.bitrix24TaskDetail.startWorkspace', 'Start workspace')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void sendToTerminal()}
+                  disabled={sendingToTerminal}
+                >
+                  {sendingToTerminal ? (
+                    <LoaderCircle className="mr-1.5 size-3.5 animate-spin" />
+                  ) : (
+                    <Terminal className="mr-1.5 size-3.5" />
+                  )}
+                  {translate('components.bitrix24TaskDetail.sendToTerminal', 'Send to terminal')}
                 </Button>
                 <Button
                   size="sm"

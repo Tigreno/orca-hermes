@@ -16,7 +16,6 @@ import {
 } from '@/hooks/use-bitrix24-connection-status'
 import { bitrix24GetTask, bitrix24ListTasks } from '@/runtime/runtime-bitrix24-client'
 import { useAppStore } from '@/store/index'
-import type { TaskPageComposerActionsModel } from '../use-task-page-composer-actions'
 
 type Bitrix24Scope = {
   repo: Repo
@@ -55,27 +54,27 @@ export type Bitrix24TaskPageState = {
 
 const Bitrix24TaskPageContext = createContext<Bitrix24TaskPageState | null>(null)
 
-function findScope(repos: readonly Repo[]): Bitrix24Scope | null {
-  for (const repo of repos) {
-    if (repo.defaultBitrix24Project) {
-      return { repo, project: repo.defaultBitrix24Project }
-    }
-  }
-  return null
+export function findBitrix24ScopeRepo(repos: readonly Repo[]): Repo | null {
+  return repos.find((repo) => repo.defaultBitrix24Project) ?? null
+}
+
+function scopeFromRepo(repo: Repo | null): Bitrix24Scope | null {
+  return repo?.defaultBitrix24Project ? { repo, project: repo.defaultBitrix24Project } : null
 }
 
 export function Bitrix24TaskPageProvider({
-  model,
+  scopeRepo,
+  active = true,
   children
 }: {
-  model: TaskPageComposerActionsModel
+  scopeRepo: Repo | null
+  active?: boolean
   children: React.ReactNode
 }): React.JSX.Element {
   const connection = useBitrix24ConnectionStatus()
-  const active = model.taskSource === 'bitrix24'
   const connected = active && connection.status?.connected === true
   const checking = active && connection.checking
-  const scope = useMemo(() => findScope(model.selectedRepos), [model.selectedRepos])
+  const scope = useMemo(() => scopeFromRepo(scopeRepo), [scopeRepo])
 
   const [filter, setFilter] = useState<Bitrix24TaskFilter>('mine')
   const [searchInput, setSearchInput] = useState('')
@@ -233,7 +232,7 @@ export function Bitrix24TaskPageProvider({
 
   const startWorkspace = useCallback(
     (task: Bitrix24TaskSummary) => {
-      const repo = scope?.repo ?? model.selectedRepos[0] ?? null
+      const repo = scope?.repo ?? null
       const linkedWorkItem: LinkedWorkItemSummary = {
         type: 'issue',
         provider: 'bitrix24',
@@ -259,7 +258,7 @@ export function Bitrix24TaskPageProvider({
             })
           : null
       useAppStore.getState().recordFeatureInteraction?.('tasks')
-      model.openModal('new-workspace-composer', {
+      useAppStore.getState().openModal('new-workspace-composer', {
         linkedWorkItem,
         ...(taskSourceContext ? { taskSourceContext } : {}),
         initialRepoId: repo?.id,
@@ -270,7 +269,7 @@ export function Bitrix24TaskPageProvider({
         telemetrySource: 'sidebar'
       })
     },
-    [connection.status?.userId, model, scope]
+    [connection.status?.userId, scope]
   )
 
   const value: Bitrix24TaskPageState = useMemo(

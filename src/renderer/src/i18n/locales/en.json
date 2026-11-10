@@ -21182,7 +21182,16 @@
       "descriptionTitle": "Description",
       "noDescription": "No description.",
       "startWorkspace": "Start workspace",
+      "sendToTerminal": "Send to terminal",
+      "sentToTerminal": "Task sent to terminal.",
+      "noTerminal": "Open a terminal in this workspace first.",
+      "sendFailed": "Could not send the task to the terminal.",
       "openInBitrix24": "Open in Bitrix24"
+    },
+    "bitrix24Sidebar": {
+      "title": "Bitrix24 tasks",
+      "noProjectTitle": "No Bitrix24 project",
+      "noProjectDescription": "Choose a default Bitrix24 project for this repo in settings to see its tasks here."
     },
     "bitrix24Filters": {
       "mine": "My tasks",
