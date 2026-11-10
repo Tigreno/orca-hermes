@@ -8,6 +8,7 @@ import type {
   Bitrix24TaskDetail,
   Bitrix24TaskListPage
 } from '../../../shared/bitrix24/bitrix24-types'
+import type { Bitrix24ProjectReference } from '../../../shared/bitrix24/project-reference'
 import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
 import { callRuntimeRpc } from './runtime-rpc-client'
 
@@ -79,5 +80,29 @@ export async function bitrix24GetTask(
     {
       timeoutMs: 30_000
     }
+  )
+}
+
+/** Repo bindings are desktop-local, so they follow the same local-runtime target as the credentials. */
+export async function bitrix24RepoProjectBindings(
+  target: RuntimeClientTarget = BITRIX24_TARGET
+): Promise<Record<string, Bitrix24ProjectReference>> {
+  return callRuntimeRpc<Record<string, Bitrix24ProjectReference>>(
+    target,
+    'bitrix24.repoProjectBindings',
+    undefined,
+    { timeoutMs: 15_000 }
+  )
+}
+
+export async function bitrix24SetRepoProjectBinding(
+  args: { repoId: string; hostId: string; project: Bitrix24ProjectReference | null },
+  target: RuntimeClientTarget = BITRIX24_TARGET
+): Promise<Bitrix24ProjectReference | null> {
+  return callRuntimeRpc<Bitrix24ProjectReference | null>(
+    target,
+    'bitrix24.setRepoProjectBinding',
+    args,
+    { timeoutMs: 15_000 }
   )
 }

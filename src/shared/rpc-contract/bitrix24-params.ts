@@ -18,3 +18,9 @@ export const Bitrix24ListTasks = z.object({
 export const Bitrix24TaskId = z.object({
   taskId: requiredString('Bitrix24 task ID is required')
 })
+
+export const Bitrix24RepoProjectBinding = z.object({
+  repoId: requiredString('Bitrix24 repo id is required'),
+  hostId: requiredString('Bitrix24 host id is required'),
+  project: z.unknown()
+})

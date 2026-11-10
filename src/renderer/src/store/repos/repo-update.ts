@@ -6,12 +6,14 @@ import { normalizeRepoBadgeColor } from '../../../../shared/repo-badge-color'
 import { normalizeGhAccountBinding } from '../../../../shared/github/account-binding'
 import { normalizeJiraProjectReference } from '../../../../shared/jira/jira-project-reference'
 import { normalizeBitrix24ProjectReference } from '../../../../shared/bitrix24/project-reference'
+import type { Bitrix24ProjectReference } from '../../../../shared/bitrix24/project-reference'
 import {
   findRepoForHost,
   getRepoHostIdentityForParts,
   repoMatchesHostIdentity
 } from '../slices/repo-host-identity'
 import { callRuntimeRpc } from '../../runtime/runtime-rpc-client'
+import { bitrix24SetRepoProjectBinding } from '../../runtime/runtime-bitrix24-client'
 import { getRepoExecutionHostId } from '../../../../shared/execution-host'
 import {
   normalizeCustomWorktreeVisibilitySources,
@@ -141,21 +143,49 @@ export function createRepoUpdateActions(
         try {
           const sanitizedUpdates = sanitizeRepoUpdate(updates)
           const target = ownerTarget
+          // Why: Bitrix24 bindings live on this desktop, so a runtime-host row saves them here, not on its host.
+          const savesBitrix24Binding =
+            target.kind !== 'local' && 'defaultBitrix24Project' in sanitizedUpdates
+          let hostUpdates = sanitizedUpdates
+          let savedBitrix24Binding: Bitrix24ProjectReference | null | undefined
+          if (savesBitrix24Binding) {
+            const { defaultBitrix24Project, ...rest } = sanitizedUpdates
+            hostUpdates = rest
+            savedBitrix24Binding = await bitrix24SetRepoProjectBinding({
+              repoId: projectId,
+              hostId: ownerHostId,
+              project: defaultBitrix24Project ?? null
+            })
+          }
+          const bindingOnlyUpdate =
+            savesBitrix24Binding && Object.keys(sanitizedUpdates).length === 1
           const updatedRepo =
             target.kind === 'local'
               ? await window.api.repos.update({
                   repoId: projectId,
-                  updates: sanitizedUpdates,
+                  updates: hostUpdates,
                   ...(ownerHasExplicitHost ? { hostId: ownerHostId } : {})
                 })
-              : (
-                  await callRuntimeRpc<{ repo: Repo }>(
-                    target,
-                    'repo.update',
-                    { repo: projectId, updates: sanitizedUpdates },
-                    { timeoutMs: 15_000 }
-                  )
-                ).repo
+              : bindingOnlyUpdate
+                ? null
+                : (
+                    await callRuntimeRpc<{ repo: Repo }>(
+                      target,
+                      'repo.update',
+                      { repo: projectId, updates: hostUpdates },
+                      { timeoutMs: 15_000 }
+                    )
+                  ).repo
+          const withSavedBinding = (repo: Repo): Repo => {
+            if (savedBitrix24Binding === undefined) {
+              return repo
+            }
+            if (savedBitrix24Binding === null) {
+              const { defaultBitrix24Project: _binding, ...withoutBinding } = repo
+              return withoutBinding
+            }
+            return { ...repo, defaultBitrix24Project: savedBitrix24Binding }
+          }
           set((s) => {
             const nextRepos = s.repos.map((r) => {
               const matchesOwner = ownerHasExplicitHost
@@ -168,7 +198,7 @@ export function createRepoUpdateActions(
                 return r
               }
               if (updatedRepo) {
-                return (
+                return withSavedBinding(
                   s.githubSourceCollections?.adopt(
                     adoptFromEndpoint(target, { kind: 'repo', row: updatedRepo })
                   ) ?? adoptFromEndpoint(target, { kind: 'repo', row: updatedRepo })
@@ -182,7 +212,7 @@ export function createRepoUpdateActions(
                 externalWorktreeVisibility,
                 agentWorktreeVisibility,
                 ...updatesWithoutClearSentinels
-              } = sanitizedUpdates
+              } = hostUpdates
               mergedRepo = { ...mergedRepo, ...updatesWithoutClearSentinels }
               if (sourceControlAi === null) {
                 const { sourceControlAi: _sourceControlAi, ...repoWithoutSourceControlAi } =
@@ -220,7 +250,7 @@ export function createRepoUpdateActions(
               } else if (ghAccount !== undefined) {
                 mergedRepo = { ...mergedRepo, ghAccount }
               }
-              return s.githubSourceCollections?.adopt(mergedRepo) ?? mergedRepo
+              return withSavedBinding(s.githubSourceCollections?.adopt(mergedRepo) ?? mergedRepo)
             })
             return {
               repos: nextRepos,

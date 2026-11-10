@@ -7,6 +7,7 @@ import { getWorktreeIdFromVisitKey, getWorktreeVisitKey } from '@/lib/worktree-v
 import { omitSparsePresetsForRepos } from '../slices/sparse-presets'
 import { repoMatchesHostIdentity } from '../slices/repo-host-identity'
 import { callRuntimeRpc } from '../../runtime/runtime-rpc-client'
+import { bitrix24SetRepoProjectBinding } from '../../runtime/runtime-bitrix24-client'
 import { hasRuntimeRpcErrorCode } from '../../../../shared/runtime-rpc-error-code'
 import { ipcOrRuntimeTargetForHostId } from '../../runtime/runtime-client-target'
 import { getRepoExecutionHostId, LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
@@ -175,6 +176,15 @@ export function createRepoRemovalActions(
             await window.api.repos.removeForHost({ repoId: projectId, hostId: ownerHostId })
           } catch (error) {
             console.warn('[repos] failed to drop paired-host project residue', error)
+          }
+          try {
+            await bitrix24SetRepoProjectBinding({
+              repoId: projectId,
+              hostId: ownerHostId,
+              project: null
+            })
+          } catch (error) {
+            console.warn('[repos] failed to drop desktop Bitrix24 project binding', error)
           }
         }
 

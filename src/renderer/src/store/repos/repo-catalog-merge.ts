@@ -18,6 +18,10 @@ import { mergeFetchedReposForHost } from './repo-catalog-identity'
 import { dropWorktreeRowsOfDroppedRepos } from './dropped-repo-worktree-rows'
 import { getRepoHostIdentity } from '../slices/repo-host-identity'
 import { withoutPendingRuntimeRepoRemovals } from './pending-runtime-repo-removals'
+import {
+  applyBitrix24RepoProjectBindings,
+  readBitrix24RepoProjectBindings
+} from './bitrix24-repo-project-bindings'
 
 export type FetchedRepoCatalog = {
   repos: readonly Repo[]
@@ -45,9 +49,14 @@ export async function fetchRepoCatalogForTarget(
           })
         ).repos
   const repos = fetchedRepos.map((repo) => adoptFromEndpoint(target, { kind: 'repo', row: repo }))
+  // Why: a runtime-host repo's Bitrix24 binding is saved on this desktop, not on that host.
+  const withBindings =
+    target.kind === 'environment'
+      ? applyBitrix24RepoProjectBindings(repos, await readBitrix24RepoProjectBindings())
+      : repos
   return {
-    repos,
-    projectHostSetupCompatibility: await fetchProjectHostSetupCompatibility(target, repos),
+    repos: withBindings,
+    projectHostSetupCompatibility: await fetchProjectHostSetupCompatibility(target, withBindings),
     hostId: getRuntimeTargetHostId(target),
     reposAtRequest,
     sourceOwner,

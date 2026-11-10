@@ -46,6 +46,8 @@ export function registerRepoUpdateHandler(mainWindow: BrowserWindow, store: Stor
             | 'kind'
             | 'symlinkPaths'
             | 'issueSourcePreference'
+            | 'defaultJiraProject'
+            | 'defaultBitrix24Project'
             | 'forkSyncMode'
             | 'externalWorktreeVisibilityPromptDismissedAt'
             | 'externalWorktreeInboxBaselinePaths'

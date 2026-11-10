@@ -97,7 +97,12 @@ import {
   AutomationRuns,
   AutomationUpdate
 } from './automation-params'
-import { Bitrix24Connect, Bitrix24ListTasks, Bitrix24TaskId } from './bitrix24-params'
+import {
+  Bitrix24Connect,
+  Bitrix24ListTasks,
+  Bitrix24RepoProjectBinding,
+  Bitrix24TaskId
+} from './bitrix24-params'
 import { CertificateProceed } from './browser-core-params'
 import { MouseClick } from './browser-extras-params'
 import { BrowserIdentitySet, ProfileCreate } from './browser-identity-params'
@@ -864,6 +869,8 @@ export const RPC_PARAMS_BY_METHOD = {
   'bitrix24.getTask': Bitrix24TaskId,
   'bitrix24.listProjects': null,
   'bitrix24.listTasks': Bitrix24ListTasks,
+  'bitrix24.repoProjectBindings': null,
+  'bitrix24.setRepoProjectBinding': Bitrix24RepoProjectBinding,
   'bitrix24.status': null,
   'bitrix24.testConnection': null,
   'browser.back': ExpectUrlBrowserTarget,
