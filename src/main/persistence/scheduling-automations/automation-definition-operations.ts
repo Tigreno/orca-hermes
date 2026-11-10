@@ -1,30 +1,31 @@
 import { retainAutomationReselectionContexts } from './automation-host-reselection'
 import { getRepoSshConnectionId } from '../../../shared/execution-host'
 import type { Repo } from '../../../shared/repo-types'
-import { findAutomationRepoForWrite } from '../../../shared/automation-repo-target'
+import { findAutomationRepoForWrite } from '../../../shared/automations/ownership/automation-repo-target'
 import {
   applyAutomationLaunchSetupPatch,
   automationWithLaunchSetup
-} from '../../../shared/automation-launch-setup'
+} from '../../../shared/automations/launch/automation-launch-setup'
+import { automationCanonicalLaunchSetup } from '../../../shared/automations/launch/automation-canonical-launch-setup'
 import { randomUUID } from 'node:crypto'
 import type {
   Automation,
   AutomationCreateInput,
-  AutomationRun,
   AutomationUpdateInput
-} from '../../../shared/automations-types'
+} from '../../../shared/automations/automation-definition'
+import type { AutomationRun } from '../../../shared/automations/history/automation-run'
 import type { PersistedState } from '../../../shared/persisted-state-types'
-import { normalizeAutomationPrecheck } from '../../../shared/automation-precheck'
+import { normalizeAutomationPrecheck } from '../../../shared/automations/launch/automation-precheck'
 import {
   assertAutomationExtraAgentArgs,
   storedExtraAgentArgs
-} from '../../../shared/automation-extra-agent-args-record'
-import { nextAutomationOccurrenceAfter } from '../../../shared/automation-schedule-occurrences'
+} from '../../../shared/automations/launch/automation-extra-agent-args-record'
+import { nextAutomationOccurrenceAfter } from '../../../shared/automations/scheduling/automation-schedule-occurrences'
 import {
   applyAutomationExecutionTarget,
   deriveAutomationExecutionTargetForCreate,
   deriveAutomationExecutionTargetForUpdate
-} from '../../../shared/automation-execution-target'
+} from '../../../shared/automations/ownership/automation-execution-target'
 import {
   assertAutomationDestination,
   assertAutomationOwnerFence,
@@ -32,21 +33,22 @@ import {
   assertExecutionTargetMatchesDestination,
   type AutomationDestination,
   type AutomationUpdatePreconditions
-} from '../../../shared/automation-owner-precondition'
+} from '../../../shared/automations/ownership/automation-owner-precondition'
 import {
   getAutomationContextsForRepo,
   automationContextAfterUpdate,
   getAutomationSchedulerOwner,
+  applyAutomationSetupTrust,
   normalizeAutomationSessionReuse,
   normalizeAutomationSetupDecisionForWorkspaceMode
 } from './automation-context-migration'
+import { refuseManagedOrcadHost } from '../../automations/orcad-fenced-automation'
 import {
   automationProjectionContext,
   automationWorkspaceSshPin,
   sshTargetGenerationForConnection,
   type AutomationStorageAuthority
 } from './automation-owner-projection'
-import { retainAutomationOptionalFields } from './automation-definition-field-retention'
 
 export type AutomationDefinitionOperations = {
   state: PersistedState
@@ -92,6 +94,7 @@ export function createAutomation(
     ),
     workspaceSshPin
   })
+  refuseManagedOrcadHost(operations.state, executionTarget, workspaceSshPin)
   if (options?.destination) {
     const context = automationProjectionContext(
       operations.state,
@@ -113,8 +116,11 @@ export function createAutomation(
     precheck: normalizeAutomationPrecheck(input.precheck),
     agentId: input.agentId,
     ...(setup.surface ? { surface: setup.surface } : {}),
+    ...(setup.launchPreferences !== undefined
+      ? { launchPreferences: setup.launchPreferences }
+      : {}),
+    ...(setup.agentArgs !== undefined ? { agentArgs: setup.agentArgs } : {}),
     ...(extraAgentArgs !== undefined ? { extraAgentArgs } : {}),
-    ...(input.customAgentProfileId ? { customAgentProfileId: input.customAgentProfileId } : {}),
     // Prefer authority-local contexts; client-assigned runtime IDs cannot identify this store's host.
     runContext: contexts.runContext ?? input.runContext ?? null,
     sourceContext: contexts.sourceContext ?? input.sourceContext ?? null,
@@ -139,6 +145,7 @@ export function createAutomation(
     createdAt: now,
     updatedAt: now
   }
+  applyAutomationSetupTrust(automation, input)
   assertAutomationExtraAgentArgs(automation)
   operations.state.automations = [...(operations.state.automations ?? []), automation]
   operations.recordCreated()
@@ -179,14 +186,12 @@ export function updateAutomation(
     options?.destination,
     projectionContext
   )
+  const launchSetupUpdate = applyAutomationLaunchSetupPatch(updates, current)
   // Ignore undefined values preserved by structuredClone; explicit clears use null.
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: filtering removes only undefined entries from the validated patch and retains every remaining field's type.
   const definedUpdates = Object.fromEntries(
-    Object.entries(applyAutomationLaunchSetupPatch(updates)).filter(
-      ([, value]) => value !== undefined
-    )
+    Object.entries(launchSetupUpdate).filter(([, value]) => value !== undefined)
   ) as Omit<AutomationUpdateInput, 'launchSetupPatch'> & Pick<Automation, 'surface'>
-  const { customAgentProfileId, ...mergedUpdates } = definedUpdates
   const repoId = updates.projectId ?? current.projectId
   const selectorMoveRequested =
     updates.projectId !== undefined || options?.destination !== undefined
@@ -204,13 +209,9 @@ export function updateAutomation(
   const dtstart = updates.dtstart ?? current.dtstart
   const scheduleChanged = updates.rrule !== undefined || updates.dtstart !== undefined
   const workspaceMode = updates.workspaceMode ?? current.workspaceMode
-  // Omitted preserves; empty or whitespace clears.
-  const extraAgentArgs = Object.hasOwn(definedUpdates, 'extraAgentArgs')
-    ? storedExtraAgentArgs(definedUpdates.extraAgentArgs)
-    : storedExtraAgentArgs(current.extraAgentArgs)
   const merged: Automation = {
     ...current,
-    ...mergedUpdates,
+    ...definedUpdates,
     name: updates.name !== undefined ? updates.name.trim() || 'Untitled automation' : current.name,
     precheck: Object.hasOwn(definedUpdates, 'precheck')
       ? normalizeAutomationPrecheck(definedUpdates.precheck)
@@ -249,15 +250,12 @@ export function updateAutomation(
           ? (definedUpdates.baseBranch ?? null)
           : (current.baseBranch ?? null)
         : null,
-    setupDecision:
-      workspaceMode === 'new_per_run'
-        ? Object.hasOwn(definedUpdates, 'setupDecision')
-          ? normalizeAutomationSetupDecisionForWorkspaceMode(
-              workspaceMode,
-              definedUpdates.setupDecision
-            )
-          : normalizeAutomationSetupDecisionForWorkspaceMode(workspaceMode, current.setupDecision)
-        : undefined,
+    setupDecision: normalizeAutomationSetupDecisionForWorkspaceMode(
+      workspaceMode,
+      Object.hasOwn(definedUpdates, 'setupDecision')
+        ? definedUpdates.setupDecision
+        : current.setupDecision
+    ),
     reuseSession:
       workspaceMode === 'existing'
         ? (updates.reuseSession ?? current.reuseSession ?? false)
@@ -269,13 +267,16 @@ export function updateAutomation(
       : current.nextRunAt,
     updatedAt: Date.now()
   }
-  retainAutomationOptionalFields(merged, current, { extraAgentArgs, retainContexts })
-  assertAutomationExtraAgentArgs(merged)
-  if (customAgentProfileId === null) {
-    delete merged.customAgentProfileId
-  } else if (customAgentProfileId !== undefined) {
-    merged.customAgentProfileId = customAgentProfileId
+  if (retainContexts && !Object.hasOwn(current, 'sourceContext')) {
+    delete merged.sourceContext
   }
+  applyAutomationSetupTrust(merged, definedUpdates, current)
+  delete merged.launchSetup
+  for (const key of ['surface', 'launchPreferences', 'agentArgs', 'extraAgentArgs'] as const) {
+    delete merged[key]
+  }
+  Object.assign(merged, automationCanonicalLaunchSetup(launchSetupUpdate))
+  assertAutomationExtraAgentArgs(merged)
   const previousPin = automationWorkspaceSshPin(operations.state, current.workspaceId)
   const workspaceSshPin = automationWorkspaceSshPin(operations.state, merged.workspaceId)
   const workspaceSshPinMoved = previousPin?.targetId !== workspaceSshPin?.targetId
@@ -290,6 +291,7 @@ export function updateAutomation(
     workspaceSshPin,
     workspaceSshPinMoved
   })
+  refuseManagedOrcadHost(operations.state, executionTarget, workspaceSshPin, current, previousPin)
   if (options?.destination) {
     assertExecutionTargetMatchesDestination(executionTarget, options.destination, workspaceSshPin)
   }

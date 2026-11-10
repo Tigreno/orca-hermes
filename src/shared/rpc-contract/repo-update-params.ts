@@ -11,6 +11,7 @@ import {
 } from '../worktree/visibility-sources'
 import { OptionalFiniteNumber, OptionalString } from './rpc-param-primitives'
 import { editorFormatterSchema } from '../editor-formatter'
+import { normalizeDictationTerms } from '../dictation-dictionary'
 
 export const RepoSourceControlAiOverrides = z
   .unknown()
@@ -58,6 +59,7 @@ export function createRepoUpdateSchema<T extends Readonly<Record<string, z.ZodTy
       worktreeBasePath: OptionalString,
       kind: z.enum(['git', 'folder']).optional(),
       symlinkPaths: z.array(z.string()).optional(),
+      dictationTerms: z.unknown().transform(normalizeDictationTerms).optional(),
       issueSourcePreference: z.enum(['auto', 'upstream', 'origin']).optional(),
       defaultJiraProject: z.unknown().optional().transform(normalizeJiraProjectReference),
       defaultBitrix24Project: z.unknown().optional().transform(normalizeBitrix24ProjectReference),
@@ -75,6 +77,7 @@ export function createRepoUpdateSchema<T extends Readonly<Record<string, z.ZodTy
           return normalizeGhAccountBinding(value) ?? undefined
         }),
       forkSyncMode: z.enum(['ask', 'safe-auto', 'off']).optional(),
+      agentWorkspaceTrust: z.enum(['pre-trust', 'agent-asks']).optional(),
       externalWorktreeVisibility: z.enum(['hide', 'show']).nullable().optional(),
       externalWorktreeVisibilityPromptDismissedAt: z.number().finite().optional(),
       externalWorktreeInboxBaselinePaths: z.array(z.string()).optional(),
@@ -90,7 +93,7 @@ export function createRepoUpdateSchema<T extends Readonly<Record<string, z.ZodTy
         .optional(),
       externalWorktreeDiscoverySuppressedAt: z.number().finite().nullable().optional(),
       projectGroupId: OptionalString.nullable().optional(),
-      projectGroupOrder: OptionalFiniteNumber,
+      projectGroupOrder: OptionalFiniteNumber.nullable().optional(),
       sourceControlAi: RepoSourceControlAiOverrides
     })
   })

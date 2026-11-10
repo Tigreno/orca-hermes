@@ -1,16 +1,15 @@
 import { useMemo } from 'react'
-import type { TaskProvider } from '../../../../../shared/task-providers'
+import type { TaskProvider } from '../../../../../shared/work-items/task-providers'
 import {
   GLOBAL_AGENT_SKILL_SOURCE_KINDS,
   useInstalledAgentSkillNames
-} from '@/hooks/useInstalledAgentSkills'
-import { useActiveProjectSkillRuntime } from '@/hooks/useActiveProjectSkillRuntime'
+} from '@/hooks/skills/discovery/useInstalledAgentSkills'
+import { useActiveProjectSkillRuntime } from '@/hooks/skills/runtime/useActiveProjectSkillRuntime'
 import { useLinearProviderConnected } from '@/hooks/useLinearProviderConnected'
-import { useBitrix24ConnectionStatus } from '@/hooks/use-bitrix24-connection-status'
-import { LINEAR_AGENT_SKILL_NAMES } from '@/lib/agent-feature-skill-names'
+import { LINEAR_AGENT_SKILL_NAMES } from '@/lib/skills/installation/agent-feature-skill-names'
 import { getLocalPreflightContext } from '@/lib/local-preflight-context'
 import { localPreflightContextKey } from '@/lib/local-preflight-context-key'
-import { getProviderRuntimeContextKey } from '@/lib/provider-runtime-context'
+import { getProviderRuntimeContextKey } from '@/runtime/hosts/observations/provider-runtime-context'
 import { useAppStore } from '@/store/index'
 import type { TaskProviderReadiness } from './task-source-setup-state'
 
@@ -30,7 +29,6 @@ export function useTaskSourceProviderReadiness(
   const jiraStatusChecked = useAppStore((s) => s.jiraStatusChecked)
   const jiraStatusContextKey = useAppStore((s) => s.jiraStatusContextKey)
   const linearConnected = useLinearProviderConnected()
-  const bitrix24Connection = useBitrix24ConnectionStatus()
   const linearStatusChecked = useAppStore((s) => s.linearStatusChecked)
   const linearStatusContextKey = useAppStore((s) => s.linearStatusContextKey)
   const providerRuntimeContextKey = getProviderRuntimeContextKey(settings)
@@ -63,8 +61,6 @@ export function useTaskSourceProviderReadiness(
   const jiraConnected = !jiraChecking && jiraStatus.connected === true
   const linearChecking =
     linearStatusContextKey !== providerRuntimeContextKey || !linearStatusChecked
-  const bitrix24Checking = bitrix24Connection.checking
-  const bitrix24Connected = !bitrix24Checking && bitrix24Connection.status?.connected === true
   // Normalization returns a new array, so memoize by provider contents.
   const visibleProvidersKey = visibleProviders.join(',')
 
@@ -95,16 +91,9 @@ export function useTaskSourceProviderReadiness(
         connected: jiraConnected,
         checking: jiraChecking,
         visible: visible.has('jira')
-      },
-      bitrix24: {
-        connected: bitrix24Connected,
-        checking: bitrix24Checking,
-        visible: visible.has('bitrix24')
       }
     }
   }, [
-    bitrix24Checking,
-    bitrix24Connected,
     githubConnected,
     gitlabConnected,
     jiraChecking,

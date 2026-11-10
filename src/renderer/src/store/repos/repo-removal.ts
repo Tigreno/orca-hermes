@@ -1,15 +1,17 @@
-import { runEnclosingWorktreeRemoval } from '@/store/active-worktree-deselection-intent'
+import { runEnclosingWorktreeRemoval } from '@/store/workspaces/selection/active-worktree-deselection-intent'
 import { isRemoteRuntimePtyId } from '../../../../shared/remote-runtime/remote-runtime-pty-id'
 import type { StateCreator } from 'zustand'
 import type { AppState } from '../types'
 import { getRepoIdFromWorktreeId } from '../../../../shared/worktree/id'
-import { getWorktreeIdFromVisitKey, getWorktreeVisitKey } from '@/lib/worktree-visit-recency'
-import { omitSparsePresetsForRepos } from '../slices/sparse-presets'
-import { repoMatchesHostIdentity } from '../slices/repo-host-identity'
-import { callRuntimeRpc } from '../../runtime/runtime-rpc-client'
-import { bitrix24SetRepoProjectBinding } from '../../runtime/runtime-bitrix24-client'
+import {
+  getWorktreeIdFromVisitKey,
+  getWorktreeVisitKey
+} from '@/lib/workspace/activation/worktree-visit-recency'
+import { omitSparsePresetsForRepos } from '../slices/worktrees/create/sparse-presets'
+import { repoMatchesHostIdentity, worktreeBelongsToHost } from './repo-host-identity'
+import { callRuntimeRpc } from '../../runtime/rpc/calls/runtime-rpc-call'
 import { hasRuntimeRpcErrorCode } from '../../../../shared/runtime-rpc-error-code'
-import { ipcOrRuntimeTargetForHostId } from '../../runtime/runtime-client-target'
+import { ipcOrRuntimeTargetForHostId } from '../../runtime/rpc/targets/runtime-client-target'
 import { getRepoExecutionHostId, LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 import { destroyRecipeVmBeforeProjectRemoval } from './recipe-vm-project-removal'
 import { stopRuntimeProjectTerminalsBeforeRemoval } from './runtime-project-terminal-stop'
@@ -33,10 +35,6 @@ import {
 import { toastProjectRemovalFailure } from './repo-removal-failure-toast'
 import { replayPendingRuntimeRepoRemovalsIfReady } from './pending-runtime-repo-removal-replay'
 import { isRuntimeEnvironmentRegistered } from './runtime-environment-registration'
-
-export function worktreeBelongsToHost(worktree: { hostId?: string }, hostId: string): boolean {
-  return (worktree.hostId ?? LOCAL_EXECUTION_HOST_ID) === hostId
-}
 
 type HostScopedWorktreeRef = { id: string; hostId?: string }
 
@@ -176,15 +174,6 @@ export function createRepoRemovalActions(
             await window.api.repos.removeForHost({ repoId: projectId, hostId: ownerHostId })
           } catch (error) {
             console.warn('[repos] failed to drop paired-host project residue', error)
-          }
-          try {
-            await bitrix24SetRepoProjectBinding({
-              repoId: projectId,
-              hostId: ownerHostId,
-              project: null
-            })
-          } catch (error) {
-            console.warn('[repos] failed to drop desktop Bitrix24 project binding', error)
           }
         }
 

@@ -5,17 +5,20 @@ import {
 } from '../../../../shared/agent-launch/catalog/tui-agent-selection'
 import type { Repo } from '../../../../shared/repo-types'
 import type { Worktree } from '../../../../shared/worktree/types'
-import { getAgentCatalog } from '@/lib/agent-catalog'
-import { getDefaultCustomAgentProfile } from '../../../../shared/custom-agent-profile'
-import { useAppStore } from '@/store'
-import { useRepoMap, useWorktreeMap } from '@/store/selectors'
+import { getAgentCatalog } from '@/lib/agent-catalog/agent-catalog'
+import { useAppStore } from '@/store/index'
+import { useRepoMap } from '@/store/repos/use-repository-catalog'
+import { useWorktreeMap } from '@/store/slices/worktrees/listing/use-worktree-catalog'
 import {
   automationFolderWorktreeForRow,
   automationRepoForRow,
   automationWorktreeForRow,
   type AutomationListRow
-} from './automation-list-row-identity'
-import { selectFolderWorkspaces, selectWorktreesByRepo } from '@/store/workspace-record-selectors'
+} from './listing/automation-list-row-identity'
+import {
+  selectFolderWorkspaces,
+  selectWorktreesByRepo
+} from '@/store/workspaces/catalog/workspace-record-fields'
 
 const AGENTS = getAgentCatalog().map((agent) => agent.id)
 
@@ -68,14 +71,12 @@ export function useAutomationsPageStoreState() {
     [folderWorkspaces, projectGroups, repos, worktreesByRepo]
   )
   const enabledAgents = filterEnabledTuiAgents(AGENTS, settings?.disabledTuiAgents)
-  const defaultCustomAgent = getDefaultCustomAgentProfile(settings?.customAgentProfiles)
   const defaultAgent =
-    defaultCustomAgent?.baseAgent ??
-    (settings?.defaultTuiAgent &&
+    settings?.defaultTuiAgent &&
     settings.defaultTuiAgent !== 'blank' &&
     isTuiAgentEnabled(settings.defaultTuiAgent, settings.disabledTuiAgents)
       ? settings.defaultTuiAgent
-      : (enabledAgents[0] ?? AGENTS[0]))
+      : (enabledAgents[0] ?? AGENTS[0])
 
   return {
     repos,
@@ -109,8 +110,7 @@ export function useAutomationsPageStoreState() {
     worktreeMap,
     repoForRow,
     worktreeForRow,
-    defaultAgent,
-    defaultCustomAgentProfileId: defaultCustomAgent?.baseAgent ? defaultCustomAgent.id : null
+    defaultAgent
   }
 }
 

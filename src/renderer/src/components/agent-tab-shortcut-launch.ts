@@ -1,9 +1,8 @@
 import { toast } from 'sonner'
-import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
-import { launchCustomAgentInNewTab } from '@/lib/launch-custom-agent-in-new-tab'
-import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
+import { launchAgentInNewTab } from '@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab'
+import { newAgentLaunchRequestId } from '@/lib/agent-session/launch/routing/agent-launch-request-id'
 import { translate } from '@/i18n/i18n'
-import { selectFloatingWorkspacePanelVisible } from '@/store/floating-workspace-panel-selector'
+import { selectFloatingWorkspacePanelVisible } from '@/store/workspaces/floating/floating-workspace-panel-selector'
 import { useAppStore } from '../store'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../shared/constants'
 import type { TuiAgent } from '../../../shared/agent-launch/catalog/tui-agent'
@@ -18,7 +17,7 @@ function launchAgentTab(
   agent: TuiAgent,
   { groupId, focusIntent }: AgentTabLaunchContext
 ): void {
-  const result = launchAgentInNewTab({
+  launchAgentInNewTab({
     requestId: newAgentLaunchRequestId(),
     focusIntent,
     agent,
@@ -26,36 +25,15 @@ function launchAgentTab(
     groupId,
     launchSource: 'shortcut'
   })
-  if (!result) {
-    toast.error(
-      translate(
-        'auto.components.Terminal.e57db40c11',
-        'Could not build launch command for {{value0}}.',
-        { value0: agent }
-      )
-    )
-  }
 }
 
 /** Launch a resolved new-agent-tab shortcut in the pane it was pressed in, waiting on detection if needed. */
 export function launchAgentTabShortcut(
   worktreeId: string,
-  {
-    agent,
-    pendingAgent,
-    customAgentProfileId
-  }: Pick<TerminalAgentTabShortcut, 'agent' | 'pendingAgent' | 'customAgentProfileId'>,
+  { agent, pendingAgent }: Pick<TerminalAgentTabShortcut, 'agent' | 'pendingAgent'>,
   isTargetCurrent: () => boolean
 ): void {
   const context = captureAgentTabLaunchContext(worktreeId)
-  if (customAgentProfileId) {
-    launchCustomAgentInNewTab({
-      profileId: customAgentProfileId,
-      worktreeId,
-      ...(context.groupId ? { groupId: context.groupId } : {})
-    })
-    return
-  }
   if (agent) {
     launchAgentTab(worktreeId, agent, context)
     return
@@ -80,7 +58,7 @@ export function launchAgentTabShortcut(
 }
 
 export function launchFloatingWorkspaceAgentShortcut(
-  shortcut: Pick<TerminalAgentTabShortcut, 'agent' | 'pendingAgent' | 'customAgentProfileId'>
+  shortcut: Pick<TerminalAgentTabShortcut, 'agent' | 'pendingAgent'>
 ): void {
   launchAgentTabShortcut(FLOATING_TERMINAL_WORKTREE_ID, shortcut, () =>
     selectFloatingWorkspacePanelVisible(useAppStore.getState())

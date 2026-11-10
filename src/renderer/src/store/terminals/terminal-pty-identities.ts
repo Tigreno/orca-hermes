@@ -1,3 +1,5 @@
+import { replaceTabBuckets } from '@/store/keyed-record-transitions'
+import { getFirstTerminalTabOwnerWorktreeId } from './terminal-tab-owner-index'
 import type {
   TerminalLayoutSnapshot,
   TerminalTab
@@ -50,45 +52,24 @@ export function resolvePrimaryLayoutPtyId(layout: TerminalLayoutSnapshot): strin
   return activePtyId ?? Object.values(ptyIdsByLeafId)[0] ?? null
 }
 
-/** Prefer the focused pane's live PTY, falling back to the newest live binding. */
-export function resolveLiveTerminalPtyId(
-  ptyIdsByTabId: Record<string, readonly string[] | undefined>,
-  terminalLayoutsByTabId: Record<string, TerminalLayoutSnapshot | undefined>,
-  tabId: string
-): string | null {
-  const livePtyIds = ptyIdsByTabId[tabId] ?? []
-  if (livePtyIds.length === 0) {
-    return null
-  }
-
-  const layout = terminalLayoutsByTabId[tabId]
-  const activeLeafPtyId = layout?.activeLeafId ? layout.ptyIdsByLeafId?.[layout.activeLeafId] : null
-  if (activeLeafPtyId && livePtyIds.includes(activeLeafPtyId)) {
-    return activeLeafPtyId
-  }
-
-  const firstLiveLayoutPtyId = Object.values(layout?.ptyIdsByLeafId ?? {}).find((ptyId) =>
-    livePtyIds.includes(ptyId)
-  )
-  return firstLiveLayoutPtyId ?? livePtyIds.at(-1) ?? null
-}
-
-export function withTerminalTabPtyId(
+export function withTerminalTabPtyIds(
   tabsByWorktree: Record<string, TerminalTab[]>,
-  tabId: string,
-  ptyId: string | null
+  changes: readonly { tabId: string; ptyId: string | null }[]
 ): Record<string, TerminalTab[]> {
-  for (const [worktreeId, tabs] of Object.entries(tabsByWorktree)) {
-    const index = tabs.findIndex((tab) => tab.id === tabId)
-    if (index === -1) {
+  const replacements = new Map<string, TerminalTab[]>()
+  for (const { tabId, ptyId } of changes) {
+    const worktreeId = getFirstTerminalTabOwnerWorktreeId(tabsByWorktree, tabId)
+    if (!worktreeId) {
       continue
     }
-    if (tabs[index]?.ptyId === ptyId) {
-      return tabsByWorktree
+    const tabs = replacements.get(worktreeId) ?? tabsByWorktree[worktreeId] ?? []
+    const index = tabs.findIndex((tab) => tab.id === tabId)
+    if (index === -1 || tabs[index]?.ptyId === ptyId) {
+      continue
     }
     const nextTabs = [...tabs]
     nextTabs[index] = { ...nextTabs[index]!, ptyId }
-    return { ...tabsByWorktree, [worktreeId]: nextTabs }
+    replacements.set(worktreeId, nextTabs)
   }
-  return tabsByWorktree
+  return replacements.size > 0 ? replaceTabBuckets(tabsByWorktree, replacements) : tabsByWorktree
 }

@@ -8,6 +8,7 @@ import { normalizeJiraProjectReference } from '../../../shared/jira/jira-project
 import { normalizeBitrix24ProjectReference } from '../../../shared/bitrix24/project-reference'
 import { normalizeRepoSourceControlAiOverrides } from '../../../shared/source-control/ai/settings/source-control-ai-repo-settings'
 import { normalizeOrcadRetainedMarker } from '../../../shared/orcad-retained-marker'
+import { sanitizeAgentWorkspaceTrustDecision } from '../../../shared/agent-launch/permissions/agent-workspace-trust-decision'
 import {
   sanitizeForkSyncMode,
   sanitizeGitRemoteIdentity,
@@ -35,6 +36,7 @@ export function hydrateRepo(repo: Repo, gitUsernameCache: ReadonlyMap<string, st
     sourceControlAi: rawSourceControlAi,
     projectHostSetupMethod: rawProjectHostSetupMethod,
     forkSyncMode: rawForkSyncMode,
+    agentWorkspaceTrust: rawAgentWorkspaceTrust,
     ghAccount: rawGhAccount,
     defaultJiraProject: rawDefaultJiraProject,
     defaultBitrix24Project: rawDefaultBitrix24Project,
@@ -49,6 +51,7 @@ export function hydrateRepo(repo: Repo, gitUsernameCache: ReadonlyMap<string, st
   const sourceControlAi = normalizeRepoSourceControlAiOverrides(rawSourceControlAi)
   const projectHostSetupMethod = sanitizeRepoProjectHostSetupMethod(rawProjectHostSetupMethod)
   const forkSyncMode = sanitizeForkSyncMode(rawForkSyncMode)
+  const agentWorkspaceTrust = sanitizeAgentWorkspaceTrustDecision(rawAgentWorkspaceTrust)
   const ghAccount = normalizeGhAccountBinding(rawGhAccount)
   const defaultJiraProject = normalizeJiraProjectReference(rawDefaultJiraProject)
   const defaultBitrix24Project = normalizeBitrix24ProjectReference(rawDefaultBitrix24Project)
@@ -75,6 +78,7 @@ export function hydrateRepo(repo: Repo, gitUsernameCache: ReadonlyMap<string, st
     ...(sourceControlAi !== undefined ? { sourceControlAi } : {}),
     ...(projectHostSetupMethod !== undefined ? { projectHostSetupMethod } : {}),
     ...(forkSyncMode !== undefined ? { forkSyncMode } : {}),
+    ...(agentWorkspaceTrust !== undefined ? { agentWorkspaceTrust } : {}),
     ...(ghAccount ? { ghAccount } : {}),
     ...(defaultJiraProject !== undefined ? { defaultJiraProject } : {}),
     ...(defaultBitrix24Project !== undefined ? { defaultBitrix24Project } : {}),

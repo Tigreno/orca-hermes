@@ -2,25 +2,24 @@ import type { TabBarCreateMenuController } from './tab-bar-create-menu-contract'
 export type { TabBarCreateMenuController } from './tab-bar-create-menu-contract'
 import { useAgentLaunchPickerInventorySource } from '../agent/use-agent-launch-picker-inventory'
 import type { AgentPickerEntry } from '../../../../shared/agent-launch/picker/agent-launch-picker'
-import { useEffect, useMemo, useState } from 'react'
-import type { WindowsTerminalCapabilities } from '@/lib/windows-terminal-capabilities'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { focusTerminalTabSurface } from '@/components/terminal-pane/input/focus/focus-terminal-tab-surface'
+import type { WindowsTerminalCapabilities } from '@/runtime/hosts/capabilities/windows-terminal-capabilities'
+import { useAppStore } from '../../store'
 import { useTabAgentMenuLaunch } from './QuickLaunchButton'
-import { requestNativeChatComposerFocus } from '@/components/native-chat/use-native-chat-composer-reveal-focus'
+import { requestNativeChatComposerFocus } from '@/components/native-chat/composer/focus/native-chat-composer-focus-intent'
 import { useNewTabAgentMenuRows } from './use-new-tab-agent-menu-rows'
 import type { AgentDetectionTarget } from '@/hooks/useDetectedAgents'
 import type { TabAgentLaunchOption } from './tab-agent-launch-options'
 import { buildTabCreateMenuOptions, type TabCreateMenuOption } from './tab-create-menu-options'
-import {
-  launchTabBarCustomAgent,
-  useTabBarCustomAgentEntries
-} from './tab-bar-custom-agent-options'
-import { useNewTabMenuPendingFocus } from './use-new-tab-menu-pending-focus'
 import { resolveWindowsShellLaunchTarget } from './windows-shell-launch'
 import { buildWindowsShellMenuEntries } from './tab-bar-windows-shell-options'
 import type {
   getProjectRuntimeShellMenuMode,
   resolveWindowsPowerShellImplementationSetting
 } from './use-tab-bar-runtime-model'
+const NEW_TAB_MENU_TERMINAL_FOCUS_RETRY_MS = 50
+const NEW_TAB_MENU_TERMINAL_FOCUS_TIMEOUT_MS = 5000
 export function useTabBarCreateMenuController({
   worktreeId,
   resolvedGroupId,
@@ -83,13 +82,61 @@ export function useTabBarCreateMenuController({
     newTabMenuOpen && showAgentLaunchItems,
     selectedPickerAgent
   )
-  const {
-    queueNewActiveTerminalFocus: queueNewActiveTerminalFocusAfterNewTabMenuClose,
-    queueTerminalTabFocus: queueTerminalTabFocusAfterNewTabMenuClose,
-    queueFocus: queueFocusAfterNewTabMenuClose,
-    runPendingFocusAfterClose: runPendingNewTabMenuFocusAfterClose,
-    clearPendingFocusOnUnmount: clearPendingNewTabMenuFocusOnUnmount
-  } = useNewTabMenuPendingFocus()
+  const pendingNewTabMenuFocusRef = useRef<{ focus: () => void; synchronous?: true } | null>(null)
+  const pendingNewTabMenuFocusAnimationRef = useRef<number | null>(null)
+  const pendingNewTabMenuFocusRetryRef = useRef<number | null>(null)
+  const clearPendingNewTabMenuFocusAnimation = (): void => {
+    if (pendingNewTabMenuFocusAnimationRef.current !== null) {
+      cancelAnimationFrame(pendingNewTabMenuFocusAnimationRef.current)
+      pendingNewTabMenuFocusAnimationRef.current = null
+    }
+  }
+  const clearPendingNewTabMenuFocusRetry = (): void => {
+    if (pendingNewTabMenuFocusRetryRef.current !== null) {
+      window.clearTimeout(pendingNewTabMenuFocusRetryRef.current)
+      pendingNewTabMenuFocusRetryRef.current = null
+    }
+  }
+  const focusNewActiveTerminalWhenReady = (
+    previousActiveTabId: string | null,
+    expiresAt: number,
+    now: number
+  ): void => {
+    const state = useAppStore.getState()
+    if (
+      (state.activeTabType === 'terminal' || state.activeTabType === 'simulator') &&
+      state.activeTabId &&
+      state.activeTabId !== previousActiveTabId
+    ) {
+      focusTerminalTabSurface(state.activeTabId)
+      return
+    }
+    if (now >= expiresAt) {
+      return
+    }
+    pendingNewTabMenuFocusRetryRef.current = window.setTimeout(() => {
+      pendingNewTabMenuFocusRetryRef.current = null
+      focusNewActiveTerminalWhenReady(previousActiveTabId, expiresAt, Date.now())
+    }, NEW_TAB_MENU_TERMINAL_FOCUS_RETRY_MS)
+  }
+  const queueNewActiveTerminalFocusAfterNewTabMenuClose = (): void => {
+    const previousActiveTabId = useAppStore.getState().activeTabId
+    queueFocusAfterNewTabMenuClose(() => {
+      // Why: paired web/SSH tab creation is async; await the host snapshot's new terminal instead of the pre-existing active tab.
+      focusNewActiveTerminalWhenReady(
+        previousActiveTabId,
+        Date.now() + NEW_TAB_MENU_TERMINAL_FOCUS_TIMEOUT_MS,
+        Date.now()
+      )
+    })
+  }
+  const queueTerminalTabFocusAfterNewTabMenuClose = (tabId: string): void =>
+    queueFocusAfterNewTabMenuClose(() => focusTerminalTabSurface(tabId))
+  const queueFocusAfterNewTabMenuClose = (focus: () => void, synchronous?: true): void => {
+    clearPendingNewTabMenuFocusAnimation()
+    clearPendingNewTabMenuFocusRetry()
+    pendingNewTabMenuFocusRef.current = { focus, synchronous }
+  }
   const windowsShellEntries = useMemo(() => {
     return buildWindowsShellMenuEntries({
       showWindowsShellMenu,
@@ -107,13 +154,11 @@ export function useTabBarCreateMenuController({
     windowsTerminalCapabilities.gitBashAvailable,
     windowsTerminalCapabilities.wslAvailable
   ])
-  const customAgentEntries = useTabBarCustomAgentEntries(terminalOnly)
   const createMenuOptions = useMemo(
     () =>
       buildTabCreateMenuOptions({
         terminalOnly,
         windowsShellEntries,
-        customAgents: customAgentEntries,
         hasNewBrowser: !terminalOnly && managedBrowserCreationEnabled,
         hasNewMarkdown: !terminalOnly && Boolean(onNewFileTab),
         hasOpenMarkdown: !terminalOnly && Boolean(onOpenFileTab),
@@ -125,7 +170,6 @@ export function useTabBarCreateMenuController({
         simulatorIsGoTo: workspaceHasSimulatorTab
       }),
     [
-      customAgentEntries,
       mobileEmulatorEnabled,
       managedBrowserCreationEnabled,
       mobileEmulatorCreationEnabled,
@@ -155,16 +199,6 @@ export function useTabBarCreateMenuController({
             windowsTerminalCapabilities.pwshAvailable
           )
         )
-        break
-      case 'new-custom-agent':
-        if (!worktreeId || !option.customProfileId) {
-          break
-        }
-        launchTabBarCustomAgent({
-          profileId: option.customProfileId,
-          worktreeId,
-          groupId: resolvedGroupId
-        })
         break
       case 'new-browser':
         onNewBrowserTab()
@@ -199,6 +233,32 @@ export function useTabBarCreateMenuController({
     }
     return false
   }
+  const runPendingNewTabMenuFocusAfterClose = (): void => {
+    const pendingFocus = pendingNewTabMenuFocusRef.current
+    pendingNewTabMenuFocusRef.current = null
+    clearPendingNewTabMenuFocusAnimation()
+    clearPendingNewTabMenuFocusRetry()
+    if (pendingFocus?.synchronous) {
+      pendingFocus.focus()
+    } else if (pendingFocus) {
+      pendingNewTabMenuFocusAnimationRef.current = requestAnimationFrame(() => {
+        pendingNewTabMenuFocusAnimationRef.current = null
+        pendingFocus.focus()
+      })
+    }
+  }
+  const menuFocusUnmountRef = useRef<((node: HTMLDivElement | null) => void) | null>(null)
+  if (menuFocusUnmountRef.current === null) {
+    menuFocusUnmountRef.current = (node: HTMLDivElement | null): void => {
+      if (node !== null) {
+        return
+      }
+      // Why: cancel the delayed focus handoff via this root ref cleanup, avoiding an otherwise cleanup-only React Effect.
+      pendingNewTabMenuFocusRef.current = null
+      clearPendingNewTabMenuFocusAnimation()
+      clearPendingNewTabMenuFocusRetry()
+    }
+  }
   useEffect(() => {
     if (!newTabMenuOpen) {
       return
@@ -207,11 +267,13 @@ export function useTabBarCreateMenuController({
     window.addEventListener('blur', dismiss)
     return () => window.removeEventListener('blur', dismiss)
   }, [newTabMenuOpen])
-  useEffect(() => {
+  const [prevNewTabMenuOpen, setPrevNewTabMenuOpen] = useState(newTabMenuOpen)
+  if (prevNewTabMenuOpen !== newTabMenuOpen) {
+    setPrevNewTabMenuOpen(newTabMenuOpen)
     if (!newTabMenuOpen) {
       setCreateMenuQuery('')
     }
-  }, [newTabMenuOpen])
+  }
   return {
     agentMenu,
     agentPickerInventory,
@@ -225,7 +287,7 @@ export function useTabBarCreateMenuController({
     handleSelectCreateMenuOption,
     launchAgentFromNewTabEntry,
     runPendingNewTabMenuFocusAfterClose,
-    clearPendingNewTabMenuFocusOnUnmount,
+    clearPendingNewTabMenuFocusOnUnmount: menuFocusUnmountRef.current,
     queueNewActiveTerminalFocusAfterNewTabMenuClose,
     queueTerminalTabFocusAfterNewTabMenuClose,
     queueFocusAfterNewTabMenuClose,

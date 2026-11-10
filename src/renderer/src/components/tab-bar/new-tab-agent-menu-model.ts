@@ -1,10 +1,12 @@
+import { translate } from '@/i18n/i18n'
+import type { Translate } from '@/i18n/use-translate'
 import type {
-  buildNewTabAgentMenuRows,
-  NewTabAgentMenuRow
+  NewTabAgentMenuRow,
+  buildNewTabAgentMenuRows
 } from '../../../../shared/agent-launch/picker/agent-launch-picker-rows'
 import type { UseDetectedAgentsResult } from '@/hooks/useDetectedAgents'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
-import type { ProspectiveWorkspace } from '@/lib/agent-launch-route-input'
+import type { ProspectiveWorkspace } from '@/lib/agent-session/launch/routing/agent-launch-route-input'
 import type { AgentPickerDefaultSettings } from '../../../../shared/agent-launch/picker/agent-launch-picker-defaults'
 
 export type NewTabAgentMenuModel =
@@ -15,6 +17,7 @@ export type NewTabAgentMenuModel =
       detection: UseDetectedAgentsResult
       /** The default these rows were ordered by, so the new-agent badge marks the same agent. */
       defaultTuiAgent?: GlobalSettings['defaultTuiAgent']
+      terminalPending?: boolean
       pickerContext?: {
         launchCwd?: string | null
         workspace: ProspectiveWorkspace
@@ -33,15 +36,6 @@ export type AgentMenuRowsTarget = {
   launchCwd?: string | null
 }
 
-/** Custom rows carry a profile instead of an agent, so compare what each row would launch. */
-const rowComparisonKey = (row: NewTabAgentMenuRow): unknown[] => [
-  row.kind === 'custom' ? row.profile.id : row.agent,
-  row.kind,
-  row.executionHostId,
-  row.kind === 'custom' ? row.isDefault : undefined,
-  'reason' in row ? row.reason : undefined
-]
-
 /** Compare selected launch references before deriving source, profile or catalog views. */
 export function sameAgentLaunchPickerModel(a: NewTabAgentMenuModel, b: NewTabAgentMenuModel) {
   if (a === b) {
@@ -59,6 +53,7 @@ export function sameAgentLaunchPickerModel(a: NewTabAgentMenuModel, b: NewTabAge
   return same(
     [
       a.defaultTuiAgent,
+      a.terminalPending,
       x?.key,
       x?.launchCwd,
       x?.executionHostId,
@@ -77,10 +72,16 @@ export function sameAgentLaunchPickerModel(a: NewTabAgentMenuModel, b: NewTabAge
       x?.settings?.nativeChatSessionOptions,
       x?.settings?.nativeChatPermissionMode,
       ...(a.detection.detectedIds ?? []),
-      ...a.rows.flatMap(rowComparisonKey)
+      ...a.rows.flatMap((row) => [
+        row.agent,
+        row.kind,
+        row.executionHostId,
+        'reason' in row ? row.reason : undefined
+      ])
     ],
     [
       b.defaultTuiAgent,
+      b.terminalPending,
       y?.key,
       y?.launchCwd,
       y?.executionHostId,
@@ -99,7 +100,28 @@ export function sameAgentLaunchPickerModel(a: NewTabAgentMenuModel, b: NewTabAge
       y?.settings?.nativeChatSessionOptions,
       y?.settings?.nativeChatPermissionMode,
       ...(b.detection.detectedIds ?? []),
-      ...b.rows.flatMap(rowComparisonKey)
+      ...b.rows.flatMap((row) => [
+        row.agent,
+        row.kind,
+        row.executionHostId,
+        'reason' in row ? row.reason : undefined
+      ])
     ]
   )
+}
+
+/** Why a terminal choice waits: its host has not finished connecting. */
+export function terminalPendingLabel(t: Translate = translate): string {
+  return t('auto.components.NewWorkspaceComposerCard.connectingHost', 'Connecting…')
+}
+
+/** A chat uses host admission; only a terminal needs the host's shell before it can start. */
+export function terminalPendingReason(
+  terminalPending: boolean | undefined,
+  row: NewTabAgentMenuRow | undefined,
+  t?: Translate
+): string | undefined {
+  return terminalPending && (row?.kind === 'cli' || row?.kind === 'terminal')
+    ? terminalPendingLabel(t)
+    : undefined
 }
