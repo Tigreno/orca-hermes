@@ -1,7 +1,8 @@
 import type {
   Bitrix24ConnectArgs,
   Bitrix24ConnectionStatus,
-  Bitrix24ListTasksArgs
+  Bitrix24ListTasksArgs,
+  Bitrix24UpdateTaskArgs
 } from '../../shared/bitrix24/connection-types'
 import type {
   Bitrix24Project,
@@ -12,7 +13,7 @@ import type { Bitrix24ProjectReference } from '../../shared/bitrix24/project-ref
 import { connect, disconnect, getStatus, testConnection } from '../bitrix24/client'
 import { listProjects } from '../bitrix24/projects'
 import { readRepoProjectBindings, setRepoProjectBinding } from '../bitrix24/repo-project-bindings'
-import { getTask, listTasks } from '../bitrix24/tasks'
+import { getTask, listTasks, updateTask } from '../bitrix24/tasks'
 
 type Bitrix24ConnectResult =
   | { ok: true; status: Bitrix24ConnectionStatus }
@@ -46,6 +47,10 @@ export class RuntimeBitrix24Commands {
 
   bitrix24GetTask(taskId: string): Promise<Bitrix24TaskDetail> {
     return getTask(taskId)
+  }
+
+  bitrix24UpdateTask(args: Bitrix24UpdateTaskArgs): Promise<Bitrix24TaskDetail> {
+    return updateTask(args)
   }
 
   bitrix24RepoProjectBindings(): Record<string, Bitrix24ProjectReference> {

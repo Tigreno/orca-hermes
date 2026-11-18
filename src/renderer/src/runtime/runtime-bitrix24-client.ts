@@ -1,7 +1,8 @@
 import type {
   Bitrix24ConnectArgs,
   Bitrix24ConnectionStatus,
-  Bitrix24ListTasksArgs
+  Bitrix24ListTasksArgs,
+  Bitrix24UpdateTaskArgs
 } from '../../../shared/bitrix24/connection-types'
 import type {
   Bitrix24Project,
@@ -81,6 +82,15 @@ export async function bitrix24GetTask(
       timeoutMs: 30_000
     }
   )
+}
+
+export async function bitrix24UpdateTask(
+  args: Bitrix24UpdateTaskArgs,
+  target: RuntimeClientTarget = BITRIX24_TARGET
+): Promise<Bitrix24TaskDetail> {
+  return callRuntimeRpc<Bitrix24TaskDetail>(target, 'bitrix24.updateTask', args, {
+    timeoutMs: 30_000
+  })
 }
 
 /** Repo bindings are desktop-local, so they follow the same local-runtime target as the credentials. */

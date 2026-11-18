@@ -101,7 +101,8 @@ import {
   Bitrix24Connect,
   Bitrix24ListTasks,
   Bitrix24RepoProjectBinding,
-  Bitrix24TaskId
+  Bitrix24TaskId,
+  Bitrix24UpdateTask
 } from './bitrix24-params'
 import { CertificateProceed } from './browser-core-params'
 import { MouseClick } from './browser-extras-params'
@@ -873,6 +874,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'bitrix24.setRepoProjectBinding': Bitrix24RepoProjectBinding,
   'bitrix24.status': null,
   'bitrix24.testConnection': null,
+  'bitrix24.updateTask': Bitrix24UpdateTask,
   'browser.back': ExpectUrlBrowserTarget,
   'browser.capture.start': BrowserTarget,
   'browser.capture.stop': BrowserTarget,

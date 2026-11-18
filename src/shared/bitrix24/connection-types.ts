@@ -19,3 +19,14 @@ export type Bitrix24ListTasksArgs = {
   start?: number
   portalHost?: string | null
 }
+
+export type Bitrix24TaskUpdateFields = {
+  /** Omit to leave unchanged; null moves the task out of its project. */
+  groupId?: string | null
+  /** Omit to leave unchanged; null clears the deadline. */
+  deadline?: string | null
+}
+
+export type Bitrix24UpdateTaskArgs = Bitrix24TaskUpdateFields & {
+  taskId: string
+}

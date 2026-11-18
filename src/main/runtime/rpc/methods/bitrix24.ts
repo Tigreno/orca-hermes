@@ -3,7 +3,8 @@ import {
   Bitrix24Connect,
   Bitrix24ListTasks,
   Bitrix24RepoProjectBinding,
-  Bitrix24TaskId
+  Bitrix24TaskId,
+  Bitrix24UpdateTask
 } from '../../../../shared/rpc-contract/bitrix24-params'
 
 export const BITRIX24_METHODS = [
@@ -56,6 +57,17 @@ export const BITRIX24_METHODS = [
     permission: 'workspace',
     params: Bitrix24TaskId,
     handler: async (params, { runtime }) => runtime.bitrix24GetTask(params.taskId.trim())
+  }),
+  defineMethod({
+    name: 'bitrix24.updateTask',
+    permission: 'workspace',
+    params: Bitrix24UpdateTask,
+    handler: async (params, { runtime }) =>
+      runtime.bitrix24UpdateTask({
+        taskId: params.taskId.trim(),
+        groupId: params.groupId,
+        deadline: params.deadline
+      })
   }),
   defineMethod({
     name: 'bitrix24.repoProjectBindings',

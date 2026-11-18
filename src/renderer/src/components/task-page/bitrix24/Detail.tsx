@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ExternalLink, LoaderCircle, Terminal } from 'lucide-react'
 import { toast } from 'sonner'
+import type { Bitrix24TaskUpdateFields } from '../../../../../shared/bitrix24/connection-types'
+import { useBitrix24ProjectInventory } from '@/components/use-bitrix24-project-inventory'
 import { Button } from '@/components/ui/button'
 import {
   Sheet,
@@ -14,12 +16,54 @@ import { translate } from '@/i18n/i18n'
 import { formatRelativeTime } from '../task-page-source-context'
 import { useBitrix24TaskPage } from './task-page-bitrix24-context'
 import { getBitrix24StatusLabel, getBitrix24StatusTone } from './task-page-bitrix24-status'
-import { sendBitrix24TaskToActiveTerminal } from './send-bitrix24-task-to-terminal'
+import { Bitrix24TaskPropertiesEditor } from './TaskPropertiesEditor'
+import {
+  focusBitrix24TaskTerminal,
+  sendBitrix24TaskToActiveTerminal
+} from './send-bitrix24-task-to-terminal'
 
 export function Bitrix24TaskDetail(): React.JSX.Element {
-  const { selectedTaskId, selectedTask, detailLoading, detailError, closeTask, startWorkspace } =
-    useBitrix24TaskPage()
+  const {
+    selectedTaskId,
+    selectedTask,
+    detailLoading,
+    detailError,
+    closeTask,
+    startWorkspace,
+    updateTask
+  } = useBitrix24TaskPage()
+  const projectInventory = useBitrix24ProjectInventory(selectedTask !== null)
   const [sendingToTerminal, setSendingToTerminal] = useState(false)
+  const [savingTask, setSavingTask] = useState(false)
+  const focusTerminalOnCloseRef = useRef(false)
+
+  useEffect(() => {
+    if (selectedTaskId !== null) {
+      focusTerminalOnCloseRef.current = false
+    }
+  }, [selectedTaskId])
+
+  const saveTaskFields = async (fields: Bitrix24TaskUpdateFields): Promise<void> => {
+    if (savingTask) {
+      return
+    }
+    setSavingTask(true)
+    try {
+      await updateTask(fields)
+      toast.success(translate('components.bitrix24TaskDetail.saved', 'Task updated in Bitrix24.'))
+    } catch (caught) {
+      toast.error(
+        caught instanceof Error
+          ? caught.message
+          : translate(
+              'components.bitrix24TaskDetail.saveFailed',
+              'Could not update the task in Bitrix24.'
+            )
+      )
+    } finally {
+      setSavingTask(false)
+    }
+  }
 
   const sendToTerminal = async (): Promise<void> => {
     if (!selectedTask || sendingToTerminal) {
@@ -29,6 +73,8 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
     try {
       const result = await sendBitrix24TaskToActiveTerminal(selectedTask)
       if (result === 'sent') {
+        focusTerminalOnCloseRef.current = true
+        closeTask()
         toast.success(
           translate('components.bitrix24TaskDetail.sentToTerminal', 'Task sent to terminal.')
         )
@@ -54,7 +100,19 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
 
   return (
     <Sheet open={selectedTaskId !== null} onOpenChange={(open) => !open && closeTask()}>
-      <SheetContent side="right" className="w-full sm:max-w-[560px]">
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-[560px]"
+        onCloseAutoFocus={(event) => {
+          const shouldFocusTerminal = focusTerminalOnCloseRef.current
+          focusTerminalOnCloseRef.current = false
+          if (!shouldFocusTerminal) {
+            return
+          }
+          event.preventDefault()
+          focusBitrix24TaskTerminal()
+        }}
+      >
         <SheetHeader>
           <SheetTitle>
             {selectedTask?.title ??
@@ -63,7 +121,7 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
           <SheetDescription>
             {translate(
               'components.bitrix24TaskDetail.description',
-              'Read task details and start a workspace.'
+              'Read task details, edit the project or deadline, and start a workspace.'
             )}
           </SheetDescription>
         </SheetHeader>
@@ -135,6 +193,16 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
                     translate('components.bitrix24TaskDetail.noDescription', 'No description.')}
                 </p>
               </div>
+
+              <Bitrix24TaskPropertiesEditor
+                key={`${selectedTask.id}:${selectedTask.group?.id ?? ''}:${selectedTask.deadline ?? ''}:${projectInventory.portalHost ?? ''}`}
+                task={selectedTask}
+                projects={projectInventory.projects}
+                portalHost={projectInventory.portalHost}
+                projectsLoading={projectInventory.loading}
+                saving={savingTask}
+                onSave={saveTaskFields}
+              />
 
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" onClick={() => startWorkspace(selectedTask)}>
