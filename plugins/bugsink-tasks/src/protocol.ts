@@ -32,5 +32,6 @@ declare module 'orca' {
     'bugsink.projects': { input: Record<string, never>; output: { projects: BugsinkProject[] } }
     'bugsink.issues': { input: { projectId: number }; output: { issues: BugsinkIssue[] } }
     'bugsink.issue': { input: { issueId: string }; output: { issue: BugsinkIssue } }
+    'bugsink.issue.delete': { input: { issueId: string }; output: { ok: true } }
   }
 }

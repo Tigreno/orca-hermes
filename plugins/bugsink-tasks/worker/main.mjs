@@ -14,7 +14,7 @@ async function config(orca) {
 }
 
 /** @param {import('orca/worker').OrcaWorkerApi} orca */
-async function request(orca, path, query) {
+async function request(orca, path, query, options = {}) {
   const { base, token } = await config(orca)
   const url = new URL(base + path)
   if (query) {
@@ -27,10 +27,13 @@ async function request(orca, path, query) {
   let response
   try {
     response = await fetch(url, {
+      method: options.method || 'GET',
       headers: {
         Authorization: `Bearer ${token}`,
-        Accept: 'application/json'
-      }
+        Accept: 'application/json',
+        ...(options.headers || {})
+      },
+      body: options.body
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -49,7 +52,18 @@ async function request(orca, path, query) {
     }
     throw new Error(`Bugsink API ${response.status}${detail ? `: ${detail}` : ''}`)
   }
-  return response.json()
+  if (response.status === 204) {
+    return null
+  }
+  const text = await response.text()
+  if (!text) {
+    return null
+  }
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
 }
 
 /** @type {import('orca/worker').Activate} */
@@ -75,5 +89,16 @@ export default function activate(orca) {
     }
     const issue = await request(orca, `${API_PREFIX}/issues/${encodeURIComponent(id)}/`)
     return { issue }
+  })
+
+  orca.panels.handle('bugsink.issue.delete', async ({ issueId }) => {
+    const id = String(issueId || '').trim()
+    if (!id) {
+      throw new Error('A Bugsink issue must be selected.')
+    }
+    await request(orca, `${API_PREFIX}/issues/${encodeURIComponent(id)}/`, undefined, {
+      method: 'DELETE'
+    })
+    return { ok: true }
   })
 }
