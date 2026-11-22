@@ -1,6 +1,11 @@
-import { useChatSettingsOwnPermissions } from '@/runtime/structured-agent-session-host-capability'
+import { useAppStateValue } from '@/store/retained-views/app-state-view'
+import { useChatSettingsOwnPermissions } from '@/runtime/native-chat/host-capabilities/structured-agent-session-host-capability'
 import { toast } from 'sonner'
-import { getAgentLabel, getAgentCatalog, type AgentCatalogEntry } from '@/lib/agent-catalog'
+import {
+  getAgentCatalog,
+  getAgentLabel,
+  type AgentCatalogEntry
+} from '@/lib/agent-catalog/agent-catalog'
 import type { TuiAgent } from '../../../../../../shared/agent-launch/catalog/tui-agent'
 import { wholeAgentEnvironmentUpdates } from '../../../../../../shared/agent-launch/choices/agent-launch-permission-updates'
 import { useRef } from 'react'
@@ -17,7 +22,7 @@ import {
   setDefaultCustomAgentProfile
 } from '../../../../../../shared/custom-agent-profile'
 import { resolveTuiAgentLaunchArgs } from '../../../../../../shared/agent-launch/choices/tui-agent-launch-defaults'
-import type { GlobalSettings } from '../../../../../../shared/global-settings-types'
+import type { GlobalSettings } from '../../../../../../shared/settings/global-settings-types'
 import {
   AgentLaunchSettingsCatalog,
   type AgentPermissionsRenderer
@@ -28,15 +33,15 @@ import {
   type CustomAgentProfilesSectionHandle
 } from '../../CustomAgentProfilesSection'
 import { duplicateBuiltInAgentAsCustom } from '../../custom-agent-profile-draft'
-import { CLIENT_PLATFORM } from '@/lib/new-workspace'
-import { resolveLocalWindowsAgentStartupShell } from '../../../../../../shared/windows-terminal-shell'
+import { CLIENT_PLATFORM } from '@/lib/workspace/creation/new-workspace'
+import { resolveLocalWindowsAgentStartupShell } from '../../../../../../shared/shell/launch/windows-terminal-shell'
 import { resolveStartupShell } from '../../../../../../shared/agent-launch/startup/tui-agent-startup-shell'
 import { HostAgentLaunchSettings } from './HostAgentLaunchSettings'
 import { SettingsHostScopeUnavailableNotice } from '../../host-scope/SettingsHostScopePicker'
 import type { SettingsHostScope } from '../../host-scope/settings-host-scope'
-import { runtimeTargetEnvironmentId } from '@/runtime/runtime-client-target'
-import { translate } from '@/i18n/i18n'
-import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
+import { runtimeTargetEnvironmentId } from '@/runtime/rpc/targets/runtime-client-target'
+import { useTranslate } from '@/i18n/use-translate'
+import { callRuntimeRpc } from '@/runtime/rpc/calls/runtime-rpc-call'
 import {
   useAgentPermissionOverrideNotice,
   type SelectPermissionOverrides
@@ -55,7 +60,7 @@ export function AgentLaunchSettingsSection({
   renderPermissions: AgentPermissionsRenderer
 }): React.JSX.Element {
   const environmentId = runtimeTargetEnvironmentId(hostScope.target)
-  const environment = useAppStore((state) =>
+  const environment = useAppStateValue((state) =>
     environmentId ? state.runtimeEnvironments.find((entry) => entry.id === environmentId) : null
   )
   return (
@@ -92,6 +97,7 @@ function LocalAgentLaunchSettings({
   updateSettings: (updates: Partial<GlobalSettings>) => void | Promise<void>
   renderPermissions: AgentPermissionsRenderer
 }): React.JSX.Element {
+  const t = useTranslate()
   const notify = useAgentPermissionOverrideNotice()
   const chatOwnSupported = useChatSettingsOwnPermissions()
   const tail = useRef<Promise<void> | null>(null)
@@ -109,15 +115,12 @@ function LocalAgentLaunchSettings({
   const failed = (agent: TuiAgent | undefined) => (error: unknown) => {
     toast.error(
       agent
-        ? translate(
+        ? t(
             'settings.agents.localSaveFailedAgent',
             '{{agent}} settings could not be saved. Try again.',
             { agent: getAgentLabel(agent) }
           )
-        : translate(
-            'settings.agents.localSaveFailed',
-            'Agent settings could not be saved. Try again.'
-          )
+        : t('settings.agents.localSaveFailed', 'Agent settings could not be saved. Try again.')
     )
     throw error
   }
@@ -206,7 +209,7 @@ function LocalAgentLaunchSettings({
   const duplicateAsCustom = (agent: AgentCatalogEntry): void => {
     if (customAgentProfiles.length >= CUSTOM_AGENT_PROFILES_MAX) {
       toast.error(
-        translate(
+        t(
           'auto.components.settings.CustomAgentProfilesSection.limit',
           'Custom agents are limited to {{value0}} profiles.',
           { value0: String(CUSTOM_AGENT_PROFILES_MAX) }
@@ -234,7 +237,7 @@ function LocalAgentLaunchSettings({
     })
     if (!draft) {
       toast.error(
-        translate(
+        t(
           'auto.components.settings.AgentsPane.duplicateCommandError',
           'This command override contains shell syntax. Create the custom agent manually.'
         )
@@ -258,14 +261,8 @@ function LocalAgentLaunchSettings({
         updateSettings,
         saveEnvironment,
         customAgents: {
-          profiles: customAgentProfiles,
           defaultProfile: defaultCustomAgent,
           onSetBuiltInDefault: setBuiltInDefault,
-          onSetDefaultProfile: (profileId) =>
-            void updateSettings({
-              customAgentProfiles: setDefaultCustomAgentProfile(customAgentProfiles, profileId)
-            }),
-          onProfilesChange: (profiles) => updateSettingsOrThrow({ customAgentProfiles: profiles }),
           onDuplicateAsCustom: duplicateAsCustom,
           duplicateDisabled: customAgentProfiles.length >= CUSTOM_AGENT_PROFILES_MAX,
           afterDetectedAgents: (

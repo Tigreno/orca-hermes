@@ -3,23 +3,24 @@ import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Command, CommandEmpty, CommandInput, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import type { AgentCatalogEntry } from '@/lib/agent-catalog'
+import type { AgentCatalogEntry } from '@/lib/agent-catalog/agent-catalog'
 import {
   agentPickerBlankTerminalMatches,
   getAgentPickerCommandValue,
   searchAgentPickerEntries
-} from '@/lib/agent-picker-search'
-import { cn } from '@/lib/utils'
+} from '@/lib/agent-catalog/agent-picker-search'
+import { cn } from '@/lib/class-names'
 import type { TuiAgent } from '../../../../shared/agent-launch/catalog/tui-agent'
 import * as state from './agent-combobox-command-state'
 import { AgentDefaultContextMenu } from './agent-combobox-items'
 import { AgentComboboxSearchItems } from './agent-combobox-search-items'
 import { AgentComboboxClearButton, AgentComboboxTriggerContent } from './agent-combobox-trigger'
-import { translate } from '@/i18n/i18n'
+import { useTranslate } from '@/i18n/use-translate'
 import {
   SurfaceAgentItems,
   surfaceCommandValues,
   useSurfaceRowArming,
+  surfaceAnswerPending,
   type AgentComboboxSurfaceRows
 } from './agent-combobox-surface-items'
 
@@ -86,8 +87,9 @@ export default function AgentCombobox({
   surfaceRows,
   ...selection
 }: AgentComboboxProps): React.JSX.Element {
+  const t = useTranslate()
   const blankText =
-    blankLabel ?? translate('auto.components.agent.AgentCombobox.986f946354', 'Blank Terminal')
+    blankLabel ?? t('auto.components.agent.AgentCombobox.986f946354', 'Blank Terminal')
   const allowBlankTerminal = selection.allowBlankTerminal === true
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -133,7 +135,7 @@ export default function AgentCombobox({
     [allowBlankTerminal, query]
   )
   const pickerValues = { agents, query, value, blankValue: BLANK_VALUE, blankMatchesQuery }
-  const surface = surfaceRows ? surfaceCommandValues(surfaceRows.model, pickerValues) : null
+  const surface = surfaceRows ? surfaceCommandValues(surfaceRows.model, pickerValues, t) : null
   const surfaceList = surface?.rows ?? []
   const openCommandValue = selectionCleared
     ? ''
@@ -311,7 +313,7 @@ export default function AgentCombobox({
               aria-expanded={open}
               onKeyDown={handleTriggerKeyDown}
               // Why: the "(CLI)" suffix depends on the host's answer; it never pops in on a settled field.
-              disabled={disabled || (surfaceRows?.selection.ready === false && value !== null)}
+              disabled={disabled || (surfaceAnswerPending(surfaceRows) && value !== null)}
               className={cn(
                 // Retain room for long labels; py-0 clears default vertical padding to center content in h-8/h-9.
                 'h-8 justify-between px-3 py-0 text-xs font-normal',
@@ -352,16 +354,13 @@ export default function AgentCombobox({
           >
             <CommandInput
               ref={setInputNode}
-              placeholder={translate(
-                'auto.components.agent.AgentCombobox.48c6a5a9b4',
-                'Search agents...'
-              )}
+              placeholder={t('auto.components.agent.AgentCombobox.48c6a5a9b4', 'Search agents...')}
               value={query}
               onValueChange={setQuery}
             />
             <CommandList>
               <CommandEmpty>
-                {translate(
+                {t(
                   'auto.components.agent.AgentCombobox.579c768bde',
                   'No agents match your search.'
                 )}
@@ -403,7 +402,7 @@ export default function AgentCombobox({
                   onMouseEnter={() => setCommandValue('')}
                   className="h-9 w-full justify-start rounded-none px-3 text-xs font-normal text-muted-foreground"
                 >
-                  {translate('auto.components.agent.AgentCombobox.19522e25ee', 'Manage agents')}
+                  {t('auto.components.agent.AgentCombobox.19522e25ee', 'Manage agents')}
                   <ArrowRight className="ml-auto size-3" />
                 </Button>
               </div>

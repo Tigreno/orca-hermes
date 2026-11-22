@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ExternalLink, LoaderCircle, Terminal } from 'lucide-react'
 import { toast } from 'sonner'
+import type { Bitrix24TaskDetail } from '../../../../../shared/bitrix24/bitrix24-types'
 import type { Bitrix24TaskUpdateFields } from '../../../../../shared/bitrix24/connection-types'
 import { useBitrix24ProjectInventory } from '@/components/use-bitrix24-project-inventory'
 import { Button } from '@/components/ui/button'
@@ -11,8 +12,8 @@ import {
   SheetHeader,
   SheetTitle
 } from '@/components/ui/sheet'
-import { openAppHttpLink } from '@/lib/app-http-link-open'
-import { translate } from '@/i18n/i18n'
+import { openAppHttpLink } from '@/lib/browser/navigation/app-http-link-open'
+import { useTranslate, type Translate } from '@/i18n/use-translate'
 import { formatRelativeTime } from '../task-page-source-context'
 import { useBitrix24TaskPage } from './task-page-bitrix24-context'
 import { getBitrix24StatusLabel, getBitrix24StatusTone } from './task-page-bitrix24-status'
@@ -22,7 +23,55 @@ import {
   sendBitrix24TaskToActiveTerminal
 } from './send-bitrix24-task-to-terminal'
 
+async function saveBitrix24Task(
+  fields: Bitrix24TaskUpdateFields,
+  updateTask: (fields: Bitrix24TaskUpdateFields) => Promise<Bitrix24TaskDetail>,
+  t: Translate,
+  setSavingTask: (saving: boolean) => void
+): Promise<void> {
+  try {
+    await updateTask(fields)
+    toast.success(t('components.bitrix24TaskDetail.saved', 'Task updated in Bitrix24.'))
+  } catch (caught) {
+    toast.error(
+      caught instanceof Error
+        ? caught.message
+        : t('components.bitrix24TaskDetail.saveFailed', 'Could not update the task in Bitrix24.')
+    )
+  } finally {
+    setSavingTask(false)
+  }
+}
+
+async function sendBitrix24Task(
+  task: Bitrix24TaskDetail,
+  focusTerminalOnCloseRef: React.RefObject<boolean>,
+  closeTask: () => void,
+  t: Translate,
+  setSendingToTerminal: (sending: boolean) => void
+): Promise<void> {
+  try {
+    const result = await sendBitrix24TaskToActiveTerminal(task)
+    if (result === 'sent') {
+      focusTerminalOnCloseRef.current = true
+      closeTask()
+      toast.success(t('components.bitrix24TaskDetail.sentToTerminal', 'Task sent to terminal.'))
+    } else if (result === 'no-terminal') {
+      toast.error(
+        t('components.bitrix24TaskDetail.noTerminal', 'Open a terminal in this workspace first.')
+      )
+    } else {
+      toast.error(
+        t('components.bitrix24TaskDetail.sendFailed', 'Could not send the task to the terminal.')
+      )
+    }
+  } finally {
+    setSendingToTerminal(false)
+  }
+}
+
 export function Bitrix24TaskDetail(): React.JSX.Element {
+  const t = useTranslate()
   const {
     selectedTaskId,
     selectedTask,
@@ -48,21 +97,7 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
       return
     }
     setSavingTask(true)
-    try {
-      await updateTask(fields)
-      toast.success(translate('components.bitrix24TaskDetail.saved', 'Task updated in Bitrix24.'))
-    } catch (caught) {
-      toast.error(
-        caught instanceof Error
-          ? caught.message
-          : translate(
-              'components.bitrix24TaskDetail.saveFailed',
-              'Could not update the task in Bitrix24.'
-            )
-      )
-    } finally {
-      setSavingTask(false)
-    }
+    await saveBitrix24Task(fields, updateTask, t, setSavingTask)
   }
 
   const sendToTerminal = async (): Promise<void> => {
@@ -70,32 +105,13 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
       return
     }
     setSendingToTerminal(true)
-    try {
-      const result = await sendBitrix24TaskToActiveTerminal(selectedTask)
-      if (result === 'sent') {
-        focusTerminalOnCloseRef.current = true
-        closeTask()
-        toast.success(
-          translate('components.bitrix24TaskDetail.sentToTerminal', 'Task sent to terminal.')
-        )
-      } else if (result === 'no-terminal') {
-        toast.error(
-          translate(
-            'components.bitrix24TaskDetail.noTerminal',
-            'Open a terminal in this workspace first.'
-          )
-        )
-      } else {
-        toast.error(
-          translate(
-            'components.bitrix24TaskDetail.sendFailed',
-            'Could not send the task to the terminal.'
-          )
-        )
-      }
-    } finally {
-      setSendingToTerminal(false)
-    }
+    await sendBitrix24Task(
+      selectedTask,
+      focusTerminalOnCloseRef,
+      closeTask,
+      t,
+      setSendingToTerminal
+    )
   }
 
   return (
@@ -115,11 +131,10 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
       >
         <SheetHeader>
           <SheetTitle>
-            {selectedTask?.title ??
-              translate('components.bitrix24TaskDetail.title', 'Bitrix24 task')}
+            {selectedTask?.title ?? t('components.bitrix24TaskDetail.title', 'Bitrix24 task')}
           </SheetTitle>
           <SheetDescription>
-            {translate(
+            {t(
               'components.bitrix24TaskDetail.description',
               'Read task details, edit the project or deadline, and start a workspace.'
             )}
@@ -129,7 +144,7 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
           {detailLoading && !selectedTask ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <LoaderCircle className="size-4 animate-spin" />
-              {translate('components.bitrix24TaskDetail.loading', 'Loading task...')}
+              {t('components.bitrix24TaskDetail.loading', 'Loading task...')}
             </div>
           ) : null}
           {detailError ? (
@@ -148,7 +163,7 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
                   {getBitrix24StatusLabel(selectedTask.status)}
                 </span>
                 <span>
-                  {translate('components.bitrix24TaskDetail.id', 'Task #{{id}}', {
+                  {t('components.bitrix24TaskDetail.id', 'Task #{{id}}', {
                     id: selectedTask.id
                   })}
                 </span>
@@ -158,25 +173,25 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <dt className="text-xs text-muted-foreground">
-                    {translate('components.bitrix24TaskDetail.responsible', 'Responsible')}
+                    {t('components.bitrix24TaskDetail.responsible', 'Responsible')}
                   </dt>
                   <dd>{selectedTask.responsible?.name ?? '—'}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">
-                    {translate('components.bitrix24TaskDetail.creator', 'Creator')}
+                    {t('components.bitrix24TaskDetail.creator', 'Creator')}
                   </dt>
                   <dd>{selectedTask.creator?.name ?? '—'}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">
-                    {translate('components.bitrix24TaskDetail.deadline', 'Deadline')}
+                    {t('components.bitrix24TaskDetail.deadline', 'Deadline')}
                   </dt>
                   <dd>{selectedTask.deadline ? formatRelativeTime(selectedTask.deadline) : '—'}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-muted-foreground">
-                    {translate('components.bitrix24TaskDetail.updated', 'Updated')}
+                    {t('components.bitrix24TaskDetail.updated', 'Updated')}
                   </dt>
                   <dd>
                     {selectedTask.changedDate ? formatRelativeTime(selectedTask.changedDate) : '—'}
@@ -186,11 +201,11 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
 
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {translate('components.bitrix24TaskDetail.descriptionTitle', 'Description')}
+                  {t('components.bitrix24TaskDetail.descriptionTitle', 'Description')}
                 </p>
                 <p className="whitespace-pre-wrap text-sm text-foreground">
                   {selectedTask.descriptionText ||
-                    translate('components.bitrix24TaskDetail.noDescription', 'No description.')}
+                    t('components.bitrix24TaskDetail.noDescription', 'No description.')}
                 </p>
               </div>
 
@@ -206,7 +221,7 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
 
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" onClick={() => startWorkspace(selectedTask)}>
-                  {translate('components.bitrix24TaskDetail.startWorkspace', 'Start workspace')}
+                  {t('components.bitrix24TaskDetail.startWorkspace', 'Start workspace')}
                 </Button>
                 <Button
                   size="sm"
@@ -219,7 +234,7 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
                   ) : (
                     <Terminal className="mr-1.5 size-3.5" />
                   )}
-                  {translate('components.bitrix24TaskDetail.sendToTerminal', 'Send to terminal')}
+                  {t('components.bitrix24TaskDetail.sendToTerminal', 'Send to terminal')}
                 </Button>
                 <Button
                   size="sm"
@@ -227,7 +242,7 @@ export function Bitrix24TaskDetail(): React.JSX.Element {
                   onClick={(event) => openAppHttpLink(selectedTask.url, { event })}
                 >
                   <ExternalLink className="mr-1.5 size-3.5" />
-                  {translate('components.bitrix24TaskDetail.openInBitrix24', 'Open in Bitrix24')}
+                  {t('components.bitrix24TaskDetail.openInBitrix24', 'Open in Bitrix24')}
                 </Button>
               </div>
             </div>

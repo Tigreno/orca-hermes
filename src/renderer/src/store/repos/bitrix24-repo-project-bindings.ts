@@ -1,7 +1,7 @@
-import type { Repo } from '../../../../shared/repo-types'
+import type { Repo } from '../../../../shared/repository/repo-types'
 import type { Bitrix24ProjectReference } from '../../../../shared/bitrix24/project-reference'
+import { getRepoHostIdentity } from '../../../../shared/repository/repo-host-identity'
 import { bitrix24RepoProjectBindings } from '../../runtime/runtime-bitrix24-client'
-import { getRepoHostIdentity } from '../slices/repo-host-identity'
 
 /** Bindings live on the desktop, so a failed read must not hide the rest of the catalog. */
 export async function readBitrix24RepoProjectBindings(): Promise<

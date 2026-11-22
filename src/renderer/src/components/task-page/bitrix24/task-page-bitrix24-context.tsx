@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import type { Repo } from '../../../../../shared/repo-types'
+import type { Repo } from '../../../../../shared/repository/repo-types'
 import type {
   Bitrix24TaskDetail,
   Bitrix24TaskFilter,
@@ -7,10 +7,10 @@ import type {
 } from '../../../../../shared/bitrix24/bitrix24-types'
 import type { Bitrix24TaskUpdateFields } from '../../../../../shared/bitrix24/connection-types'
 import type { Bitrix24ProjectReference } from '../../../../../shared/bitrix24/project-reference'
-import { buildTaskSourceContextFromRepo } from '../../../../../shared/task-source-context'
-import { getLinkedWorkItemSuggestedName } from '../../../../../shared/workspace-name'
-import type { LinkedWorkItemSummary } from '@/lib/new-workspace'
-import { getRepoWorkspaceCreationTargetHint } from '@/lib/project-host-workspace-target'
+import { buildTaskSourceContextFromRepo } from '../../../../../shared/work-items/task-source-context'
+import { getLinkedWorkItemSuggestedName } from '../../../../../shared/workspace/naming/workspace-name'
+import type { LinkedWorkItemSummary } from '@/lib/workspace/creation/new-workspace'
+import { getRepoWorkspaceCreationTargetHint } from '@/lib/workspace/creation/project-host-workspace-target'
 import {
   refreshBitrix24ConnectionStatus,
   useBitrix24ConnectionStatus

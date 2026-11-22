@@ -79,7 +79,7 @@ function mapTaskDetail(row: Record<string, unknown>, portalHost: string): Bitrix
 }
 
 export async function listTasks(args: Bitrix24ListTasksArgs): Promise<Bitrix24TaskListPage> {
-  const credential = getStoredCredential()
+  const credential = await getStoredCredential()
   const { result, next, total } = await bitrix24Request<unknown>('tasks.task.list', {
     filter: buildTaskFilter(args, credential.userId),
     select: TASK_SELECT,
@@ -94,7 +94,7 @@ export async function listTasks(args: Bitrix24ListTasksArgs): Promise<Bitrix24Ta
 }
 
 export async function getTask(taskId: string): Promise<Bitrix24TaskDetail> {
-  const credential = getStoredCredential()
+  const credential = await getStoredCredential()
   const { result } = await bitrix24Request<unknown>('tasks.task.get', { taskId })
   const row = extractTaskRow(result)
   if (!row) {
@@ -109,7 +109,7 @@ export async function getTask(taskId: string): Promise<Bitrix24TaskDetail> {
 }
 
 export async function updateTask(args: Bitrix24UpdateTaskArgs): Promise<Bitrix24TaskDetail> {
-  const credential = getStoredCredential()
+  const credential = await getStoredCredential()
   const fields: Record<string, unknown> = {}
   if (args.groupId !== undefined) {
     fields.GROUP_ID = args.groupId === null ? 0 : parseGroupId(args.groupId)

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Terminal } from 'lucide-react'
-import { AgentIcon } from '@/lib/agent-catalog'
+import { AgentIcon } from '@/components/agent/icons/AgentIcon'
 import { renderAgentComboboxItem } from './agent-combobox-items'
 import type { TuiAgent } from '../../../../shared/agent-launch/catalog/tui-agent'
 

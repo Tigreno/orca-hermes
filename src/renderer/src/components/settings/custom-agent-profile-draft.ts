@@ -1,5 +1,5 @@
-import { createBrowserUuid } from '@/lib/browser-uuid'
-import type { AgentCatalogEntry } from '@/lib/agent-catalog'
+import { createNonSecureContextUuid as createBrowserUuid } from '../../../../shared/identifiers/non-secure-context-uuid'
+import type { AgentCatalogEntry } from '@/lib/agent-catalog/agent-catalog'
 import type { CustomAgentProfile } from '../../../../shared/custom-agent-profile'
 import { tokenizeStartupCommand } from '../../../../shared/agent-launch/startup/tui-agent-startup-shell'
 import type { AgentStartupShell } from '../../../../shared/agent-launch/startup/tui-agent-startup-shell'

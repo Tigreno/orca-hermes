@@ -1,4 +1,4 @@
-import type { AgentCatalogEntry } from '@/lib/agent-catalog'
+import type { AgentCatalogEntry } from '@/lib/agent-catalog/agent-catalog'
 import type { CustomAgentProfile } from '../../../shared/custom-agent-profile'
 import type { TuiAgent } from '../../../shared/agent-launch/catalog/tui-agent'
 

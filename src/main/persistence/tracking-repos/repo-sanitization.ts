@@ -1,17 +1,21 @@
-import type { RepoProjectHostSetupMethod } from '../../../shared/project-types'
-import type { Repo } from '../../../shared/repo-types'
-import { editorFormatterSchema } from '../../../shared/editor-formatter'
+import type { RepoProjectHostSetupMethod } from '../../../shared/project/project-types'
+import type { Repo } from '../../../shared/repository/repo-types'
+import { editorFormatterSchema } from '../../../shared/editor/formatting/editor-formatter'
 import type { GitRemoteIdentity } from '../../../shared/git/remotes/git-remote-identity'
-import { normalizeRepoBadgeColor } from '../../../shared/repo-badge-color'
-import { sanitizeRepoIcon } from '../../../shared/repo-icon'
-import { normalizeGhAccountBinding } from '../../../shared/github/account-binding'
+import { normalizeRepoBadgeColor } from '../../../shared/repository/appearance/repo-badge-color'
+import { sanitizeRepoIcon } from '../../../shared/repository/appearance/repo-icon'
+import {
+  normalizeGhAccountBinding,
+  type GhAccountBinding
+} from '../../../shared/github/accounts/account-binding'
 import { normalizeJiraProjectReference } from '../../../shared/jira/jira-project-reference'
 import { normalizeBitrix24ProjectReference } from '../../../shared/bitrix24/project-reference'
-import type { GhAccountBinding } from '../../../shared/github/account-binding'
+
+import { sanitizeAgentWorkspaceTrustDecision } from '../../../shared/agent-launch/permissions/agent-workspace-trust-decision'
 import {
   normalizeCustomWorktreeVisibilitySources,
   normalizeWorktreeVisibilitySourcePreferences
-} from '../../../shared/worktree/visibility-sources'
+} from '../../../shared/worktree/visibility/visibility-sources'
 
 export function sanitizeRepoUpstream(value: unknown): Repo['upstream'] | undefined {
   if (value === undefined) {
@@ -78,6 +82,7 @@ export function sanitizeRepoUpdatesForPersistence<
       | 'worktreeBasePath'
       | 'projectHostSetupMethod'
       | 'forkSyncMode'
+      | 'agentWorkspaceTrust'
       | 'defaultJiraProject'
       | 'defaultBitrix24Project'
       | 'customWorktreeVisibilitySources'
@@ -85,6 +90,7 @@ export function sanitizeRepoUpdatesForPersistence<
     >
   > & {
     ghAccount?: GhAccountBinding | null
+    browserProfileId?: string | null
   }
 >(updates: T): T {
   const sanitized = { ...updates }
@@ -162,6 +168,21 @@ export function sanitizeRepoUpdatesForPersistence<
     } else {
       sanitized.forkSyncMode = forkSyncMode
     }
+  }
+  if ('agentWorkspaceTrust' in sanitized) {
+    const agentWorkspaceTrust = sanitizeAgentWorkspaceTrustDecision(sanitized.agentWorkspaceTrust)
+    if (agentWorkspaceTrust === undefined) {
+      delete sanitized.agentWorkspaceTrust
+    } else {
+      sanitized.agentWorkspaceTrust = agentWorkspaceTrust
+    }
+  }
+  if (
+    'browserProfileId' in sanitized &&
+    sanitized.browserProfileId != null &&
+    (typeof sanitized.browserProfileId !== 'string' || !sanitized.browserProfileId.trim())
+  ) {
+    delete sanitized.browserProfileId
   }
   // Null explicitly clears ghAccount; only malformed shapes are discarded.
   if ('ghAccount' in sanitized && sanitized.ghAccount != null) {

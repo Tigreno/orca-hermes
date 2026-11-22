@@ -4,6 +4,7 @@ import {
   prunePinnedLocalImageCache,
   unpinLocalImageCacheKey
 } from './local-image-cache-pinning'
+import { isCommittedAgentSessionAttachmentPath } from '../../../../../shared/agent-session/agent-session-attachments'
 
 const BLOB_URL_CACHE_MAX_SIZE = 100
 // Bound retained encoded image payload separately from the reusable entry target.
@@ -12,22 +13,6 @@ const BLOB_URL_CACHE_MAX_BYTES = 128 * 1024 * 1024
 export const blobUrlCache = new Map<string, string>()
 const blobUrlCacheBytes = new Map<string, number>()
 export const inFlightBlobUrlLoads = new Map<string, Promise<string | null>>()
-// Invalidate late reads on release so they cannot repopulate an unused cache entry.
-const cacheKeyVersions = new Map<string, number>()
-
-export function getLocalImageCacheKeyVersion(key: string): number {
-  return cacheKeyVersions.get(key) ?? 0
-}
-
-export function cleanupLocalImageCacheKeyVersion(key: string): void {
-  if (
-    !blobUrlCache.has(key) &&
-    !inFlightBlobUrlLoads.has(key) &&
-    !isLocalImageCacheKeyPinned(key)
-  ) {
-    cacheKeyVersions.delete(key)
-  }
-}
 
 let cacheGeneration = 0
 const cacheListeners = new Set<() => void>()
@@ -41,7 +26,6 @@ function pruneImageCache(): void {
   for (const key of blobUrlCacheBytes.keys()) {
     if (!blobUrlCache.has(key)) {
       blobUrlCacheBytes.delete(key)
-      cleanupLocalImageCacheKeyVersion(key)
     }
   }
   let retainedBytes = 0
@@ -62,22 +46,12 @@ function pruneImageCache(): void {
     if (url) {
       URL.revokeObjectURL(url)
     }
-    cleanupLocalImageCacheKeyVersion(key)
   }
 }
 
-export function cacheLocalImageBlob(
-  key: string,
-  url: string,
-  byteLength: number,
-  expectedVersion?: number
-): boolean {
-  if (
-    (expectedVersion !== undefined && getLocalImageCacheKeyVersion(key) !== expectedVersion) ||
-    byteLength > BLOB_URL_CACHE_MAX_BYTES
-  ) {
+export function cacheLocalImageBlob(key: string, url: string, byteLength: number): boolean {
+  if (byteLength > BLOB_URL_CACHE_MAX_BYTES) {
     URL.revokeObjectURL(url)
-    cleanupLocalImageCacheKeyVersion(key)
     return false
   }
   const previousUrl = blobUrlCache.get(key)
@@ -99,7 +73,6 @@ export function cacheLocalImageBlob(
         break
       }
       URL.revokeObjectURL(url)
-      cleanupLocalImageCacheKeyVersion(key)
       return false
     }
     const candidateUrl = blobUrlCache.get(candidate)
@@ -111,7 +84,6 @@ export function cacheLocalImageBlob(
     if (candidateUrl) {
       URL.revokeObjectURL(candidateUrl)
     }
-    cleanupLocalImageCacheKeyVersion(candidate)
   }
   if (previousUrl !== undefined && previousUrl !== url) {
     URL.revokeObjectURL(previousUrl)
@@ -129,7 +101,6 @@ export function getLocalImageCacheGeneration(): number {
 export function unpinLocalImageCache(key: string): void {
   unpinLocalImageCacheKey(key)
   pruneImageCache()
-  cleanupLocalImageCacheKeyVersion(key)
 }
 
 export function subscribeToLocalImageCacheInvalidation(listener: () => void): () => void {
@@ -155,39 +126,31 @@ function scheduleBlobUrlRevocation(urls: string[]): void {
   pendingBlobUrlRevocationTimer = setTimeout(revokePendingBlobUrls, 30_000)
 }
 
+/** Committed chat attachments never change, so a re-read on focus would only download them again. */
+export function isImmutableLocalImageCacheKey(key: string): boolean {
+  return isCommittedAgentSessionAttachmentPath(key.slice(key.lastIndexOf('\0') + 1))
+}
+
 export function invalidateLocalImageCache(): void {
-  const staleUrls = Array.from(blobUrlCache.values())
-  blobUrlCache.clear()
-  blobUrlCacheBytes.clear()
-  inFlightBlobUrlLoads.clear()
-  cacheKeyVersions.clear()
+  const staleUrls: string[] = []
+  for (const [key, url] of blobUrlCache) {
+    if (!isImmutableLocalImageCacheKey(key)) {
+      staleUrls.push(url)
+      blobUrlCache.delete(key)
+      blobUrlCacheBytes.delete(key)
+    }
+  }
+  for (const key of inFlightBlobUrlLoads.keys()) {
+    if (!isImmutableLocalImageCacheKey(key)) {
+      inFlightBlobUrlLoads.delete(key)
+    }
+  }
   cacheGeneration += 1
   for (const listener of cacheListeners) {
     listener()
   }
   if (staleUrls.length > 0) {
     scheduleBlobUrlRevocation(staleUrls)
-  }
-}
-
-export function releaseLocalImageBlob(key: string): void {
-  if (isLocalImageCacheKeyPinned(key)) {
-    return
-  }
-  cacheKeyVersions.set(key, getLocalImageCacheKeyVersion(key) + 1)
-  const inFlight = inFlightBlobUrlLoads.get(key)
-  if (inFlight) {
-    // Released reads can resolve null or stale and must not be reused by the next visible lease.
-    inFlightBlobUrlLoads.delete(key)
-  }
-  const url = blobUrlCache.get(key)
-  if (url) {
-    blobUrlCache.delete(key)
-    blobUrlCacheBytes.delete(key)
-    URL.revokeObjectURL(url)
-  }
-  if (!inFlight) {
-    cleanupLocalImageCacheKeyVersion(key)
   }
 }
 
@@ -204,21 +167,30 @@ export function resetLocalImageCacheState(): void {
   blobUrlCacheBytes.clear()
   clearLocalImageCachePins()
   inFlightBlobUrlLoads.clear()
-  cacheKeyVersions.clear()
   cacheGeneration = 0
   pendingBlobUrlRevocations.clear()
   cacheListeners.clear()
 }
 
+/** A window shown again without focus (uncovered, restored behind another) gets no focus event. */
+function invalidateWhenShownUnfocused(): void {
+  if (document.visibilityState === 'visible' && !document.hasFocus()) {
+    invalidateLocalImageCache()
+  }
+}
+
 export function disposeLocalImageCacheState(): void {
   if (typeof window !== 'undefined') {
     window.removeEventListener('focus', invalidateLocalImageCache)
+    document.removeEventListener('visibilitychange', invalidateWhenShownUnfocused)
   }
   resetLocalImageCacheState()
 }
 
+// Every shown image, including one whose read failed, reads again when the window comes back.
 if (typeof window !== 'undefined') {
   window.addEventListener('focus', invalidateLocalImageCache)
+  document.addEventListener('visibilitychange', invalidateWhenShownUnfocused)
 }
 
 if (import.meta !== undefined && import.meta.hot) {

@@ -1,6 +1,6 @@
 import type { Bitrix24TaskDetail } from '../../../../../shared/bitrix24/bitrix24-types'
-import { sendAgentDraftPasteContent } from '@/lib/agent-draft-paste-content'
-import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
+import { sendAgentDraftPasteContent } from '@/lib/agent-session/messaging/paste/agent-draft-paste-content'
+import { focusTerminalTabSurface } from '@/components/terminal-pane/input/focus/focus-terminal-tab-surface'
 import { useAppStore } from '@/store/index'
 import { resolveWorktreeTerminalPtyId } from '@/store/terminals/worktree-terminal-pty'
 

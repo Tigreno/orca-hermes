@@ -1,11 +1,53 @@
 import { useState } from 'react'
-import type { Repo } from '../../../../../shared/repo-types'
+import type { Repo } from '../../../../../shared/repository/repo-types'
 import type { Bitrix24ProjectReference } from '../../../../../shared/bitrix24/project-reference'
 import { useAppStore } from '@/store/index'
 import { useBitrix24ProjectInventory } from '../../use-bitrix24-project-inventory'
 import { Bitrix24ProjectPicker } from '../../bitrix24-project-picker'
 import { SearchableSetting } from '../section-layout/SearchableSetting'
-import { translate } from '@/i18n/i18n'
+import { useTranslate, type Translate } from '@/i18n/use-translate'
+
+async function applyBitrix24Project(
+  repoId: string,
+  project: Bitrix24ProjectReference | null,
+  updateRepo: (
+    id: string,
+    updates: { defaultBitrix24Project: Bitrix24ProjectReference | null }
+  ) => unknown,
+  t: Translate,
+  setError: (error: string | null) => void,
+  setSaving: (saving: boolean) => void
+): Promise<void> {
+  try {
+    const result = await updateRepo(repoId, { defaultBitrix24Project: project })
+    if (result === false) {
+      throw new Error(
+        t(
+          'components.RepositoryBitrix24ProjectSection.saveFailed',
+          'Could not save the default Bitrix24 project.'
+        )
+      )
+    }
+    const echoed = useAppStore
+      .getState()
+      .repos.find((entry) => entry.id === repoId)?.defaultBitrix24Project
+    if (
+      (echoed?.portalHost ?? null) !== (project?.portalHost ?? null) ||
+      (echoed?.groupId ?? null) !== (project?.groupId ?? null)
+    ) {
+      throw new Error(
+        t(
+          'components.RepositoryBitrix24ProjectSection.runtimeUpdate',
+          'Update this runtime to save a default Bitrix24 project.'
+        )
+      )
+    }
+  } catch (caught) {
+    setError(caught instanceof Error ? caught.message : String(caught))
+  } finally {
+    setSaving(false)
+  }
+}
 
 export function RepositoryBitrix24ProjectSection({
   repo,
@@ -21,46 +63,16 @@ export function RepositoryBitrix24ProjectSection({
   ) => unknown
   forceVisible?: boolean
 }): React.JSX.Element {
+  const t = useTranslate()
   const inventory = useBitrix24ProjectInventory(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const applyProject = async (project: Bitrix24ProjectReference | null) => {
+  const applyProject = async (project: Bitrix24ProjectReference | null): Promise<void> => {
     setSaving(true)
     setError(null)
-    try {
-      const result = await updateRepo(repo.id, { defaultBitrix24Project: project })
-      if (result === false) {
-        throw new Error(
-          translate(
-            'components.RepositoryBitrix24ProjectSection.saveFailed',
-            'Could not save the default Bitrix24 project.'
-          )
-        )
-      }
-      const echoed = useAppStore
-        .getState()
-        .repos.find((entry) => entry.id === repo.id)?.defaultBitrix24Project
-      if (
-        (echoed?.portalHost ?? null) !== (project?.portalHost ?? null) ||
-        (echoed?.groupId ?? null) !== (project?.groupId ?? null)
-      ) {
-        throw new Error(
-          translate(
-            'components.RepositoryBitrix24ProjectSection.runtimeUpdate',
-            'Update this runtime to save a default Bitrix24 project.'
-          )
-        )
-      }
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught))
-    } finally {
-      setSaving(false)
-    }
+    await applyBitrix24Project(repo.id, project, updateRepo, t, setError, setSaving)
   }
-  const label = translate(
-    'components.RepositoryBitrix24ProjectSection.title',
-    'Default Bitrix24 project'
-  )
+  const label = t('components.RepositoryBitrix24ProjectSection.title', 'Default Bitrix24 project')
   const value = repo.defaultBitrix24Project ?? null
   const portalMismatch =
     value !== null && inventory.portalHost !== null && value.portalHost !== inventory.portalHost
@@ -74,7 +86,7 @@ export function RepositoryBitrix24ProjectSection({
   return (
     <SearchableSetting
       title={label}
-      description={translate(
+      description={t(
         'components.RepositoryBitrix24ProjectSection.description',
         'Show only this Bitrix24 project’s tasks on the repo Tasks page.'
       )}
@@ -89,15 +101,12 @@ export function RepositoryBitrix24ProjectSection({
         value={value}
         onChange={(project) => void applyProject(project)}
         label={label}
-        emptyLabel={translate(
-          'components.RepositoryBitrix24ProjectSection.none',
-          'No default project'
-        )}
+        emptyLabel={t('components.RepositoryBitrix24ProjectSection.none', 'No default project')}
         disabled={inventory.loading || saving}
       />
       {!inventory.connected && !inventory.loading ? (
         <p className="text-xs text-muted-foreground">
-          {translate(
+          {t(
             'components.RepositoryBitrix24ProjectSection.connect',
             'Connect Bitrix24 in Integrations to choose a project.'
           )}
@@ -105,14 +114,14 @@ export function RepositoryBitrix24ProjectSection({
       ) : null}
       {portalMismatch ? (
         <p role="alert" className="text-xs text-destructive">
-          {translate(
+          {t(
             'components.RepositoryBitrix24ProjectSection.portalChanged',
             'This project belongs to another Bitrix24 portal. Select it again after connecting the current portal.'
           )}
         </p>
       ) : projectMissing ? (
         <p className="text-xs text-status-warning-text">
-          {translate(
+          {t(
             'components.RepositoryBitrix24ProjectSection.projectMissing',
             'This project is not in the visible list. Tasks still load for its project ID.'
           )}

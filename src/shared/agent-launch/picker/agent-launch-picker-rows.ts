@@ -1,12 +1,14 @@
-import type { GlobalSettings } from '../../global-settings-types'
+import type { AgentPickerEntry } from './agent-launch-picker'
+import type { GlobalSettings } from '../../settings/global-settings-types'
 import {
   nativeChatPreferenceFor,
   type NativeChatDefaultSettings
-} from '../../structured-native-chat-launch-route'
-import type { ExecutionHostId } from '../../execution-host'
+} from '../choices/structured-native-chat-launch-route'
+import type { ExecutionHostId } from '../../execution-host/execution-host'
 import type { TuiAgent } from '../catalog/tui-agent'
 import { filterEnabledTuiAgents, TUI_AGENT_AUTO_PICK_ORDER } from '../catalog/tui-agent-selection'
-import type { AgentSessionChatProgram } from '../../agent-session/agent-session-agent-availability'
+import type { AgentSessionChatProgram } from '../../agent-session/agent-discovery/agent-session-agent-availability'
+import { agentSessionInstallCommand } from '../../agent-session/lifecycle/launch/agent-session-setup-commands'
 import {
   getDefaultCustomAgentProfile,
   isCustomAgentProfileEnabled,
@@ -21,10 +23,16 @@ export type HostChatAnswer =
   | 'wsl'
   | 'subfolder'
   | 'not-on-host'
+  /** The host is Windows, where this agent has no chat. */
+  | 'windows'
   | 'no-chats'
 export type ChatProgramObservation = AgentSessionChatProgram | 'unlearned'
 const chatProgramOffered = (program: ChatProgramObservation) =>
   program === 'available' || program === 'installable'
+
+/** An agent whose CLI isn't detected still counts as installed when its chat program is there. */
+export const chatProgramInstalled = (program: ChatProgramObservation): boolean =>
+  program === 'available'
 
 export function orderAgentLaunchPickerAgents(
   defaultAgent: TuiAgent | 'blank' | null | undefined,
@@ -45,28 +53,45 @@ export type ChatUnavailableReason =
   | 'wsl'
   | 'subfolder'
   | 'not-on-host'
+  | 'windows'
 
+/** `setup`: the agent isn't installed there, so its chat opens with an offer to install it. */
 export type NewTabAgentMenuRow = (
-  | { kind: 'chat'; agent: TuiAgent }
+  | { kind: 'chat'; agent: TuiAgent; setup?: true }
   | { kind: 'chat-unavailable'; agent: TuiAgent; reason: ChatUnavailableReason }
   | { kind: 'cli'; agent: TuiAgent; chat?: true }
   | { kind: 'terminal'; agent: TuiAgent }
-  | { kind: 'custom'; profile: CustomAgentProfile; isDefault: boolean }
 ) & { executionHostId?: ExecutionHostId }
 
-/** A row backed by a built-in agent; custom-profile rows carry a profile instead. */
-export type InstalledAgentMenuRow = Exclude<NewTabAgentMenuRow, { kind: 'custom' }>
+export type CustomAgentMenuRow = {
+  kind: 'custom'
+  profile: CustomAgentProfile
+  isDefault: boolean
+} & { executionHostId?: ExecutionHostId }
 
-export const isInstalledAgentMenuRow = (row: NewTabAgentMenuRow): row is InstalledAgentMenuRow =>
+export type AgentMenuRow = NewTabAgentMenuRow | CustomAgentMenuRow
+
+export function agentMenuRowSupportsChat(row: AgentMenuRow): boolean {
+  return row.kind === 'chat' || (row.kind === 'cli' && row.chat === true)
+}
+
+/** Launches the agent as it is on the host now: not a chat that installs it first, not an unavailable one. */
+export function agentMenuRowReady(row: AgentMenuRow): boolean {
+  return row.kind === 'cli' || row.kind === 'terminal' || (row.kind === 'chat' && !row.setup)
+}
+
+export type InstalledAgentMenuRow = NewTabAgentMenuRow
+
+export const isInstalledAgentMenuRow = (row: AgentMenuRow): row is InstalledAgentMenuRow =>
   row.kind !== 'custom'
 
 export type NewTabAgentMenuSettings = NativeChatDefaultSettings &
   Partial<Pick<GlobalSettings, 'defaultTuiAgent' | 'disabledTuiAgents' | 'customAgentProfiles'>>
 
 /** Enabled custom profiles, default first: they lead the menu and carry the new-agent shortcut. */
-function buildCustomAgentRows(
+export function buildCustomAgentRows(
   profiles: GlobalSettings['customAgentProfiles']
-): NewTabAgentMenuRow[] {
+): CustomAgentMenuRow[] {
   const normalized = normalizeCustomAgentProfiles(profiles)
   const defaultProfile = getDefaultCustomAgentProfile(normalized)
   return normalized
@@ -86,19 +111,18 @@ export function buildNewTabAgentMenuRows(args: {
   hostChatAnswer: (agent: TuiAgent) => HostChatAnswer
   /** Whether the chat's own program runs there, which for some agents is not their CLI. */
   chatProgram: (agent: TuiAgent) => ChatProgramObservation
+  /** Offer chats for agents the host lacks: the chat walks through installing and signing in. */
+  offerAgentSetup?: boolean
+  hostPlatform?: string | null
 }): NewTabAgentMenuRow[] {
   const { settings } = args
   const defaultAgent = settings?.defaultTuiAgent
-  const customRows = buildCustomAgentRows(settings?.customAgentProfiles)
   const installed = filterEnabledTuiAgents(args.detectedOnHost ?? [], settings?.disabledTuiAgents)
   if (args.hostChatAnswer('claude') === 'no-chats') {
-    return [
-      ...customRows,
-      ...orderAgentLaunchPickerAgents(defaultAgent, installed).map((agent) => ({
-        kind: 'terminal' as const,
-        agent
-      }))
-    ]
+    return orderAgentLaunchPickerAgents(defaultAgent, installed).map((agent) => ({
+      kind: 'terminal' as const,
+      agent
+    }))
   }
   const runnable: TuiAgent[] = []
   const unavailable = new Map<TuiAgent, ChatUnavailableReason>()
@@ -106,6 +130,13 @@ export function buildNewTabAgentMenuRows(args: {
   const canOpen = (agent: TuiAgent): boolean =>
     chatProgramOffered(args.chatProgram(agent)) ||
     (args.chatProgram(agent) === 'unknown' && installed.includes(agent))
+  // Only uninstalled programs: an unreadable one stays a failed check, never an install prompt.
+  const needsSetup = (agent: TuiAgent): boolean =>
+    args.offerAgentSetup === true &&
+    agentSessionInstallCommand(agent, args.hostPlatform) !== null &&
+    args.detectedOnHost !== null &&
+    !installed.includes(agent) &&
+    ['missing', 'installable'].includes(args.chatProgram(agent))
   const chatToo = new Set<TuiAgent>()
   for (const agent of chatAgents) {
     const displayed = nativeChatPreferenceFor(settings, agent)
@@ -120,7 +151,7 @@ export function buildNewTabAgentMenuRows(args: {
       continue
     }
     const program = args.chatProgram(agent)
-    if (answer === 'yes' && canOpen(agent)) {
+    if (answer === 'yes' && (canOpen(agent) || needsSetup(agent))) {
       runnable.push(agent)
     } else {
       unavailable.set(
@@ -139,12 +170,23 @@ export function buildNewTabAgentMenuRows(args: {
       )
     }
   }
+  // A host with no agents at all offers chats that set one up, so a first agent is findable.
+  if (runnable.length === 0 && unavailable.size === 0 && installed.length === 0) {
+    runnable.push(
+      ...chatAgents.filter((agent) => needsSetup(agent) && args.hostChatAnswer(agent) === 'yes')
+    )
+  }
+  const chats = orderAgentLaunchPickerAgents(defaultAgent, runnable).map((agent) => ({
+    kind: 'chat' as const,
+    agent,
+    ...(!args.detectedOnHost?.includes(agent) && !chatProgramInstalled(args.chatProgram(agent))
+      ? { setup: true as const }
+      : {})
+  }))
   return [
-    ...customRows,
-    ...orderAgentLaunchPickerAgents(defaultAgent, runnable).map((agent) => ({
-      kind: 'chat' as const,
-      agent
-    })),
+    // Chats the host runs now lead the ones that install their agent first.
+    ...chats.filter(agentMenuRowReady),
+    ...chats.filter((row) => !agentMenuRowReady(row)),
     ...orderAgentLaunchPickerAgents(defaultAgent, [...unavailable.keys()]).map((agent) => ({
       kind: 'chat-unavailable' as const,
       agent,
@@ -159,4 +201,34 @@ export function buildNewTabAgentMenuRows(args: {
       ...(chatToo.has(agent) ? { chat: true as const } : {})
     }))
   ]
+}
+
+/** Built-in rows stay upstream-shaped; custom profiles ride beside them for menus that show both. */
+export function buildAgentMenuRows(
+  args: Parameters<typeof buildNewTabAgentMenuRows>[0] & { executionHostId?: ExecutionHostId }
+) {
+  const { executionHostId, ...menuArgs } = args
+  const withHost = <T extends { executionHostId?: ExecutionHostId }>(row: T) => ({
+    ...row,
+    executionHostId
+  })
+  return {
+    rows: buildNewTabAgentMenuRows(menuArgs).map(withHost),
+    customRows: buildCustomAgentRows(menuArgs.settings?.customAgentProfiles).map(withHost)
+  }
+}
+
+export function agentPickerHydrationQueue(
+  entries: readonly AgentPickerEntry[],
+  selected: () => TuiAgent | undefined
+): () => number | undefined {
+  const pending = new Set(entries.flatMap((entry, index) => (entry.surfaces.length ? [index] : [])))
+  return () => {
+    const preferred = entries.findIndex((entry) => entry.agent === selected())
+    const index = pending.has(preferred) ? preferred : pending.values().next().value
+    if (index !== undefined) {
+      pending.delete(index)
+    }
+    return index
+  }
 }

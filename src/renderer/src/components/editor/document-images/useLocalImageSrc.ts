@@ -1,20 +1,22 @@
 import { useEffect, useEffectEvent, useState } from 'react'
 import { resolveImageAbsolutePath } from '../markdown/link-routing/markdown-preview-links'
-import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client-types'
+import type { RuntimeFileOperationArgs } from '@/runtime/files/runtime-file-client-types'
 import { readLocalImagePreview } from './local-image-src-reader'
-import type { LocalFileAccess } from '../../../../../shared/local-file-access'
+import type { LocalFileAccess } from '../../../../../shared/file-access/local-file-access'
 import {
   blobUrlCache,
   cacheLocalImageBlob,
-  cleanupLocalImageCacheKeyVersion,
   getLocalImageCacheGeneration,
-  getLocalImageCacheKeyVersion,
   inFlightBlobUrlLoads,
+  isImmutableLocalImageCacheKey,
   unpinLocalImageCache,
   subscribeToLocalImageCacheInvalidation as onImageCacheInvalidated
 } from './local-image-src-cache'
 import { pinLocalImageCacheKey as pinLocalImageCache } from './local-image-cache-pinning'
-import { runtimeTargetEnvironmentId } from '@/runtime/runtime-client-target'
+import { readBrowserAttachmentFile } from '@/lib/files/drop/browser-attachment-files'
+import { runtimeTargetEnvironmentId } from '@/runtime/rpc/targets/runtime-client-target'
+import { recordRendererCrashBreadcrumb } from '@/diagnostics/crash-reporting/crash-breadcrumb-recorder'
+import { basename } from '@/lib/path'
 
 export function getLocalImageCacheKey(
   absolutePath: string,
@@ -65,13 +67,16 @@ type LocalImageRuntimeContext = Omit<RuntimeFileOperationArgs, 'connectionId'> &
 }
 
 /** The cache identity of a local image, or null when it is external or has no owner yet. */
-export function getLocalImageSrcCacheKey(
+function getLocalImageSrcCacheKey(
   rawSrc: string | undefined,
   filePath: string,
   connectionId?: string | null,
   runtimeContext?: LocalImageRuntimeContext | null,
   access?: LocalFileAccess
 ): string | null {
+  if (rawSrc && readBrowserAttachmentFile(rawSrc)) {
+    return getLocalImageCacheKey(rawSrc)
+  }
   if (!rawSrc || isExternalUrl(rawSrc) || runtimeContext === null) {
     return null
   }
@@ -96,6 +101,9 @@ export function useLocalImageSrc(
   // Key leases by semantic identity; equal rebuilt context objects must not revoke a still-displayed image URL.
   const cacheKey = getLocalImageSrcCacheKey(rawSrc, filePath, connectionId, runtimeContext, access)
   const readImage = useEffectEvent((): Promise<string | null> => {
+    if (rawSrc && readBrowserAttachmentFile(rawSrc)) {
+      return loadLocalImageAbsolutePath(rawSrc)
+    }
     const absolutePath = rawSrc ? resolveImageAbsolutePath(rawSrc, filePath) : null
     return absolutePath
       ? loadLocalImageAbsolutePath(absolutePath, connectionId, runtimeContext, access)
@@ -162,6 +170,9 @@ export async function loadLocalImageSrc(
     | null,
   access?: LocalFileAccess
 ): Promise<string | null> {
+  if (readBrowserAttachmentFile(rawSrc)) {
+    return loadLocalImageAbsolutePath(rawSrc)
+  }
   if (isExternalUrl(rawSrc)) {
     return rawSrc
   }
@@ -183,6 +194,31 @@ export async function loadLocalImageSrc(
   return loadLocalImageAbsolutePath(absolutePath, connectionId, runtimeContext, access)
 }
 
+const loggedReadFailures = new Set<string>()
+
+/** Why an image read found nothing, once per image, in the main trace log; names the file, never its bytes. */
+function logLocalImageReadFailure(
+  cacheKey: string,
+  absolutePath: string,
+  reason: 'not-an-image' | 'read-error',
+  error?: unknown
+): void {
+  if (loggedReadFailures.has(cacheKey)) {
+    return
+  }
+  if (loggedReadFailures.size >= 500) {
+    loggedReadFailures.clear()
+  }
+  loggedReadFailures.add(cacheKey)
+  const message = error instanceof Error ? error.message : error === undefined ? '' : String(error)
+  const file = basename(absolutePath)
+  recordRendererCrashBreadcrumb('local_image_read_failed', {
+    file,
+    reason,
+    ...(message ? { error: message.split(absolutePath).join(file).slice(0, 300) } : {})
+  })
+}
+
 export function loadLocalImageAbsolutePath(
   absolutePath: string,
   connectionId?: string | null,
@@ -200,35 +236,44 @@ export function loadLocalImageAbsolutePath(
     return Promise.resolve(cached)
   }
 
+  const browserFile = readBrowserAttachmentFile(absolutePath)
+  if (browserFile) {
+    const url = URL.createObjectURL(browserFile)
+    return Promise.resolve(cacheLocalImageBlob(cacheKey, url, browserFile.size) ? url : null)
+  }
+
   const inFlight = inFlightBlobUrlLoads.get(cacheKey)
   if (inFlight) {
     return inFlight
   }
 
   const readGeneration = getLocalImageCacheGeneration()
-  const readLeaseVersion = getLocalImageCacheKeyVersion(cacheKey)
+  const superseded = () =>
+    getLocalImageCacheGeneration() !== readGeneration && !isImmutableLocalImageCacheKey(cacheKey)
   const loadPromise = readLocalImagePreview(absolutePath, connectionId, runtimeContext, access)
     .then((result) => {
-      if (
-        !result.isBinary ||
-        !result.content ||
-        getLocalImageCacheGeneration() !== readGeneration
-      ) {
+      if (superseded()) {
+        return null
+      }
+      if (!result.isBinary || !result.content) {
+        logLocalImageReadFailure(cacheKey, absolutePath, 'not-an-image')
         return null
       }
       const { url, byteLength } = base64ToBlobUrl(result.content, result.mimeType ?? 'image/png')
-      if (getLocalImageCacheGeneration() !== readGeneration) {
+      if (superseded()) {
         URL.revokeObjectURL(url)
         return null
       }
-      return cacheLocalImageBlob(cacheKey, url, byteLength, readLeaseVersion) ? url : null
+      return cacheLocalImageBlob(cacheKey, url, byteLength) ? url : null
     })
-    .catch(() => null)
+    .catch((error: unknown) => {
+      logLocalImageReadFailure(cacheKey, absolutePath, 'read-error', error)
+      return null
+    })
     .finally(() => {
       if (inFlightBlobUrlLoads.get(cacheKey) === loadPromise) {
         inFlightBlobUrlLoads.delete(cacheKey)
       }
-      cleanupLocalImageCacheKeyVersion(cacheKey)
     })
   inFlightBlobUrlLoads.set(cacheKey, loadPromise)
   return loadPromise
@@ -248,5 +293,3 @@ export function acquireLocalImageSrcLease(
   pinLocalImageCache(key)
   return () => unpinLocalImageCache(key)
 }
-
-/** Evict the image cached under a `getLocalImageSrcCacheKey` key unless a preview pins it. */

@@ -10,8 +10,8 @@ import type {
   Bitrix24TaskListPage
 } from '../../../shared/bitrix24/bitrix24-types'
 import type { Bitrix24ProjectReference } from '../../../shared/bitrix24/project-reference'
-import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
-import { callRuntimeRpc } from './runtime-rpc-client'
+import type { RuntimeClientTarget } from '../../../shared/remote-runtime/host-catalog/runtime-client-target'
+import { callRuntimeRpc } from '@/runtime/rpc/calls/runtime-rpc-call'
 
 /** Webhook credentials live on the desktop, so Bitrix24 always calls the local runtime. */
 const BITRIX24_TARGET: RuntimeClientTarget = { kind: 'local' }

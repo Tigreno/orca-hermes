@@ -2,15 +2,18 @@ import type {
   PluginViewReply,
   PluginViewRequest
 } from '../../../../../shared/plugins/view/plugin-view-protocol'
-import { detectLanguage } from '@/lib/language-detect'
-import { dispatchAppCommand } from '@/lib/app-command-dispatch'
-import { sendAgentDraftPasteContent } from '@/lib/agent-draft-paste-content'
-import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
+import { detectLanguage } from '../../../../../shared/editor-language/editor-language-detect'
+import { dispatchAppCommand } from '@/lib/app-commands/app-command-dispatch'
+import { sendAgentDraftPasteContent } from '@/lib/agent-session/messaging/paste/agent-draft-paste-content'
+import { focusTerminalTabSurface } from '@/components/terminal-pane/input/focus/focus-terminal-tab-surface'
 import { useAppStore } from '@/store'
 import { resolveWorktreeTerminalPtyId } from '@/store/terminals/worktree-terminal-pty'
-import { getIndexedWorktreeMap } from '@/store/worktree-repo-index'
-import { selectFolderWorkspaces, selectWorktreesByRepo } from '@/store/workspace-record-selectors'
-import { parseWorkspaceKey } from '../../../../../shared/workspace-scope'
+import { getIndexedWorktreeMap } from '@/store/slices/worktrees/listing/worktree-catalog-index'
+import {
+  selectFolderWorkspaces,
+  selectWorktreesByRepo
+} from '@/store/workspaces/catalog/workspace-record-fields'
+import { parseWorkspaceKey } from '../../../../../shared/workspace/identity/workspace-scope'
 
 /** A plugin worker's `editor.open` and `commands.run`, run in this window. */
 

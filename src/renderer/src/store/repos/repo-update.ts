@@ -1,105 +1,19 @@
 import type { StateCreator } from 'zustand'
 import type { AppState } from '../types'
-import type { Repo } from '../../../../shared/repo-types'
-import { sanitizeRepoIcon } from '../../../../shared/repo-icon'
-import { normalizeRepoBadgeColor } from '../../../../shared/repo-badge-color'
-import { normalizeGhAccountBinding } from '../../../../shared/github/account-binding'
-import { normalizeJiraProjectReference } from '../../../../shared/jira/jira-project-reference'
-import { normalizeBitrix24ProjectReference } from '../../../../shared/bitrix24/project-reference'
+import type { Repo } from '../../../../shared/repository/repo-types'
 import type { Bitrix24ProjectReference } from '../../../../shared/bitrix24/project-reference'
-import {
-  findRepoForHost,
-  getRepoHostIdentityForParts,
-  repoMatchesHostIdentity
-} from '../slices/repo-host-identity'
-import { callRuntimeRpc } from '../../runtime/runtime-rpc-client'
+import { findRepoForHost, repoMatchesHostIdentity } from './repo-host-identity'
+import { getRepoHostIdentityForParts } from '../../../../shared/repository/repo-host-identity'
+import { callRuntimeRpc } from '../../runtime/rpc/calls/runtime-rpc-call'
 import { bitrix24SetRepoProjectBinding } from '../../runtime/runtime-bitrix24-client'
-import { getRepoExecutionHostId } from '../../../../shared/execution-host'
-import {
-  normalizeCustomWorktreeVisibilitySources,
-  normalizeWorktreeVisibilitySourcePreferences
-} from '../../../../shared/worktree/visibility-sources'
-import type { RepoSlice, RepoUpdate } from './repo-state'
-import { adoptFromEndpoint } from '../adopt-from-endpoint'
+import { getRepoExecutionHostId } from '../../../../shared/execution-host/execution-host'
+import type { RepoSlice } from './repo-state'
+import { sanitizeRepoUpdate } from './repo-update-sanitization'
+import { adoptFromEndpoint } from '../host-catalog/endpoint-catalog-adoption'
 import { getProjectSetupRuntimeTarget } from '../projects/project-host-routing'
 import { mergeProjectCompatibilityForHostRepoChange } from './repo-catalog-identity'
 
-export function sanitizeRepoUpdate(updates: RepoUpdate): RepoUpdate {
-  const sanitized = { ...updates }
-  if ('defaultJiraProject' in sanitized) {
-    const reference = normalizeJiraProjectReference(sanitized.defaultJiraProject)
-    if (reference === undefined) {
-      delete sanitized.defaultJiraProject
-    } else {
-      sanitized.defaultJiraProject = reference
-    }
-  }
-  if ('defaultBitrix24Project' in sanitized) {
-    const reference = normalizeBitrix24ProjectReference(sanitized.defaultBitrix24Project)
-    if (reference === undefined) {
-      delete sanitized.defaultBitrix24Project
-    } else {
-      sanitized.defaultBitrix24Project = reference
-    }
-  }
-  if ('badgeColor' in sanitized) {
-    const badgeColor = normalizeRepoBadgeColor(sanitized.badgeColor)
-    if (!badgeColor) {
-      delete sanitized.badgeColor
-    } else {
-      sanitized.badgeColor = badgeColor
-    }
-  }
-  if ('repoIcon' in sanitized) {
-    const repoIcon = sanitizeRepoIcon(sanitized.repoIcon)
-    if (repoIcon === undefined) {
-      delete sanitized.repoIcon
-    } else {
-      sanitized.repoIcon = repoIcon
-    }
-  }
-  if ('worktreeBasePath' in sanitized && sanitized.worktreeBasePath !== undefined) {
-    sanitized.worktreeBasePath = sanitized.worktreeBasePath.trim() || undefined
-  }
-  if (
-    'forkSyncMode' in sanitized &&
-    sanitized.forkSyncMode !== undefined &&
-    sanitized.forkSyncMode !== 'ask' &&
-    sanitized.forkSyncMode !== 'safe-auto' &&
-    sanitized.forkSyncMode !== 'off'
-  ) {
-    delete sanitized.forkSyncMode
-  }
-  if ('ghAccount' in sanitized && sanitized.ghAccount != null) {
-    const normalized = normalizeGhAccountBinding(sanitized.ghAccount)
-    if (!normalized) {
-      delete sanitized.ghAccount
-    } else {
-      sanitized.ghAccount = normalized
-    }
-  }
-  if ('customWorktreeVisibilitySources' in sanitized) {
-    const sources = normalizeCustomWorktreeVisibilitySources(
-      sanitized.customWorktreeVisibilitySources
-    )
-    if (!sources) {
-      delete sanitized.customWorktreeVisibilitySources
-    } else {
-      sanitized.customWorktreeVisibilitySources = sources
-    }
-  }
-  if ('worktreeVisibilitySourcePreferences' in sanitized) {
-    const preferences = normalizeWorktreeVisibilitySourcePreferences(
-      sanitized.worktreeVisibilitySourcePreferences
-    )
-    if (!preferences) {
-      delete sanitized.worktreeVisibilitySourcePreferences
-    } else {
-      sanitized.worktreeVisibilitySourcePreferences = preferences
-    }
-  }
-  return sanitized
-}
+export { sanitizeRepoUpdate }
 
 export const updateRepoChainsByStore = new WeakMap<() => AppState, Map<string, Promise<boolean>>>()
 
@@ -186,6 +100,35 @@ export function createRepoUpdateActions(
             }
             return { ...repo, defaultBitrix24Project: savedBitrix24Binding }
           }
+          if (
+            sanitizedUpdates.projectGroupOrder !== undefined &&
+            (!updatedRepo ||
+              (updatedRepo.projectGroupOrder ?? null) !== sanitizedUpdates.projectGroupOrder)
+          ) {
+            return false
+          }
+          // A host from before dictionaries drops the field and still answers with its row.
+          if (
+            sanitizedUpdates.dictationTerms !== undefined &&
+            JSON.stringify(updatedRepo?.dictationTerms ?? []) !==
+              JSON.stringify(sanitizedUpdates.dictationTerms)
+          ) {
+            return false
+          }
+          // A host from before hidden projects drops the field, which would otherwise read as hidden.
+          if (
+            sanitizedUpdates.hiddenAt !== undefined &&
+            (updatedRepo?.hiddenAt ?? null) !== sanitizedUpdates.hiddenAt
+          ) {
+            return false
+          }
+          // A host from before per-repo browser profiles drops the field and still answers with its row.
+          if (
+            sanitizedUpdates.browserProfileId !== undefined &&
+            (updatedRepo?.browserProfileId ?? null) !== sanitizedUpdates.browserProfileId
+          ) {
+            return false
+          }
           set((s) => {
             const nextRepos = s.repos.map((r) => {
               const matchesOwner = ownerHasExplicitHost
@@ -206,11 +149,15 @@ export function createRepoUpdateActions(
               }
               let mergedRepo: Repo = r
               const {
+                projectGroupOrder: _projectGroupOrder,
                 sourceControlAi,
                 externalWorktreeDiscoverySuppressedAt,
+                hiddenAt,
                 ghAccount,
                 externalWorktreeVisibility,
                 agentWorktreeVisibility,
+                workspaceCleanupPolicy,
+                browserProfileId,
                 ...updatesWithoutClearSentinels
               } = hostUpdates
               mergedRepo = { ...mergedRepo, ...updatesWithoutClearSentinels }
@@ -244,11 +191,30 @@ export function createRepoUpdateActions(
               } else if (externalWorktreeDiscoverySuppressedAt !== undefined) {
                 mergedRepo = { ...mergedRepo, externalWorktreeDiscoverySuppressedAt }
               }
+              if (hiddenAt === null) {
+                const { hiddenAt: _hiddenAt, ...repoWithoutHiddenAt } = mergedRepo
+                mergedRepo = repoWithoutHiddenAt
+              } else if (hiddenAt !== undefined) {
+                mergedRepo = { ...mergedRepo, hiddenAt }
+              }
               if (ghAccount === null) {
                 const { ghAccount: _ghAccount, ...repoWithoutGhAccount } = mergedRepo
                 mergedRepo = repoWithoutGhAccount
               } else if (ghAccount !== undefined) {
                 mergedRepo = { ...mergedRepo, ghAccount }
+              }
+              if (workspaceCleanupPolicy === null) {
+                const { workspaceCleanupPolicy: _policy, ...repoWithoutCleanupPolicy } = mergedRepo
+                mergedRepo = repoWithoutCleanupPolicy
+              } else if (workspaceCleanupPolicy !== undefined) {
+                mergedRepo = { ...mergedRepo, workspaceCleanupPolicy }
+              }
+              if (browserProfileId === null) {
+                const { browserProfileId: _browserProfileId, ...repoWithoutBrowserProfile } =
+                  mergedRepo
+                mergedRepo = repoWithoutBrowserProfile
+              } else if (browserProfileId !== undefined) {
+                mergedRepo = { ...mergedRepo, browserProfileId }
               }
               return withSavedBinding(s.githubSourceCollections?.adopt(mergedRepo) ?? mergedRepo)
             })

@@ -5,7 +5,7 @@ import {
   normalizeCustomAgentProfiles
 } from '../../../../shared/custom-agent-profile'
 import { launchCustomAgentInNewTab } from '@/lib/launch-custom-agent-in-new-tab'
-import type { TabCreateMenuCustomAgentEntry } from './tab-create-menu-options'
+import type { TabCreateMenuCustomAgentEntry } from './create-menu/tab-create-menu-options'
 
 /**
  * Enabled custom-agent profiles for the tab bar's create menu.

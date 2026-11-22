@@ -1,4 +1,4 @@
-import type { Automation } from '../../../shared/automations-types'
+import type { Automation } from '../../../shared/automations/automation-definition'
 
 /** Explicit null clears a stored field; an omitted value preserves the current one. */
 export function retainAutomationOptionalFields(

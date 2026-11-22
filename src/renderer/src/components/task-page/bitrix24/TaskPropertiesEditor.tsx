@@ -10,7 +10,7 @@ import { Bitrix24ProjectPicker } from '@/components/bitrix24-project-picker'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { translate } from '@/i18n/i18n'
+import { useTranslate } from '@/i18n/use-translate'
 
 function pad(value: number): string {
   return String(value).padStart(2, '0')
@@ -50,6 +50,7 @@ export function Bitrix24TaskPropertiesEditor({
   saving: boolean
   onSave: (fields: Bitrix24TaskUpdateFields) => Promise<void>
 }): React.JSX.Element {
+  const t = useTranslate()
   const [projectDraft, setProjectDraft] = useState<Bitrix24ProjectReference | null>(() =>
     task.group && portalHost
       ? { portalHost, groupId: task.group.id, groupName: task.group.name }
@@ -81,33 +82,26 @@ export function Bitrix24TaskPropertiesEditor({
     <section className="space-y-3 rounded-lg border border-border/60 bg-background/40 p-3">
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {translate('components.bitrix24TaskDetail.editTitle', 'Edit in Bitrix24')}
+          {t('components.bitrix24TaskDetail.editTitle', 'Edit in Bitrix24')}
         </p>
         <p className="mt-1 text-2xs text-muted-foreground">
-          {translate(
-            'components.bitrix24TaskDetail.editHint',
-            'Changes are saved to Bitrix24 right away.'
-          )}
+          {t('components.bitrix24TaskDetail.editHint', 'Changes are saved to Bitrix24 right away.')}
         </p>
       </div>
       <div className="space-y-1.5">
-        <Label variant="settings">
-          {translate('components.bitrix24TaskDetail.project', 'Project')}
-        </Label>
+        <Label variant="settings">{t('components.bitrix24TaskDetail.project', 'Project')}</Label>
         <Bitrix24ProjectPicker
           projects={projects}
           portalHost={portalHost}
           value={projectDraft}
           onChange={setProjectDraft}
-          label={translate('components.bitrix24TaskDetail.project', 'Project')}
-          emptyLabel={translate('components.bitrix24TaskDetail.noProject', 'No project')}
+          label={t('components.bitrix24TaskDetail.project', 'Project')}
+          emptyLabel={t('components.bitrix24TaskDetail.noProject', 'No project')}
           disabled={saving || projectsLoading || !portalHost}
         />
       </div>
       <div className="space-y-1.5">
-        <Label variant="settings">
-          {translate('components.bitrix24TaskDetail.deadline', 'Deadline')}
-        </Label>
+        <Label variant="settings">{t('components.bitrix24TaskDetail.deadline', 'Deadline')}</Label>
         <Input
           type="datetime-local"
           density="compact"
@@ -123,18 +117,15 @@ export function Bitrix24TaskPropertiesEditor({
           }}
         />
         <p className="text-2xs text-muted-foreground">
-          {translate(
-            'components.bitrix24TaskDetail.deadlineHint',
-            'Leave empty to remove the deadline.'
-          )}
+          {t('components.bitrix24TaskDetail.deadlineHint', 'Leave empty to remove the deadline.')}
         </p>
       </div>
       <div className="flex justify-end">
         <Button size="sm" onClick={() => void save()} disabled={!canSave}>
           {saving ? <LoaderCircle className="mr-1.5 size-3.5 animate-spin" /> : null}
           {saving
-            ? translate('components.bitrix24TaskDetail.saving', 'Saving...')
-            : translate('components.bitrix24TaskDetail.saveChanges', 'Save changes')}
+            ? t('components.bitrix24TaskDetail.saving', 'Saving...')
+            : t('components.bitrix24TaskDetail.saveChanges', 'Save changes')}
         </Button>
       </div>
     </section>
