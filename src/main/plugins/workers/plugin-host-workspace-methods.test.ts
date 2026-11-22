@@ -259,7 +259,8 @@ describe('workspace host actions', () => {
     const renderer = {
       openFile: vi.fn().mockResolvedValue(undefined),
       runAction: vi.fn(),
-      openFolderWorkspace: vi.fn()
+      openFolderWorkspace: vi.fn(),
+      insertAgentDraft: vi.fn()
     }
     await expect(
       call('editor.open', { workspaceId: 'app', path: 'src/main.ts' }, null, { renderer })
@@ -277,7 +278,8 @@ describe('workspace host actions', () => {
     const renderer = {
       openFile: vi.fn(),
       runAction: vi.fn().mockResolvedValue(undefined),
-      openFolderWorkspace: vi.fn()
+      openFolderWorkspace: vi.fn(),
+      insertAgentDraft: vi.fn()
     }
     await expect(
       call('commands.run', { action: 'sidebar.left.toggle' }, null, { renderer })
@@ -295,7 +297,8 @@ describe('workspace host actions', () => {
     const renderer = {
       openFile: vi.fn(),
       runAction: vi.fn(),
-      openFolderWorkspace: vi.fn().mockResolvedValue(undefined)
+      openFolderWorkspace: vi.fn().mockResolvedValue(undefined),
+      insertAgentDraft: vi.fn()
     }
     const { rpc, calls } = runtime({})
     await expect(

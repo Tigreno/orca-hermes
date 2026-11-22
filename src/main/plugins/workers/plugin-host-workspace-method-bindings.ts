@@ -223,5 +223,10 @@ export const PLUGIN_WORKSPACE_ACTION_HANDLERS = {
     // calls commands.run for the original would otherwise call itself.
     await renderer(services).runAction(action)
     return { ran: true as const }
+  }),
+  'agent.insertDraft': bind(api['agent.insertDraft'], async ({ text }, { services, scope }) => {
+    scope.assertActive()
+    await renderer(services).insertAgentDraft(text)
+    return { inserted: true as const }
   })
 } satisfies Record<string, BoundPluginHostMethod>

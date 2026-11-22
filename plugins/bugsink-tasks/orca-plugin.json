@@ -38,6 +38,9 @@
   },
   "capabilities": [
     { "kind": "storage:own" },
-    { "kind": "settings:own" }
+    { "kind": "settings:own" },
+    { "kind": "workspace:read" },
+    { "kind": "terminal:send" },
+    { "kind": "agent:read" }
   ]
 }

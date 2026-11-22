@@ -77,6 +77,8 @@ export type PluginViewRequestBody =
   | { kind: 'run-action'; action: PluginCommandAliasActionId }
   /** A plugin worker's `workspace.open` of a folder workspace, which the runtime cannot activate. */
   | { kind: 'open-folder-workspace'; folderWorkspaceId: string }
+  /** Insert text into the active agent input (bracketed paste) and focus it, like "send to terminal". */
+  | { kind: 'insert-agent-draft'; text: string }
 
 export type PluginViewReplay = {
   tree: PluginDeclarativeNode | null

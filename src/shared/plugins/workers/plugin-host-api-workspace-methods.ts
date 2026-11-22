@@ -103,6 +103,12 @@ const commandsRunParams = z.strictObject({
 })
 const commandsRunResult = z.object({ ran: z.literal(true) })
 
+const agentInsertDraftParams = z.strictObject({
+  /** Inserted into the active agent's draft input without submitting. */
+  text: z.string().min(1).max(TEXT_MAX)
+})
+const agentInsertDraftResult = z.object({ inserted: z.literal(true) })
+
 export const PLUGIN_WORKSPACE_ACTIONS_API = {
   'workspace.list': spec({
     summary: 'Lists every workspace, Git worktrees and folders, on every host Orca reaches.',
@@ -177,5 +183,16 @@ export const PLUGIN_WORKSPACE_ACTIONS_API = {
     surfaces: WORKER_ONLY,
     params: commandsRunParams,
     result: commandsRunResult
+  }),
+  'agent.insertDraft': spec({
+    summary:
+      "Inserts text into the active agent's draft input in Orca's window and focuses it, without submitting; desktop app only. Like sending a task to the terminal.",
+    since: 4,
+    scope: 'desktop',
+    capability: 'terminal:send',
+    mutation: true,
+    surfaces: WORKER_ONLY,
+    params: agentInsertDraftParams,
+    result: agentInsertDraftResult
   })
 }

@@ -2,6 +2,7 @@ import {
   atom,
   Badge,
   Button,
+  Code,
   EmptyState,
   Heading,
   List,
@@ -18,13 +19,17 @@ import type { BugsinkIssue, BugsinkProject } from './protocol'
 
 const projects = atom<BugsinkProject[]>('bugsink:projects', [], { persist: 'storage' })
 const issues = atom<BugsinkIssue[]>('bugsink:issues', [], { persist: 'storage' })
-const selectedProjectId = atom<number | null>('bugsink:selectedProject', null, { persist: 'storage' })
+const selectedProjectId = atom<number | null>('bugsink:selectedProject', null, {
+  persist: 'storage'
+})
 const selectedIssueId = atom<string | null>('bugsink:selectedIssue', null, { persist: 'storage' })
 const selectedIssue = atom<BugsinkIssue | null>(null)
+const selectedIssueMessage = atom<string | null>(null)
 const loading = atom(false)
 const error = atom<string | null>(null)
 const deleting = atom(false)
 const confirmDeleteId = atom<string | null>(null)
+const sendingToTerminal = atom(false)
 
 function messageOf(caught: unknown): string {
   return caught instanceof Error ? caught.message : String(caught)
@@ -36,13 +41,17 @@ function issueTitle(issue: BugsinkIssue): string {
 
 function issueDescription(issue: BugsinkIssue): string {
   const value = (issue.calculated_value || '').replace(/\s+/g, ' ').trim()
-  return value.length > 140 ? value.slice(0, 140) + '…' : value
+  return value.length > 140 ? `${value.slice(0, 140)}…` : value
 }
 
 function formatTime(value?: string): string {
-  if (!value) return '—'
+  if (!value) {
+    return '—'
+  }
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
   return date.toLocaleString()
 }
 
@@ -65,6 +74,7 @@ async function loadIssues(projectId: number): Promise<void> {
   set(selectedProjectId, projectId)
   set(selectedIssueId, null)
   set(selectedIssue, null)
+  set(selectedIssueMessage, null)
   set(confirmDeleteId, null)
   try {
     const { issues: list } = await plugin.request('bugsink.issues', { projectId })
@@ -82,15 +92,26 @@ async function loadIssue(issueId: string): Promise<void> {
   set(error, null)
   set(selectedIssueId, issueId)
   set(confirmDeleteId, null)
+  set(selectedIssueMessage, null)
   try {
-    const { issue } = await plugin.request('bugsink.issue', { issueId })
-    set(selectedIssue, issue ?? null)
+    const [issueResult, messageResult] = await Promise.all([
+      plugin.request('bugsink.issue', { issueId }),
+      plugin.request('bugsink.issue.latestMessage', { issueId }).catch(() => ({ message: null }))
+    ])
+    set(selectedIssue, issueResult.issue ?? null)
+    set(selectedIssueMessage, messageResult.message ?? null)
   } catch (caught) {
     set(selectedIssue, null)
+    set(selectedIssueMessage, null)
     set(error, messageOf(caught))
   } finally {
     set(loading, false)
   }
+}
+
+function issueTerminalText(issue: BugsinkIssue, lastMessage: string | null): string {
+  const message = (lastMessage ?? issue.calculated_value ?? '').replace(/\s+/g, ' ').trim() || '—'
+  return `Bugsink ${issue.id} . ${message}.`
 }
 
 function refresh(): void {
@@ -107,12 +128,28 @@ function refresh(): void {
   void loadProjects()
 }
 
+async function sendIssueToTerminal(issue: BugsinkIssue): Promise<void> {
+  set(sendingToTerminal, true)
+  set(error, null)
+  try {
+    const text = issueTerminalText(issue, read(selectedIssueMessage))
+    await plugin.request('bugsink.issue.sendToTerminal', { text })
+  } catch (caught) {
+    set(error, messageOf(caught))
+  } finally {
+    set(sendingToTerminal, false)
+  }
+}
+
 async function deleteIssue(issueId: string): Promise<void> {
   set(deleting, true)
   set(error, null)
   try {
     await plugin.request('bugsink.issue.delete', { issueId })
-    set(issues, read(issues).filter((issue) => issue.id !== issueId))
+    set(
+      issues,
+      read(issues).filter((issue) => issue.id !== issueId)
+    )
     set(confirmDeleteId, null)
     set(selectedIssueId, null)
     set(selectedIssue, null)
@@ -178,6 +215,7 @@ function IssuesView() {
             set(issues, [])
             set(selectedIssueId, null)
             set(selectedIssue, null)
+            set(selectedIssueMessage, null)
           }}
         >
           Projects
@@ -191,7 +229,7 @@ function IssuesView() {
             <ListItem
               key={issue.id}
               icon={issue.is_resolved ? 'check' : issue.is_muted ? 'pause' : 'warning'}
-              title={`${issue.friendly_id ? issue.friendly_id + ' · ' : ''}${issueTitle(issue)}`}
+              title={`${issue.friendly_id ? `${issue.friendly_id} · ` : ''}${issueTitle(issue)}`}
               description={issueDescription(issue)}
               onPress={() => void loadIssue(issue.id)}
             />
@@ -213,8 +251,11 @@ function IssueDetailView() {
       />
     )
   }
+  const message = read(selectedIssueMessage)
   const isConfirming = read(confirmDeleteId) === issue.id
   const busyDelete = read(deleting)
+  const busySend = read(sendingToTerminal)
+  const transferText = issueTerminalText(issue, message)
   return (
     <Stack gap="sm">
       <Row justify="between">
@@ -224,12 +265,17 @@ function IssueDetailView() {
             set(confirmDeleteId, null)
             set(selectedIssueId, null)
             set(selectedIssue, null)
+            set(selectedIssueMessage, null)
           }}
         >
           Back
         </Button>
         <Row gap="xs">
-          {issue.is_resolved ? <Badge tone="success">Resolved</Badge> : <Badge tone="warning">Open</Badge>}
+          {issue.is_resolved ? (
+            <Badge tone="success">Resolved</Badge>
+          ) : (
+            <Badge tone="warning">Open</Badge>
+          )}
           {issue.is_muted ? <Badge>Muted</Badge> : null}
         </Row>
       </Row>
@@ -240,7 +286,8 @@ function IssueDetailView() {
       </Text>
       <Stack gap="xs">
         <Text size="xs" muted>
-          Events: {issue.digested_event_count ?? 0} digested / {issue.stored_event_count ?? 0} stored
+          Events: {issue.digested_event_count ?? 0} digested / {issue.stored_event_count ?? 0}{' '}
+          stored
         </Text>
         <Text size="xs" muted>
           First seen: {formatTime(issue.first_seen)}
@@ -253,11 +300,31 @@ function IssueDetailView() {
             Transaction: {issue.transaction}
           </Text>
         ) : null}
+        <Text size="xs" muted>
+          Last message: {message ?? issue.calculated_value ?? '—'}
+        </Text>
+      </Stack>
+      <Stack gap="xs">
+        <Text size="xs" muted>
+          Текст для переноса (можно выделить и скопировать)
+        </Text>
+        <Code block>{transferText}</Code>
       </Stack>
       <Row justify="end" gap="xs">
+        <Button
+          variant="ghost"
+          onPress={() => void sendIssueToTerminal(issue)}
+          disabled={busyDelete || busySend}
+        >
+          {busySend ? 'Отправка…' : 'перенести в терминал'}
+        </Button>
         {isConfirming ? (
           <>
-            <Button variant="ghost" onPress={() => set(confirmDeleteId, null)} disabled={busyDelete}>
+            <Button
+              variant="ghost"
+              onPress={() => set(confirmDeleteId, null)}
+              disabled={busyDelete}
+            >
               Cancel
             </Button>
             <Button onPress={() => void deleteIssue(issue.id)} disabled={busyDelete}>
@@ -265,7 +332,11 @@ function IssueDetailView() {
             </Button>
           </>
         ) : (
-          <Button variant="ghost" onPress={() => set(confirmDeleteId, issue.id)} disabled={busyDelete}>
+          <Button
+            variant="ghost"
+            onPress={() => set(confirmDeleteId, issue.id)}
+            disabled={busyDelete || busySend}
+          >
             Delete issue
           </Button>
         )}

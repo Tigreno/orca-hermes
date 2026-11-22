@@ -6,11 +6,12 @@ import {
 import type { PluginCommandAliasActionId } from '../../../shared/plugins/contributions/plugin-command-actions'
 import { PluginHostCallError } from '../workers/plugin-host-call-scope'
 
-/** What a worker's `editor.open` and `commands.run` ask of Orca's window. */
+/** What a worker's `editor.open`, `commands.run`, and agent draft insertion ask of Orca's window. */
 export type PluginHostRendererActions = {
   openFile(worktreeId: string, relativePath: string): Promise<void>
   runAction(action: PluginCommandAliasActionId): Promise<void>
   openFolderWorkspace(folderWorkspaceId: string): Promise<void>
+  insertAgentDraft(text: string): Promise<void>
 }
 
 /** Sends one request to the main window's renderer; null when there is no window to ask. */
@@ -50,7 +51,8 @@ export function getPluginHostRendererActions(): PluginHostRendererActions | null
           ask({ kind: 'open-file', worktreeId, relativePath }),
         runAction: (action) => ask({ kind: 'run-action', action }),
         openFolderWorkspace: (folderWorkspaceId) =>
-          ask({ kind: 'open-folder-workspace', folderWorkspaceId })
+          ask({ kind: 'open-folder-workspace', folderWorkspaceId }),
+        insertAgentDraft: (text) => ask({ kind: 'insert-agent-draft', text })
       }
     : null
 }

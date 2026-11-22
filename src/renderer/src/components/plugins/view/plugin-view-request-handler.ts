@@ -34,6 +34,7 @@ import { planEditorShotCleanup, runEditorShotCleanup } from './plugin-view-edito
 import { captureChrome } from './plugin-view-chrome-capture'
 import { pickWorkspaceToShow } from './plugin-view-workspace-pick'
 import {
+  insertAgentDraft,
   openFolderWorkspace,
   openWorkspaceFile,
   runBuiltInAction
@@ -237,6 +238,8 @@ export async function handlePluginViewRequest(
         return runBuiltInAction(request)
       case 'open-folder-workspace':
         return openFolderWorkspace(request)
+      case 'insert-agent-draft':
+        return await insertAgentDraft(request)
       case 'end-capture': {
         endPluginShotReplay()
         usePluginViewCaptureStore.getState().end(request.captureId)
