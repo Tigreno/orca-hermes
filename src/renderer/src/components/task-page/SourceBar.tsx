@@ -5,7 +5,7 @@ import { useTranslate } from '@/i18n/use-translate'
 import { X, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/class-names'
-import { LinearScopeSelector } from '@/components/linear-scope-selector'
+import { LinearScopeSelector } from '@/components/task-page/source-selection/linear-scope-selector'
 import {
   Select,
   SelectTrigger,
@@ -17,20 +17,18 @@ import { openAppHttpLink } from '@/lib/browser/navigation/app-http-link-open'
 import { useBitrix24TaskPage } from './bitrix24/task-page-bitrix24-context'
 
 function Bitrix24ProjectChip(): React.JSX.Element {
-  const { scope } = useBitrix24TaskPage()
   const t = useTranslate()
+  const { scope } = useBitrix24TaskPage()
   return (
-    <div className="flex items-center gap-2">
-      <div className="hidden min-w-0 max-w-[min(320px,40vw)] items-center rounded-md border border-border/50 bg-muted/35 px-2 py-1 text-xs text-muted-foreground sm:flex">
-        <span className="truncate">
-          {scope
-            ? t('auto.components.TaskPage.bitrix24Project', '{{project}} · {{portal}}', {
-                project: scope.project.groupName,
-                portal: scope.project.portalHost
-              })
-            : t('auto.components.TaskPage.bitrix24AllPortal', 'All portal tasks')}
-        </span>
-      </div>
+    <div className="hidden min-w-0 max-w-[min(320px,40vw)] items-center rounded-md border border-border/50 bg-muted/35 px-2 py-1 text-xs text-muted-foreground sm:flex">
+      <span className="truncate">
+        {scope
+          ? t('auto.components.TaskPage.bitrix24Project', '{{project}} · {{portal}}', {
+              project: scope.project.groupName,
+              portal: scope.project.portalHost
+            })
+          : t('auto.components.TaskPage.bitrix24AllPortal', 'All portal tasks')}
+      </span>
     </div>
   )
 }

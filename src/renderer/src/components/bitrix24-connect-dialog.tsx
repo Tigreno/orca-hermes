@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label'
 import { useMountedRef } from '@/hooks/useMountedRef'
 import { refreshBitrix24ConnectionStatus } from '@/hooks/use-bitrix24-connection-status'
 import { bitrix24Connect } from '@/runtime/runtime-bitrix24-client'
-import { preventOutsideDismissWhenDirty } from '@/lib/outside-dismiss-guard'
+import { preventOutsideDismissWhenDirty } from '@/lib/overlay-interaction/outside-dismiss-guard'
 import { useTranslate } from '@/i18n/use-translate'
 
 type ConnectState = 'idle' | 'connecting' | 'error'

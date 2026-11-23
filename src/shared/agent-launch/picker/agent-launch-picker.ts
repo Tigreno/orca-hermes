@@ -1,4 +1,4 @@
-import { parseExecutionHostId, type ExecutionHostId } from '../../execution-host'
+import { parseExecutionHostId, type ExecutionHostId } from '../../execution-host/execution-host'
 import type { TextActionPickerCatalog } from './agent-launch-picker-text-action'
 import { agentPickerLaunchChoices } from './agent-launch-picker-effective-choices'
 import { agentPickerPanelArguments } from './agent-launch-picker-arguments'
@@ -11,21 +11,27 @@ import {
   reconcileAgentChoiceArgs,
   reconcileAgentChoiceArgsDetailed
 } from '../choices/agent-choice-reconciliation'
-import type {
-  AgentSessionModelCatalogResult,
-  AgentSessionModelOption
-} from '../../agent-session/agent-session-wire'
+import type { AgentSessionModelCatalogResult } from '../../agent-session/agent-session-wire'
+import type { AgentSessionModelOption } from '../../agent-session/options/model-catalog/agent-session-model-option'
 import {
+  agentMenuRowReady,
+  agentMenuRowSupportsChat,
   isInstalledAgentMenuRow,
   orderAgentLaunchPickerAgents,
+  type AgentMenuRow,
   type NewTabAgentMenuRow
 } from './agent-launch-picker-rows'
 import type { TuiAgent } from '../catalog/tui-agent'
+import type { AgentChatPermissionMode } from '../permissions/agent-chat-permission-mode'
 import type { CurrentActionSelection } from '../../source-control/ai/recipes/source-control-action-selection'
 
 export type AgentPickerSurface = 'chat' | 'terminal'
 export type AgentPickerDraftOwner = object
-export type AgentPickerModel = AgentSessionModelOption & { isLegacy?: true; hidden?: true }
+export type AgentPickerModel = AgentSessionModelOption & {
+  isLegacy?: true
+  /** Listed only by a matching search, or while it is the current choice. */
+  hidden?: true
+}
 export type AgentPickerEntry = {
   textGeneration?: TextActionPickerCatalog
   agent: TuiAgent
@@ -39,6 +45,7 @@ export type AgentPickerEntry = {
   structured: AgentDedicatedChoices
   arguments?: string | null
   catalog: AgentSessionModelCatalogResult
+  coherentCatalog?: boolean
   catalogRead?: 'pending' | 'settled' | 'failed' | 'unsupported'
   ownerKey?: string
   draftTarget?: { key: string; worktreeId?: string; repoId?: string; executionHostId: string }
@@ -46,6 +53,9 @@ export type AgentPickerEntry = {
   worktreeId?: string
   defaultsPending?: boolean
   structuredDefaultsPending?: boolean
+  /** Chooses a setup to keep (a bot's), not a launch: these permissions in the card with
+   *  the inherited one as a choice, or none where the permission is set beside the picker. */
+  keptSetup?: { permissions?: readonly AgentChatPermissionMode[]; inheritLabel?: string }
 }
 export type AgentPickerDraft = {
   agent: TuiAgent
@@ -182,7 +192,7 @@ export { agentPickerEffectiveChoices } from './agent-launch-picker-effective-cho
 export { agentPickerSessionOptions } from '../choices/agent-launch-choices'
 
 export function agentPickerEntriesFromRows(
-  rows: readonly NewTabAgentMenuRow[],
+  rows: readonly AgentMenuRow[],
   detected: readonly TuiAgent[],
   seed: (agent: TuiAgent) => Pick<AgentPickerEntry, 'terminal' | 'structured' | 'arguments'>,
   label: (agent: TuiAgent) => string,
@@ -190,12 +200,12 @@ export function agentPickerEntriesFromRows(
 ): AgentPickerEntry[] {
   const agentRows = rows.filter(isInstalledAgentMenuRow)
   // Why: rows are grouped by surface, so first appearance would rank every chat agent above every CLI one.
-  return orderAgentLaunchPickerAgents(defaultAgent, [
+  const entries = orderAgentLaunchPickerAgents(defaultAgent, [
     ...new Set(agentRows.map((row) => row.agent))
-  ]).map((agent) => {
-    const own = rows.filter((row) => row.kind !== 'custom' && row.agent === agent)
+  ]).map((agent): AgentPickerEntry => {
+    const own = agentRows.filter((row) => row.agent === agent)
     const chatDefault = own.some((row) => row.kind === 'chat')
-    const chat = chatDefault || own.some((row) => row.kind === 'cli' && row.chat)
+    const chat = own.some(agentMenuRowSupportsChat)
     return {
       agent,
       label: label(agent),
@@ -209,6 +219,12 @@ export function agentPickerEntriesFromRows(
       catalog: { origin: 'unknown' }
     }
   })
+  // Agents ready on this host lead, so the many it lacks never bury the few it has.
+  const ready = entries.map((entry) => entry.rows.some(agentMenuRowReady))
+  return [
+    ...entries.filter((_, index) => ready[index]),
+    ...entries.filter((_, index) => !ready[index])
+  ]
 }
 
 export { agentPickerHydrationQueue } from './agent-launch-picker-rows'

@@ -3,7 +3,10 @@ import type { Bitrix24Project } from '../../../shared/bitrix24/bitrix24-types'
 import type { Bitrix24ProjectReference } from '../../../shared/bitrix24/project-reference'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import { WorkItemScopePicker, type WorkItemScopeOption } from './work-item-scope-picker'
+import {
+  WorkItemScopePicker,
+  type WorkItemScopeOption
+} from '@/components/task-page/source-selection/work-item-scope-picker'
 import { useTranslate } from '@/i18n/use-translate'
 
 export function Bitrix24ProjectPicker({

@@ -14,7 +14,7 @@ import {
   type CustomAgentProfile
 } from '../../../../shared/custom-agent-profile'
 import { Button } from '../ui/button'
-import { useConfirmationDialog } from '@/components/confirmation-dialog-context'
+import { useConfirmationDialog } from '@/components/dismiss/confirmation/confirmation-dialog-context'
 import { SettingsBadge, SettingsSubsectionHeader } from './form-controls/SettingsFormControls'
 import { AgentRowAction, AgentSettingsRow } from './AgentSettingsRow'
 import { createCustomAgentProfileDraft } from './custom-agent-profile-draft'
@@ -32,26 +32,31 @@ function profileSummary(profile: CustomAgentProfile): string {
   return [profile.executable, ...profile.args.map((arg) => JSON.stringify(arg))].join(' ')
 }
 
+async function persistCustomAgentProfiles(
+  mutationInFlightRef: React.RefObject<boolean>,
+  next: CustomAgentProfile[],
+  onProfilesChange: (profiles: CustomAgentProfile[]) => void | Promise<void>,
+  setSaving: (saving: boolean) => void,
+  setPersistenceError: (error: string | null) => void
+): Promise<boolean> {
+  try {
+    await onProfilesChange(next)
+    return true
+  } catch (error) {
+    setPersistenceError(error instanceof Error ? error.message : String(error))
+    return false
+  } finally {
+    mutationInFlightRef.current = false
+    setSaving(false)
+  }
+}
+
 type CustomAgentProfilesSectionProps = {
   profiles: readonly CustomAgentProfile[]
   catalog: readonly AgentCatalogEntry[]
   onProfilesChange: (profiles: CustomAgentProfile[]) => void | Promise<void>
   /** Workspace a profile launches into; null while Settings is open without one. */
   launchWorktreeId?: string | null
-}
-
-type ProfileSaveOutcome = { ok: true } | { ok: false; error: string }
-
-async function saveCustomAgentProfiles(
-  next: CustomAgentProfile[],
-  onProfilesChange: CustomAgentProfilesSectionProps['onProfilesChange']
-): Promise<ProfileSaveOutcome> {
-  try {
-    await onProfilesChange(next)
-    return { ok: true }
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) }
-  }
 }
 
 export const CustomAgentProfilesSection = forwardRef<
@@ -118,14 +123,13 @@ export const CustomAgentProfilesSection = forwardRef<
     mutationInFlightRef.current = true
     setSaving(true)
     setPersistenceError(null)
-    const outcome = await saveCustomAgentProfiles(next, onProfilesChange)
-    mutationInFlightRef.current = false
-    setSaving(false)
-    if (!outcome.ok) {
-      setPersistenceError(outcome.error)
-      return false
-    }
-    return true
+    return persistCustomAgentProfiles(
+      mutationInFlightRef,
+      next,
+      onProfilesChange,
+      setSaving,
+      setPersistenceError
+    )
   }
   const save = async (): Promise<void> => {
     if (!editor) {

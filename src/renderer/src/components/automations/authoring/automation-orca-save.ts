@@ -1,4 +1,3 @@
-import { completeAutomationSave } from './automation-save-completion'
 import {
   recordedAutomationRunContext,
   isSameAutomationWorkspace
@@ -7,17 +6,11 @@ import { capturedAutomationOwner } from '../hosts/automation-captured-owner'
 import {
   automationChatSupport,
   automationDraftLaunchSetup,
-  automationCopyLaunchSetup,
   automationLaunchWorkspace
 } from './automation-launch-surface'
 import { toast } from 'sonner'
-import type {
-  Automation,
-  AutomationCreateInput,
-  AutomationUpdateInput
-} from '../../../../../shared/automations/automation-definition'
-import { getRepoExecutionHostId } from '../../../../../shared/execution-host'
-import { ensureHooksApproved } from '@/runtime/repo-hooks/ensure-hooks-confirmed'
+import type { Automation } from '../../../../../shared/automations/automation-definition'
+import { getRepoExecutionHostId } from '../../../../../shared/execution-host/execution-host'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store/index'
 import { listAutomationsForTarget } from '../hosts/automation-host-client'
@@ -27,9 +20,8 @@ import {
 } from '../hosts/automation-row-action-dispatch'
 import { buildDraftPrecheck, buildDraftSchedule } from './automation-draft-model'
 import { buildAutomationRunContextForRepo } from './automation-run-context'
-import { buildAutomationUpdateInput } from './automation-save-updates'
 import { resolveAutomationSetupDecisionForSave } from './automation-setup-decision'
-import { reconfirmSkippedSetup } from './automation-setup-review'
+import { confirmAutomationSaveSetup } from './automation-setup-review'
 import {
   createAutomationOnDestination,
   moveAutomationToDestination,
@@ -37,6 +29,8 @@ import {
   saveExistingAutomation
 } from './automation-orca-save-operations'
 import type { AutomationSaveContext } from './automation-save-context'
+import { completeAutomationSave } from './automation-save-completion'
+import { buildAutomationSaveInputs } from './automation-orca-save-inputs'
 
 /** Saves an Orca automation, including destination validation and host moves. */
 export async function saveOrcaAutomation(
@@ -94,7 +88,6 @@ export async function saveOrcaAutomation(
   const edited = (key: keyof typeof draft): boolean =>
     !draftAtOpen || draft[key] !== draftAtOpen[key]
   const targetEdited = !currentAutomation || local.targetEdited
-  const scheduleEdited = (['preset', 'time', 'dayOfWeek', 'customSchedule'] as const).some(edited)
   const timezone = currentAutomation?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
   const { rrule, missedRunGraceMinutes } = buildDraftSchedule(draft, time)
   const precheck = buildDraftPrecheck(draft)
@@ -149,14 +142,17 @@ export async function saveOrcaAutomation(
           draftSetupDecision: draft.setupDecision
         })
       : currentAutomation.setupDecision
-  const trust =
-    setupDecision === 'run' && ((targetEdited && !recordedContext) || edited('setupDecision'))
-      ? await ensureHooksApproved(useAppStore.getState(), draft.projectId, 'setup', setupHostId)
-      : null
-  // Stored with `run` so later runs execute only this content.
-  const setupTrustHash =
-    trust?.approvedContentHash ??
-    (await reconfirmSkippedSetup(context, trust, setupDecision, currentAutomation, setupHostId))
+  const { trust, setupTrustHash } = await confirmAutomationSaveSetup(context, {
+    // Confirm setup on the base this automation will use.
+    prompt:
+      setupDecision === 'run' &&
+      ((targetEdited && !recordedContext) || edited('setupDecision') || edited('baseBranch')),
+    repoId: draft.projectId,
+    hostId: setupHostId,
+    baseBranch: edited('baseBranch') ? draft.baseBranch : currentAutomation?.baseBranch,
+    setupDecision,
+    automation: currentAutomation
+  })
   if (trust?.decision === 'skip') {
     setupDecision = 'skip'
   }
@@ -199,46 +195,19 @@ export async function saveOrcaAutomation(
     edited('surface') ? surface : (currentAutomation?.surface ?? surface),
     currentAutomation
   )
-  const updates: AutomationUpdateInput = buildAutomationUpdateInput({
-    currentAutomation,
+  const { updates, createInput } = buildAutomationSaveInputs({
     draft,
+    currentAutomation,
     edited,
     precheck,
     launchSetup,
     targetEdited,
     runContext,
     setupDecision,
+    trust,
     setupTrustHash,
-    missedRunGraceMinutes
-  })
-  if (!currentAutomation || (scheduleEdited && currentAutomation.rrule !== rrule)) {
-    updates.rrule = rrule
-    updates.dtstart = time.now
-  }
-  const createInput: AutomationCreateInput = automationCopyLaunchSetup(currentAutomation, updates, {
-    name: currentAutomation ? currentAutomation.name : draft.name,
-    prompt: currentAutomation ? currentAutomation.prompt : draft.prompt,
-    precheck: currentAutomation ? currentAutomation.precheck : precheck,
-    agentId: currentAutomation ? currentAutomation.agentId : draft.agentId,
-    ...launchSetup,
-    runContext: currentAutomation ? currentAutomation.runContext : runContext,
-    projectId: currentAutomation ? currentAutomation.projectId : draft.projectId,
-    workspaceMode: currentAutomation ? currentAutomation.workspaceMode : draft.workspaceMode,
-    workspaceId: currentAutomation ? currentAutomation.workspaceId : draft.workspaceId,
-    baseBranch: currentAutomation ? currentAutomation.baseBranch : draft.baseBranch.trim() || null,
-    setupDecision: currentAutomation ? currentAutomation.setupDecision : setupDecision,
-    setupTrustHash: currentAutomation ? currentAutomation.setupTrustHash : setupTrustHash,
-    reuseSession: currentAutomation
-      ? currentAutomation.reuseSession
-      : draft.workspaceMode === 'existing' && draft.reuseSession,
-    timezone,
-    rrule: currentAutomation ? currentAutomation.rrule : rrule,
-    dtstart: currentAutomation ? currentAutomation.dtstart : (updates.dtstart ?? time.now),
-    missedRunGraceMinutes: currentAutomation
-      ? currentAutomation.missedRunGraceMinutes
-      : missedRunGraceMinutes,
-    customAgentProfileId: draft.customAgentProfileId ?? undefined,
-    ...updates
+    schedule: { timezone, rrule, missedRunGraceMinutes },
+    time
   })
 
   const destinationResult = resolveAutomationEditDestination({

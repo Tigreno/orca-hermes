@@ -4,13 +4,16 @@ import type {
 } from '../../../../../shared/plugins/view/plugin-view-protocol'
 import { detectLanguage } from '../../../../../shared/editor-language/editor-language-detect'
 import { dispatchAppCommand } from '@/lib/app-commands/app-command-dispatch'
+import { sendAgentDraftPasteContent } from '@/lib/agent-session/messaging/paste/agent-draft-paste-content'
+import { focusTerminalTabSurface } from '@/components/terminal-pane/input/focus/focus-terminal-tab-surface'
 import { useAppStore } from '@/store'
+import { resolveWorktreeTerminalPtyId } from '@/store/terminals/worktree-terminal-pty'
 import { getIndexedWorktreeMap } from '@/store/slices/worktrees/listing/worktree-catalog-index'
 import {
   selectFolderWorkspaces,
   selectWorktreesByRepo
 } from '@/store/workspaces/catalog/workspace-record-fields'
-import { parseWorkspaceKey } from '../../../../../shared/workspace-scope'
+import { parseWorkspaceKey } from '../../../../../shared/workspace/identity/workspace-scope'
 
 /** A plugin worker's `editor.open` and `commands.run`, run in this window. */
 
@@ -92,4 +95,45 @@ export function runBuiltInAction(
   return dispatchAppCommand(request.action, 'plugin-host')
     ? { requestId: request.requestId, ok: true }
     : fail(request.requestId, 'action_unavailable', `${request.action} cannot run in this view.`)
+}
+
+/** Insert into the active agent input and focus it (Bitrix24 "send to terminal" parity). */
+export async function insertAgentDraft(
+  request: Extract<PluginViewRequest, { kind: 'insert-agent-draft' }>
+): Promise<PluginViewReply> {
+  const { requestId, text } = request
+  const ptyId = resolveWorktreeTerminalPtyId(useAppStore.getState())
+  if (!ptyId) {
+    return fail(
+      requestId,
+      'no_terminal',
+      'No active agent input is available. Open an agent terminal in the active workspace, or focus a terminal-backed agent.'
+    )
+  }
+  try {
+    const accepted = await sendAgentDraftPasteContent(ptyId, text, 'driving')
+    if (!accepted) {
+      return fail(requestId, 'rejected', 'Could not insert text into the active agent input.')
+    }
+  } catch {
+    return fail(requestId, 'rejected', 'Could not insert text into the active agent input.')
+  }
+
+  const state = useAppStore.getState()
+  if (state.activeView === 'tasks') {
+    state.closeTaskPage()
+  }
+  const next = useAppStore.getState()
+  if (next.activeView !== 'terminal') {
+    next.setActiveView('terminal')
+  }
+  const worktreeId = next.activeWorktreeId
+  const tabId = worktreeId
+    ? (next.activeTabIdByWorktree[worktreeId] ?? next.activeTabId)
+    : next.activeTabId
+  if (worktreeId && tabId) {
+    next.setActiveTabType('terminal', worktreeId)
+    focusTerminalTabSurface(tabId, next.terminalLayoutsByTabId[tabId]?.activeLeafId ?? null)
+  }
+  return { requestId, ok: true }
 }

@@ -3,8 +3,8 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import TaskProjectSourceCombobox from '@/components/task-project-source-combobox'
-import { normalizeTaskRepoSelection } from '@/components/task-page/task-page-default-repo-selection'
+import TaskProjectSourceCombobox from '@/components/task-page/source-selection/task-project-source-combobox'
+import { normalizeTaskRepoSelection } from '../../../../../shared/work-items/task-repo-selection'
 import type { Bitrix24TaskFilter } from '../../../../../shared/bitrix24/bitrix24-types'
 import { cn } from '@/lib/class-names'
 import { translate } from '@/i18n/i18n'
@@ -82,7 +82,6 @@ export function TaskPageBitrix24Filters({
                 )
               })
             }}
-            triggerClassName="h-8 w-full rounded-md border border-border/50 bg-muted/50 px-2 text-xs font-medium shadow-sm transition hover:bg-muted/50 focus:ring-2 focus:ring-ring/20 focus:outline-none"
           />
         </div>
       </div>

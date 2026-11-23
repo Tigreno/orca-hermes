@@ -1,21 +1,31 @@
 import { useAppStore } from '@/store/index'
 import { Suspense } from 'react'
 import { lazyWithRetry as lazy } from '@/app-shell/startup/lazy-with-retry'
-import type { ActiveRightSidebarTab } from '../../../../shared/ui-chrome-types'
-import { isPluginPanelTabKey } from '../../../../shared/plugins/manifest/plugin-manifest'
+import { BotChatsSkeleton } from '../bots/BotChatsSkeleton'
+import type { ActiveRightSidebarTab } from '../../../../shared/ui-chrome/ui-chrome-types'
+import '../../../../shared/plugins/manifest/plugin-manifest'
+import { isPluginPanelTabKey } from '../../../../shared/plugins/frames/plugin-tab-key'
+import { BITRIX24_SIDEBAR_TAB } from './activity-bar/bitrix24-sidebar-tab'
 
 const FileExplorer = lazy(() => import('./file-explorer/panel/FileExplorer'))
-const FolderWorkspaceSourceControl = lazy(() => import('./FolderWorkspaceSourceControlPanel'))
+const FolderWorkspaceSourceControl = lazy(
+  () => import('./folder-workspaces/FolderWorkspaceSourceControlPanel')
+)
 const SourceControl = lazy(() => import('./source-control/panel/SourceControl'))
 const ChecksPanel = lazy(() => import('./checks-panel/ChecksPanel'))
-const PortsPanel = lazy(() => import('./PortsPanel'))
+const PortsPanel = lazy(() => import('./ports/PortsPanel'))
 const AiVaultSidebarPanel = lazy(() => import('./ai-vault/panel/AiVaultSidebarPanel'))
 const Bitrix24TasksPanel = lazy(() => import('./Bitrix24TasksPanel'))
-const FolderWorkspaceWorktreesPanel = lazy(() => import('./FolderWorkspaceWorktreesPanel'))
+const FolderWorkspaceWorktreesPanel = lazy(
+  () => import('./folder-workspaces/FolderWorkspaceWorktreesPanel')
+)
 const FolderWorkspacePrChecksPanel = lazy(
   () => import('./hosted-review/folder-checks/FolderWorkspacePrChecksPanel')
 )
 const PluginPanel = lazy(() => import('./plugin-panels/PluginPanel'))
+const BotActivityPanel = lazy(() => import('../bots/BotActivityPanel'))
+const BotConnectorsPanel = lazy(() => import('../bots/BotConnectorsPanel'))
+const BotChatsPanel = lazy(() => import('../bots/BotChatsPanel'))
 
 type RightSidebarPanelContentProps = {
   effectiveTab: ActiveRightSidebarTab
@@ -33,13 +43,17 @@ export function RightSidebarPanelContent({
   const isFolderWorkspace = useAppStore(
     (state) => state.activeWorkspaceKey?.startsWith('folder:') ?? false
   )
+  const isBitrix24Tab = effectiveTab === BITRIX24_SIDEBAR_TAB
+  const isPluginPanelTab = isPluginPanelTabKey(effectiveTab) && !isBitrix24Tab
   return (
     <div
       className="flex min-h-0 flex-1 flex-col overflow-hidden"
+      // Bot panel rows open their hover cards outside this rect's left edge, covering nothing in it.
+      data-right-sidebar-panel=""
       // `orca plugin shot` captures exactly this rect.
-      data-plugin-panel-surface={isPluginPanelTabKey(effectiveTab) ? effectiveTab : undefined}
+      data-plugin-panel-surface={isPluginPanelTab ? effectiveTab : undefined}
     >
-      <Suspense fallback={null}>
+      <Suspense fallback={effectiveTab === 'bot-chats' ? <BotChatsSkeleton toolbar /> : null}>
         {effectiveTab === 'explorer' && <FileExplorer />}
         {effectiveTab === 'source-control' &&
           (isFolderWorkspace ? (
@@ -58,17 +72,18 @@ export function RightSidebarPanelContent({
             onFocusSearchHandled={onVaultSearchFocusHandled}
           />
         )}
-        {effectiveTab === 'bitrix24' && <Bitrix24TasksPanel />}
+        {isBitrix24Tab && <Bitrix24TasksPanel />}
         {effectiveTab === 'workspaces' && <FolderWorkspaceWorktreesPanel />}
         {effectiveTab === 'pr-checks' && (
           <FolderWorkspacePrChecksPanel
             isVisible={rightSidebarOpen && effectiveTab === 'pr-checks'}
           />
         )}
+        {effectiveTab === 'bot-activity' && <BotActivityPanel />}
+        {effectiveTab === 'bot-connectors' && <BotConnectorsPanel />}
+        {effectiveTab === 'bot-chats' && <BotChatsPanel />}
         {/* Remount on plugin changes so an old iframe cannot post through the next plugin's rebound bridge. */}
-        {isPluginPanelTabKey(effectiveTab) && (
-          <PluginPanel key={effectiveTab} tabKey={effectiveTab} />
-        )}
+        {isPluginPanelTab && <PluginPanel key={effectiveTab} tabKey={effectiveTab} />}
       </Suspense>
     </div>
   )

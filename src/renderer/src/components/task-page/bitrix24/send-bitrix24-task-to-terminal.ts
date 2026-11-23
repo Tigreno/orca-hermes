@@ -1,5 +1,6 @@
 import type { Bitrix24TaskDetail } from '../../../../../shared/bitrix24/bitrix24-types'
 import { sendAgentDraftPasteContent } from '@/lib/agent-session/messaging/paste/agent-draft-paste-content'
+import { focusTerminalTabSurface } from '@/components/terminal-pane/input/focus/focus-terminal-tab-surface'
 import { useAppStore } from '@/store/index'
 import { resolveWorktreeTerminalPtyId } from '@/store/terminals/worktree-terminal-pty'
 
@@ -30,4 +31,25 @@ export async function sendBitrix24TaskToActiveTerminal(
   } catch {
     return 'rejected'
   }
+}
+
+/** Leave Tasks if needed, then put the caret in the terminal that received the task. */
+export function focusBitrix24TaskTerminal(): void {
+  const state = useAppStore.getState()
+  if (state.activeView === 'tasks') {
+    state.closeTaskPage()
+  }
+  const next = useAppStore.getState()
+  if (next.activeView !== 'terminal') {
+    next.setActiveView('terminal')
+  }
+  const worktreeId = next.activeWorktreeId
+  const tabId = worktreeId
+    ? (next.activeTabIdByWorktree[worktreeId] ?? next.activeTabId)
+    : next.activeTabId
+  if (!worktreeId || !tabId) {
+    return
+  }
+  next.setActiveTabType('terminal', worktreeId)
+  focusTerminalTabSurface(tabId, next.terminalLayoutsByTabId[tabId]?.activeLeafId ?? null)
 }

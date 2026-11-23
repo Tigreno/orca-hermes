@@ -1,4 +1,4 @@
-import { createNonSecureContextUuid } from '../../../../shared/non-secure-context-uuid'
+import { createNonSecureContextUuid as createBrowserUuid } from '../../../../shared/identifiers/non-secure-context-uuid'
 import type { AgentCatalogEntry } from '@/lib/agent-catalog/agent-catalog'
 import type { CustomAgentProfile } from '../../../../shared/custom-agent-profile'
 import { tokenizeStartupCommand } from '../../../../shared/agent-launch/startup/tui-agent-startup-shell'
@@ -24,7 +24,7 @@ function literalTokens(value: string, shell: AgentStartupShell): string[] | null
 
 export function createCustomAgentProfileDraft(): CustomAgentProfile {
   return {
-    id: createNonSecureContextUuid(),
+    id: createBrowserUuid(),
     name: '',
     executable: '',
     args: []
@@ -44,7 +44,7 @@ export function duplicateBuiltInAgentAsCustom(args: {
     return null
   }
   return {
-    id: createNonSecureContextUuid(),
+    id: createBrowserUuid(),
     name: uniqueCopyName(args.agent.label, args.reservedNames),
     baseAgent: args.agent.id,
     baseAgentExecutable: commandTokens[0],

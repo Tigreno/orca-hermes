@@ -5,13 +5,16 @@ import { isGeneratedId } from '../../../../orchestration/db/generated-id'
 import type { OrchestrationDb } from '../../../../orchestration/db/orchestration-db'
 import type { FederationRelayItemRow } from '../../../../orchestration/db/orchestration-records'
 import { resolveBareOrchestrationRecipient } from '../messaging/recipient-routing'
-import { mayNameSession } from '../messaging/session-recipient'
+import { prepareSessionRecipient } from '../messaging/session-recipient'
+import { withDeliveryHoldWarning } from '../messaging/send-delivery-hold'
+import { deliverPeerMailToBot } from './peer-mail-bot-delivery'
+import { peerMailSenderSnapshot } from '../../../../orchestration/federation/peer-mail/peer-mail-sender-snapshot'
 import { waitForPeerMail } from '../../../../orchestration/federation/peer-mail/peer-mail-waiters'
 import {
   PeerMailAckParams,
   PeerMailDeliverParams,
   PeerMailPullParams
-} from '../../../../../../shared/rpc-contract/orchestration-peer-mail-params'
+} from '../../../../../../shared/rpc-contract/orchestration/orchestration-peer-mail-params'
 
 const NOTHING_DELIVERED = { effectsApplied: false } as const
 const MAX_PULL_WAIT_MS = 25_000
@@ -35,17 +38,28 @@ function requireRuntimePairing(
   return ctx.authenticatedCallerFingerprint
 }
 
-function pendingReplies(db: OrchestrationDb, peerFingerprint: string): FederationRelayItemRow[] {
-  const items: FederationRelayItemRow[] = []
-  for (const conversationId of db.listPeerConversationIds(peerFingerprint)) {
-    if (items.length >= PULL_PAGE_SIZE) {
-      break
-    }
-    items.push(
-      ...db.listPendingFederationRelay(conversationId, 'to_home', PULL_PAGE_SIZE - items.length)
-    )
-  }
-  return items
+// Where each pairing's next page starts, per database, when more conversations are pending than a page holds.
+const pullRotations = new WeakMap<object, Map<string, number>>()
+
+/** Every conversation with pending items gets an equal share of the page, so an item the paired Orca
+ *  cannot import yet, which stays at its conversation's head, never starves another conversation. */
+function pendingReplies(
+  db: OrchestrationDb,
+  peerFingerprint: string,
+  holdBack: ReadonlySet<string>
+): FederationRelayItemRow[] {
+  const pending = db
+    .listPeerConversationIdsWithPendingReplies(peerFingerprint)
+    .filter((id) => !holdBack.has(id))
+  const share = Math.max(1, Math.floor(PULL_PAGE_SIZE / pending.length))
+  const pullRotation = pullRotations.get(db.db) ?? new Map<string, number>()
+  pullRotations.set(db.db, pullRotation)
+  const start = pending.length > PULL_PAGE_SIZE ? (pullRotation.get(peerFingerprint) ?? 0) : 0
+  pullRotation.set(peerFingerprint, (start + PULL_PAGE_SIZE) % Math.max(1, pending.length))
+  return [...pending.slice(start), ...pending.slice(0, start)]
+    .slice(0, PULL_PAGE_SIZE)
+    .flatMap((id) => db.listPendingFederationRelay(id, 'to_home', share))
+    .slice(0, PULL_PAGE_SIZE)
 }
 
 export const ORCHESTRATION_PEER_MAIL_METHODS = [
@@ -77,20 +91,22 @@ export const ORCHESTRATION_PEER_MAIL_METHODS = [
           NOTHING_DELIVERED
         )
       }
-      const to = params.to
-      if (/^(run|dispatch|task):/.test(to) || to.startsWith('@')) {
+      if (/^(run|dispatch|task):/.test(params.to) || params.to.startsWith('@')) {
         throw new OrchestrationError(
           'invalid_argument',
-          `--on sends to one terminal or chat agent on this server; ${to} is a mailbox. Nothing was delivered.`,
+          `--on sends to one agent or bot on this server; ${params.to} is a mailbox. Nothing was delivered.`,
           NOTHING_DELIVERED
         )
       }
       // A retry after a lost answer is acknowledged even if the recipient has since gone.
-      const delivered = db.getPeerMailMessage(params.messageId)
-      if (delivered) {
-        const conversation = db.getPeerMailConversation(delivered.conversation_id)
+      const delivered = async (): Promise<{ message: { id: string; to: string } } | null> => {
+        const message = db.getPeerMailMessage(params.messageId)
+        if (!message) {
+          return null
+        }
+        const conversation = db.getPeerMailConversation(message.conversation_id)
         if (
-          delivered.conversation_id !== params.conversationId ||
+          message.conversation_id !== params.conversationId ||
           conversation?.peer_fingerprint !== peerFingerprint
         ) {
           throw new OrchestrationError(
@@ -99,13 +115,36 @@ export const ORCHESTRATION_PEER_MAIL_METHODS = [
             NOTHING_DELIVERED
           )
         }
-        return { message: { id: params.messageId, to } }
+        const receipt = { message: { id: params.messageId, to: params.to } }
+        const stored = db.getMessageById(params.messageId)
+        // A retry reads the hold again; bot mail reports none, as its first answer did, and read mail is held no longer.
+        return !stored || db.getBotRequest(params.messageId)
+          ? receipt
+          : withDeliveryHoldWarning(receipt, runtime, db, stored.to_handle, stored.read !== 0)
       }
-      if (mayNameSession(to)) {
-        // Recipient routing reads the session record store, which the host opens lazily.
-        await runtime.ensureStructuredAgentSessionHost().catch(() => undefined)
+      // A replay needs no routing, so it never waits on the recipient's preparation.
+      const replayed = await delivered()
+      if (replayed) {
+        return replayed
       }
-      const recipient = resolveBareOrchestrationRecipient({ runtime, db, handle: to })
+      const senderSnapshot = peerMailSenderSnapshot(params.senderLabel, params.sender)
+      const routed = await deliverPeerMailToBot(runtime, params, peerFingerprint, senderSnapshot)
+      if (routed === 'delivered') {
+        return { message: { id: params.messageId, to: params.to } }
+      }
+      const { to, body = params.body } = routed
+      const terminalRecipient = await prepareSessionRecipient(runtime, to)
+      // Read again after the wait: a copy of this delivery may have landed meanwhile.
+      const landed = await delivered()
+      if (landed) {
+        return landed
+      }
+      const recipient = resolveBareOrchestrationRecipient({
+        runtime,
+        db,
+        handle: to,
+        terminalRecipient
+      })
       if (!recipient.ok) {
         throw new OrchestrationError(
           recipient.code,
@@ -122,6 +161,8 @@ export const ORCHESTRATION_PEER_MAIL_METHODS = [
           NOTHING_DELIVERED
         )
       }
+      // Before storing, as a local send does: a waiter the arrival resolves is gone by the time the receipt reads.
+      const takenByWaiter = runtime.hasMessageWaiterFor(recipient.to, params.type ?? 'status')
       const stored = db.insertPeerMailMessage({
         conversationId: params.conversationId,
         peerFingerprint,
@@ -131,17 +172,25 @@ export const ORCHESTRATION_PEER_MAIL_METHODS = [
           from: params.senderLabel,
           to: recipient.to,
           subject: params.subject,
-          body: params.body,
+          body,
           type: params.type,
           priority: params.priority,
           threadId: params.threadId,
-          runId: recipient.runId
+          runId: recipient.runId,
+          answerSenderSnapshot: senderSnapshot
         }
       })
       if (!stored.duplicate) {
         runtime.notifyMessageArrived(stored.message.to_handle, stored.message.type)
       }
-      return { message: { id: params.messageId, to } }
+      // An older sending Orca ignores the warnings; the sender learns the mail waits unread.
+      return withDeliveryHoldWarning(
+        { message: { id: params.messageId, to: params.to } },
+        runtime,
+        db,
+        recipient.to,
+        takenByWaiter
+      )
     }
   }),
   defineOrchestrationMethod({
@@ -152,17 +201,21 @@ export const ORCHESTRATION_PEER_MAIL_METHODS = [
     handler: async (params, ctx) => {
       const peerFingerprint = requireRuntimePairing(ctx)
       const db = ctx.runtime.getOrchestrationDb()
-      let items = pendingReplies(db, peerFingerprint)
+      const holdBack = new Set(params.holdBack)
+      let items = pendingReplies(db, peerFingerprint, holdBack)
       const waitMs = Math.min(Math.max(params.waitMs ?? 0, 0), MAX_PULL_WAIT_MS)
-      if (items.length === 0 && waitMs > 0) {
-        await waitForPeerMail(db, waitMs, ctx.signal)
-        items = pendingReplies(ctx.runtime.getOrchestrationDb(), peerFingerprint)
+      const deadline = Date.now() + waitMs
+      // A wake is any queued change on this Orca, so one that queued nothing for this peer waits on.
+      while (items.length === 0 && Date.now() < deadline && !ctx.signal?.aborted) {
+        await waitForPeerMail(db.db, deadline - Date.now(), ctx.signal)
+        items = pendingReplies(ctx.runtime.getOrchestrationDb(), peerFingerprint, holdBack)
       }
       return {
         items: items.map((item) => ({
           conversationId: item.dispatch_id,
           sequence: item.sequence,
           messageId: item.message_id,
+          kind: item.kind,
           payload: item.payload
         }))
       }

@@ -5,7 +5,7 @@ import {
   normalizeBitrix24ProjectReference,
   type Bitrix24ProjectReference
 } from '../../shared/bitrix24/project-reference'
-import { getRepoHostIdentityForParts } from '../../shared/repo-host-identity'
+import { getRepoHostIdentityForParts } from '../../shared/repository/repo-host-identity'
 
 type StoredBinding = {
   repoId: string
@@ -28,14 +28,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 async function readBindingFile(): Promise<Bitrix24RepoProjectBindingFile> {
-  let raw: string
+  const path = getBindingsFilePath()
   try {
-    raw = await readFile(getBindingsFilePath(), 'utf-8')
-  } catch {
-    return { version: 1, bindings: [] }
-  }
-  try {
-    const parsed: unknown = JSON.parse(raw)
+    const parsed: unknown = JSON.parse(await readFile(path, { encoding: 'utf-8' }))
     if (!isRecord(parsed)) {
       return { version: 1, bindings: [] }
     }
@@ -72,9 +67,8 @@ async function writeBindingFile(bindings: readonly StoredBinding[]): Promise<voi
 }
 
 export async function readRepoProjectBindings(): Promise<Record<string, Bitrix24ProjectReference>> {
-  const { bindings } = await readBindingFile()
   return Object.fromEntries(
-    bindings.map((binding) => [
+    (await readBindingFile()).bindings.map((binding) => [
       getRepoHostIdentityForParts(binding.repoId, binding.hostId),
       binding.project
     ])

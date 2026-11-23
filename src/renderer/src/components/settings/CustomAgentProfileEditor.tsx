@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react'
+import { useId, useRef, useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import type { AgentCatalogEntry } from '@/lib/agent-catalog/agent-catalog'
 import { translate } from '@/i18n/i18n'
@@ -93,12 +93,20 @@ export function CustomAgentProfileEditor({
   const executableErrorId = `${profile.id}-executable-error`
   const argumentInputRefs = useRef<(HTMLInputElement | null)[]>([])
   const addArgumentRef = useRef<HTMLButtonElement | null>(null)
+  const [argumentIds, setArgumentIds] = useState(() =>
+    profile.args.map((_, index) => `${profile.id}-argument-${index}`)
+  )
+  const nextArgumentIdRef = useRef(profile.args.length)
   const setArgs = (args: string[]): void => onChange({ ...profile, args })
   const addArgument = (): void => {
+    const id = nextArgumentIdRef.current
+    nextArgumentIdRef.current += 1
+    setArgumentIds((current) => [...current, `${profile.id}-argument-${id}`])
     setArgs([...profile.args, ''])
   }
   const removeArgument = (index: number): void => {
     const next = profile.args.filter((_, argIndex) => argIndex !== index)
+    setArgumentIds((current) => current.filter((_, argIndex) => argIndex !== index))
     setArgs(next)
     requestAnimationFrame(() => {
       if (next.length === 0) {
@@ -175,7 +183,7 @@ export function CustomAgentProfileEditor({
           </Button>
         </div>
         {profile.args.map((arg, index) => (
-          <div key={`${profile.id}-argument-${index}`} className="flex items-center gap-1.5">
+          <div key={argumentIds[index]} className="flex items-center gap-1.5">
             <Input
               ref={(node) => {
                 argumentInputRefs.current[index] = node

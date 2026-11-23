@@ -1,20 +1,25 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import type { Repo } from '../../../../../shared/repo-types'
+import type { Repo } from '../../../../../shared/repository/repo-types'
 import type {
   Bitrix24TaskDetail,
   Bitrix24TaskFilter,
   Bitrix24TaskSummary
 } from '../../../../../shared/bitrix24/bitrix24-types'
+import type { Bitrix24TaskUpdateFields } from '../../../../../shared/bitrix24/connection-types'
 import type { Bitrix24ProjectReference } from '../../../../../shared/bitrix24/project-reference'
 import { buildTaskSourceContextFromRepo } from '../../../../../shared/work-items/task-source-context'
-import { getLinkedWorkItemSuggestedName } from '../../../../../shared/workspace-name'
+import { getLinkedWorkItemSuggestedName } from '../../../../../shared/workspace/naming/workspace-name'
 import type { LinkedWorkItemSummary } from '@/lib/workspace/creation/new-workspace'
 import { getRepoWorkspaceCreationTargetHint } from '@/lib/workspace/creation/project-host-workspace-target'
 import {
   refreshBitrix24ConnectionStatus,
   useBitrix24ConnectionStatus
 } from '@/hooks/use-bitrix24-connection-status'
-import { bitrix24GetTask, bitrix24ListTasks } from '@/runtime/runtime-bitrix24-client'
+import {
+  bitrix24GetTask,
+  bitrix24ListTasks,
+  bitrix24UpdateTask
+} from '@/runtime/runtime-bitrix24-client'
 import { useAppStore } from '@/store/index'
 
 type Bitrix24Scope = {
@@ -48,6 +53,7 @@ export type Bitrix24TaskPageState = {
   openTask: (task: Bitrix24TaskSummary) => void
   closeTask: () => void
   startWorkspace: (task: Bitrix24TaskSummary) => void
+  updateTask: (fields: Bitrix24TaskUpdateFields) => Promise<Bitrix24TaskDetail>
   connectOpen: boolean
   setConnectOpen: (open: boolean) => void
 }
@@ -230,6 +236,19 @@ export function Bitrix24TaskPageProvider({
     setSelectedTaskId(null)
   }, [])
 
+  const updateTask = useCallback(
+    async (fields: Bitrix24TaskUpdateFields): Promise<Bitrix24TaskDetail> => {
+      if (!selectedTaskId) {
+        throw new Error('No Bitrix24 task is selected.')
+      }
+      const task = await bitrix24UpdateTask({ taskId: selectedTaskId, ...fields })
+      setSelectedTask(task)
+      setRefreshNonce((value) => value + 1)
+      return task
+    },
+    [selectedTaskId]
+  )
+
   const startWorkspace = useCallback(
     (task: Bitrix24TaskSummary) => {
       const repo = scope?.repo ?? null
@@ -299,6 +318,7 @@ export function Bitrix24TaskPageProvider({
       openTask,
       closeTask,
       startWorkspace,
+      updateTask,
       connectOpen,
       setConnectOpen
     }),
@@ -326,7 +346,8 @@ export function Bitrix24TaskPageProvider({
       startWorkspace,
       submitSearch,
       tasks,
-      total
+      total,
+      updateTask
     ]
   )
 

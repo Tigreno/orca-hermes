@@ -9,7 +9,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { CustomAgentProfilesSection } from './CustomAgentProfilesSection'
 import type { ComponentProps, ReactNode } from 'react'
 
-vi.mock('@/components/confirmation-dialog-context', () => ({
+vi.mock('@/components/dismiss/confirmation/confirmation-dialog-context', () => ({
   useConfirmationDialog: () => vi.fn().mockResolvedValue(true)
 }))
 

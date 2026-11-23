@@ -41,6 +41,27 @@ export function buildDraftPrecheck(draft: AutomationDraft): AutomationPrecheck |
   }
 }
 
+/** The schedule fields every save sends, in this computer's time zone. */
+export function buildDraftSchedule(
+  draft: Pick<AutomationDraft, 'preset' | 'customSchedule' | 'dayOfWeek' | 'missedRunGraceMinutes'>,
+  time: { hour: number; minute: number }
+): { timezone: string; rrule: string; missedRunGraceMinutes: number } {
+  const rawGrace = Number(draft.missedRunGraceMinutes)
+  return {
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    rrule:
+      draft.preset === 'custom'
+        ? draft.customSchedule.trim()
+        : buildAutomationRrule({
+            preset: draft.preset,
+            hour: time.hour,
+            minute: time.minute,
+            dayOfWeek: Number(draft.dayOfWeek)
+          }),
+    missedRunGraceMinutes: Number.isFinite(rawGrace) ? Math.max(0, rawGrace) : 720
+  }
+}
+
 export function getAgentLabel(
   agentId: string,
   customAgentProfileId?: string,
@@ -89,22 +110,4 @@ export function draftExtraAgentArgsNeedFreshSession(
     (draft.surface !== 'chat' &&
       (draft.agentArgs !== undefined || hasExtraAgentArgs(draft.extraAgentArgs)))
   return consumed && draft.workspaceMode === 'existing' && draft.reuseSession
-}
-
-export function buildDraftSchedule(
-  draft: AutomationDraft,
-  time: { hour: number; minute: number }
-): { rrule: string; missedRunGraceMinutes: number } {
-  const rrule =
-    draft.preset === 'custom'
-      ? draft.customSchedule.trim()
-      : buildAutomationRrule({
-          preset: draft.preset,
-          hour: time.hour,
-          minute: time.minute,
-          dayOfWeek: Number(draft.dayOfWeek)
-        })
-  const rawGrace = Number(draft.missedRunGraceMinutes)
-  const missedRunGraceMinutes = Number.isFinite(rawGrace) ? Math.max(0, rawGrace) : 720
-  return { rrule, missedRunGraceMinutes }
 }

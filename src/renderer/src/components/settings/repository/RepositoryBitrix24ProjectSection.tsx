@@ -1,27 +1,32 @@
 import { useState } from 'react'
-import type { Repo } from '../../../../../shared/repo-types'
+import type { Repo } from '../../../../../shared/repository/repo-types'
 import type { Bitrix24ProjectReference } from '../../../../../shared/bitrix24/project-reference'
 import { useAppStore } from '@/store/index'
 import { useBitrix24ProjectInventory } from '../../use-bitrix24-project-inventory'
 import { Bitrix24ProjectPicker } from '../../bitrix24-project-picker'
 import { SearchableSetting } from '../section-layout/SearchableSetting'
-import { useTranslate } from '@/i18n/use-translate'
+import { useTranslate, type Translate } from '@/i18n/use-translate'
 
-type Bitrix24ProjectUpdate = (
-  id: string,
-  updates: { defaultBitrix24Project: Bitrix24ProjectReference | null }
-) => unknown
-
-async function saveRepoBitrix24Project(
-  updateRepo: Bitrix24ProjectUpdate,
+async function applyBitrix24Project(
   repoId: string,
   project: Bitrix24ProjectReference | null,
-  messages: { saveFailed: string; runtimeUpdate: string }
-): Promise<{ ok: true } | { ok: false; error: string }> {
+  updateRepo: (
+    id: string,
+    updates: { defaultBitrix24Project: Bitrix24ProjectReference | null }
+  ) => unknown,
+  t: Translate,
+  setError: (error: string | null) => void,
+  setSaving: (saving: boolean) => void
+): Promise<void> {
   try {
     const result = await updateRepo(repoId, { defaultBitrix24Project: project })
     if (result === false) {
-      return { ok: false, error: messages.saveFailed }
+      throw new Error(
+        t(
+          'components.RepositoryBitrix24ProjectSection.saveFailed',
+          'Could not save the default Bitrix24 project.'
+        )
+      )
     }
     const echoed = useAppStore
       .getState()
@@ -30,11 +35,17 @@ async function saveRepoBitrix24Project(
       (echoed?.portalHost ?? null) !== (project?.portalHost ?? null) ||
       (echoed?.groupId ?? null) !== (project?.groupId ?? null)
     ) {
-      return { ok: false, error: messages.runtimeUpdate }
+      throw new Error(
+        t(
+          'components.RepositoryBitrix24ProjectSection.runtimeUpdate',
+          'Update this runtime to save a default Bitrix24 project.'
+        )
+      )
     }
-    return { ok: true }
   } catch (caught) {
-    return { ok: false, error: caught instanceof Error ? caught.message : String(caught) }
+    setError(caught instanceof Error ? caught.message : String(caught))
+  } finally {
+    setSaving(false)
   }
 }
 
@@ -44,30 +55,22 @@ export function RepositoryBitrix24ProjectSection({
   forceVisible
 }: {
   repo: Repo
-  updateRepo: Bitrix24ProjectUpdate
+  updateRepo: (
+    id: string,
+    updates: {
+      defaultBitrix24Project: Bitrix24ProjectReference | null
+    }
+  ) => unknown
   forceVisible?: boolean
 }): React.JSX.Element {
   const t = useTranslate()
   const inventory = useBitrix24ProjectInventory(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const applyProject = async (project: Bitrix24ProjectReference | null) => {
+  const applyProject = async (project: Bitrix24ProjectReference | null): Promise<void> => {
     setSaving(true)
     setError(null)
-    const outcome = await saveRepoBitrix24Project(updateRepo, repo.id, project, {
-      saveFailed: t(
-        'components.RepositoryBitrix24ProjectSection.saveFailed',
-        'Could not save the default Bitrix24 project.'
-      ),
-      runtimeUpdate: t(
-        'components.RepositoryBitrix24ProjectSection.runtimeUpdate',
-        'Update this runtime to save a default Bitrix24 project.'
-      )
-    })
-    setSaving(false)
-    if (!outcome.ok) {
-      setError(outcome.error)
-    }
+    await applyBitrix24Project(repo.id, project, updateRepo, t, setError, setSaving)
   }
   const label = t('components.RepositoryBitrix24ProjectSection.title', 'Default Bitrix24 project')
   const value = repo.defaultBitrix24Project ?? null

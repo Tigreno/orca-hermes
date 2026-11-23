@@ -1,7 +1,7 @@
 import {
   API_RESPONSE_MAX_BYTES,
   readFetchResponseJsonWithinLimit
-} from '../../shared/fetch-response-body'
+} from '../../shared/network/fetch-response-body'
 import { taskProviderFailure } from '../../shared/work-items/task-provider-failure'
 import {
   buildBitrix24WebhookUrl,

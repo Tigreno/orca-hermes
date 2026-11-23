@@ -1,13 +1,12 @@
-import { parseWslUncPath } from '../../../../../../shared/wsl-paths'
+import { parseWslUncPath } from '../../../../../../shared/file-access/wsl-paths'
 import { splitWorktreeIdForFilesystem } from '../../../../../../shared/worktree/id'
 import {
   createNormalizedPathInsideOrEqualMatcher,
   isRuntimePathAbsolute,
   normalizeRuntimePathForComparison
-} from '../../../../../../shared/cross-platform-path'
+} from '../../../../../../shared/file-access/cross-platform-path'
 import type { TerminalLayoutSnapshot } from '../../../../../../shared/workspace-layout/terminal-tab-types'
 import type { Worktree } from '../../../../../../shared/worktree/types'
-import { resolveLiveTerminalPtyId } from '../../../../store/terminals/terminal-pty-identities'
 
 type TerminalPtyContext = {
   activeTabId: string | null
@@ -27,11 +26,22 @@ export function resolveChecksPanelTerminalPtyId(context: TerminalPtyContext): st
   if (!context.activeTabId) {
     return null
   }
-  return resolveLiveTerminalPtyId(
-    context.ptyIdsByTabId,
-    context.terminalLayoutsByTabId,
-    context.activeTabId
+  const livePtyIds = context.ptyIdsByTabId[context.activeTabId] ?? []
+  if (livePtyIds.length === 0) {
+    return null
+  }
+
+  const layout = context.terminalLayoutsByTabId[context.activeTabId]
+  const activeLeafPtyId = layout?.activeLeafId ? layout.ptyIdsByLeafId?.[layout.activeLeafId] : null
+  if (activeLeafPtyId && livePtyIds.includes(activeLeafPtyId)) {
+    return activeLeafPtyId
+  }
+
+  const firstLiveLayoutPtyId = Object.values(layout?.ptyIdsByLeafId ?? {}).find((ptyId) =>
+    livePtyIds.includes(ptyId)
   )
+  // Last tab PTY is the newest terminal when the split-pane layout is stale or unavailable.
+  return firstLiveLayoutPtyId ?? livePtyIds.at(-1) ?? null
 }
 
 export function resolveChecksPanelWorktreeFromTerminalCwd(

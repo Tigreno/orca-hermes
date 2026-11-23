@@ -1,7 +1,6 @@
 import { toast } from 'sonner'
 import { getAgentCatalog } from '@/lib/agent-catalog/agent-catalog'
-import { launchAgentInNewTab } from '@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab'
-import { newAgentLaunchRequestId } from '@/lib/agent-session/launch/routing/agent-launch-request-id'
+import { launchAgentInNewTabWithOutcome } from '@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab'
 import { resolveAgentLaunchExecutionContext } from '@/lib/agent-session/launch/new-tab/launch-agent-execution-context'
 import { resolveCustomAgentProfileBaseAgent } from '@/lib/custom-agent-profile-base-agent'
 import { persistAgentLaunchTabOrder } from '@/lib/agent-session/launch/pane/launch-agent-tab-order'
@@ -10,14 +9,14 @@ import {
   getAgentLaunchPlatformForRepo,
   nodePlatformFromProjectRuntime
 } from '@/lib/agent-launch-platform'
-import { getLocalProjectExecutionRuntimeContext } from '@/lib/local-preflight-context'
+import { getLocalProjectExecutionRuntimeContext } from '@/runtime/hosts/preflight/local-preflight-context'
 import { CLIENT_PLATFORM } from '@/lib/workspace/creation/new-workspace'
 import {
   getExecutionHostIdForWorktree,
-  getRuntimeEnvironmentIdForWorktree
+  runtimeEnvironmentIdOrLocalUnlessTwin
 } from '@/lib/workspace/ownership/worktree-runtime-owner'
 import { useAppStore } from '@/store'
-import { worktreeUsesWslPath } from '@/store/terminals/terminal-workspace-routing'
+import { worktreeUsesWslPath } from '@/store/terminals/tabs/creation/terminal-workspace-routing'
 import { repoIsRemote } from '../../../shared/agent-launch/startup/agent-launch-remote'
 import {
   buildCustomAgentLaunch,
@@ -25,12 +24,13 @@ import {
   normalizeCustomAgentProfiles,
   type CustomAgentProfile
 } from '../../../shared/custom-agent-profile'
-import { parseExecutionHostId } from '../../../shared/execution-host'
+import { parseExecutionHostId } from '../../../shared/execution-host/execution-host'
 import {
   quoteStartupArg,
   resolveStartupShell
 } from '../../../shared/agent-launch/startup/tui-agent-startup-shell'
-import { resolveLocalWindowsAgentStartupShell } from '../../../shared/windows-terminal-shell'
+import { resolveLocalWindowsAgentStartupShell } from '../../../shared/shell/launch/windows-terminal-shell'
+import { createNonSecureContextUuid } from '../../../shared/identifiers/non-secure-context-uuid'
 import type { TuiAgent } from '../../../shared/agent-launch/catalog/tui-agent'
 
 export function launchCustomAgentInNewTab(args: {
@@ -74,7 +74,7 @@ export function launchCustomAgentInNewTab(args: {
     })
   }
 
-  const environmentId = getRuntimeEnvironmentIdForWorktree(store, args.worktreeId)
+  const environmentId = runtimeEnvironmentIdOrLocalUnlessTwin(store, args.worktreeId)
   const executionHost = parseExecutionHostId(getExecutionHostIdForWorktree(store, args.worktreeId))
   if (executionHost?.kind === 'runtime') {
     toast.error(
@@ -166,15 +166,15 @@ function launchProfileThroughAgentPipeline(args: {
   const executionContext = resolveAgentLaunchExecutionContext(useAppStore.getState(), {
     worktreeId: args.worktreeId
   })
-  if (!executionContext || 'unavailable' in executionContext) {
+  if ('unavailable' in executionContext) {
     return null
   }
   const shell =
     executionContext.queuedShell ?? resolveStartupShell(executionContext.resolvedLaunchPlatform)
   // Why quoted here: the agent launch re-tokenizes this text for the same shell before appending.
   const agentArgs = args.profile.args.map((arg) => quoteStartupArg(arg, shell)).join(' ')
-  const launched = launchAgentInNewTab({
-    requestId: newAgentLaunchRequestId(),
+  const outcome = launchAgentInNewTabWithOutcome({
+    requestId: createNonSecureContextUuid(),
     agent: args.agent,
     worktreeId: args.worktreeId,
     ...(args.groupId ? { groupId: args.groupId } : {}),
@@ -183,8 +183,8 @@ function launchProfileThroughAgentPipeline(args: {
     requestedSurface: 'terminal',
     launchPlatform: executionContext.resolvedLaunchPlatform
   })
-  if (!launched || 'refused' in launched || launched.surface.kind === 'host-published') {
+  if (!outcome || 'refused' in outcome || outcome.surface.kind !== 'local-terminal') {
     return null
   }
-  return { tabId: launched.surface.tabId }
+  return { tabId: outcome.surface.tabId }
 }

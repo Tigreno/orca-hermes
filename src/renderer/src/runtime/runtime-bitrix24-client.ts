@@ -1,7 +1,8 @@
 import type {
   Bitrix24ConnectArgs,
   Bitrix24ConnectionStatus,
-  Bitrix24ListTasksArgs
+  Bitrix24ListTasksArgs,
+  Bitrix24UpdateTaskArgs
 } from '../../../shared/bitrix24/connection-types'
 import type {
   Bitrix24Project,
@@ -9,8 +10,8 @@ import type {
   Bitrix24TaskListPage
 } from '../../../shared/bitrix24/bitrix24-types'
 import type { Bitrix24ProjectReference } from '../../../shared/bitrix24/project-reference'
-import type { RuntimeClientTarget } from '../../../shared/runtime-client-target'
-import { callRuntimeRpc } from './rpc/calls/runtime-rpc-call'
+import type { RuntimeClientTarget } from '../../../shared/remote-runtime/host-catalog/runtime-client-target'
+import { callRuntimeRpc } from '@/runtime/rpc/calls/runtime-rpc-call'
 
 /** Webhook credentials live on the desktop, so Bitrix24 always calls the local runtime. */
 const BITRIX24_TARGET: RuntimeClientTarget = { kind: 'local' }
@@ -81,6 +82,15 @@ export async function bitrix24GetTask(
       timeoutMs: 30_000
     }
   )
+}
+
+export async function bitrix24UpdateTask(
+  args: Bitrix24UpdateTaskArgs,
+  target: RuntimeClientTarget = BITRIX24_TARGET
+): Promise<Bitrix24TaskDetail> {
+  return callRuntimeRpc<Bitrix24TaskDetail>(target, 'bitrix24.updateTask', args, {
+    timeoutMs: 30_000
+  })
 }
 
 /** Repo bindings are desktop-local, so they follow the same local-runtime target as the credentials. */

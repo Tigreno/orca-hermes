@@ -5,32 +5,28 @@ import { useAppStore } from '@/store'
 const TERMINAL_FOCUS_RETRY_MS = 50
 const TERMINAL_FOCUS_TIMEOUT_MS = 5000
 
-type TimeoutHandleRef = { current: number | null }
-
-function scheduleTerminalFocusRetry(
+function focusNewActiveTerminalWhenReady(
   previousActiveTabId: string | null,
   expiresAt: number,
-  retryRef: TimeoutHandleRef
+  now: number,
+  retryRef: React.RefObject<number | null>
 ): void {
-  const attempt = (now: number): void => {
-    const state = useAppStore.getState()
-    if (
-      (state.activeTabType === 'terminal' || state.activeTabType === 'simulator') &&
-      state.activeTabId &&
-      state.activeTabId !== previousActiveTabId
-    ) {
-      focusTerminalTabSurface(state.activeTabId)
-      return
-    }
-    if (now >= expiresAt) {
-      return
-    }
-    retryRef.current = window.setTimeout(() => {
-      retryRef.current = null
-      attempt(Date.now())
-    }, TERMINAL_FOCUS_RETRY_MS)
+  const state = useAppStore.getState()
+  if (
+    (state.activeTabType === 'terminal' || state.activeTabType === 'simulator') &&
+    state.activeTabId &&
+    state.activeTabId !== previousActiveTabId
+  ) {
+    focusTerminalTabSurface(state.activeTabId)
+    return
   }
-  attempt(Date.now())
+  if (now >= expiresAt) {
+    return
+  }
+  retryRef.current = window.setTimeout(() => {
+    retryRef.current = null
+    focusNewActiveTerminalWhenReady(previousActiveTabId, expiresAt, Date.now(), retryRef)
+  }, TERMINAL_FOCUS_RETRY_MS)
 }
 
 export type NewTabMenuPendingFocus = {
@@ -83,9 +79,10 @@ export function useNewTabMenuPendingFocus(): NewTabMenuPendingFocus {
     const previousActiveTabId = useAppStore.getState().activeTabId
     queueFocus(() => {
       // Why: paired web/SSH tab creation is async; await the host snapshot's new terminal instead of the pre-existing active tab.
-      scheduleTerminalFocusRetry(
+      focusNewActiveTerminalWhenReady(
         previousActiveTabId,
         Date.now() + TERMINAL_FOCUS_TIMEOUT_MS,
+        Date.now(),
         retryRef
       )
     })

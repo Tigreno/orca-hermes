@@ -8,7 +8,7 @@ import {
   resolveStartupShell,
   type AgentStartupShell
 } from './agent-launch/startup/tui-agent-startup-shell'
-import { buildSleepingAgentLaunchConfig } from './agent-session/lifecycle/sleeping-agent-launch-config'
+import { buildSleepingAgentLaunchConfig } from './agent-session/lifecycle/resume/sleeping-agent-launch-config'
 import { planHermesStartupQuery } from './agent-launch/startup/hermes-startup-query'
 import { TUI_AGENT_CONFIG } from './agent-launch/catalog/tui-agent-config'
 import {

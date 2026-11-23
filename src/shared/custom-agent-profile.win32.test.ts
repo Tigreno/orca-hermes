@@ -8,8 +8,8 @@ import {
   WINDOWS_ARGUMENT_CORPUS_ENV
 } from '../packages/process-host/src/__fixtures__/windows-argument-corpus'
 import { buildCustomAgentLaunch, normalizeCustomAgentProfile } from './custom-agent-profile'
-import { getCmdExePath } from './windows-batch-spawn'
-import { removeTreeSync } from './windows-transient-lock-removal'
+import { getCmdExePath } from './shell/launch/windows-batch-spawn'
+import { removeTreeSync } from './file-write/windows-transient-lock-removal'
 
 const describeOnWindows = process.platform === 'win32' ? describe : describe.skip
 

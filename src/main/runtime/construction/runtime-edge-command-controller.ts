@@ -7,7 +7,7 @@ import { RuntimeBrowserScreencastController } from '../browser/screencast/runtim
 import { createRuntimeBrowserCommands } from '../browser/installation/runtime-browser-commands-factory'
 import { RuntimeJiraCommands } from '../integrations/jira/runtime-jira-commands'
 import { RuntimeBitrix24Commands } from '../runtime-bitrix24-commands'
-import type { RpcBinarySender } from '../rpc/rpc-binary-sender'
+import type { RpcBinarySender } from '../rpc/transports/rpc-binary-sender'
 
 type PublicMethods<T> = Pick<T, keyof T>
 type BrowserSurface = Omit<PublicMethods<RuntimeBrowserCommands>, 'browserScreencast'> & {
@@ -42,6 +42,8 @@ const BROWSER_COMMAND_NAMES = [
   'browserScroll',
   'browserBack',
   'browserReload',
+  'browserZoom',
+  'browserStop',
   'browserScreenshot',
   'browserScreencast',
   'browserEval',
@@ -49,6 +51,7 @@ const BROWSER_COMMAND_NAMES = [
   'browserProceedCertificate',
   'browserTabShow',
   'browserTabCurrent',
+  'browserTabAnnotations',
   'browserTabSwitch',
   'browserHover',
   'browserDrag',
@@ -94,6 +97,13 @@ const BROWSER_COMMAND_NAMES = [
   'browserClipboardWrite',
   'browserDialogAccept',
   'browserDialogDismiss',
+  'browserGrabSetMode',
+  'browserGrabAwait',
+  'browserGrabCancel',
+  'browserGrabCaptureSelection',
+  'browserGrabExtractHover',
+  'browserGrabViewportBridge',
+  'browserGrabWatch',
   'browserStorageLocalGet',
   'browserStorageLocalSet',
   'browserStorageLocalClear',

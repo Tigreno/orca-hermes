@@ -2,8 +2,8 @@ import { useAppStateValue } from '@/store/retained-views/app-state-view'
 import { useChatSettingsOwnPermissions } from '@/runtime/native-chat/host-capabilities/structured-agent-session-host-capability'
 import { toast } from 'sonner'
 import {
-  getAgentLabel,
   getAgentCatalog,
+  getAgentLabel,
   type AgentCatalogEntry
 } from '@/lib/agent-catalog/agent-catalog'
 import type { TuiAgent } from '../../../../../../shared/agent-launch/catalog/tui-agent'
@@ -22,7 +22,7 @@ import {
   setDefaultCustomAgentProfile
 } from '../../../../../../shared/custom-agent-profile'
 import { resolveTuiAgentLaunchArgs } from '../../../../../../shared/agent-launch/choices/tui-agent-launch-defaults'
-import type { GlobalSettings } from '../../../../../../shared/global-settings-types'
+import type { GlobalSettings } from '../../../../../../shared/settings/global-settings-types'
 import {
   AgentLaunchSettingsCatalog,
   type AgentPermissionsRenderer
@@ -34,7 +34,7 @@ import {
 } from '../../CustomAgentProfilesSection'
 import { duplicateBuiltInAgentAsCustom } from '../../custom-agent-profile-draft'
 import { CLIENT_PLATFORM } from '@/lib/workspace/creation/new-workspace'
-import { resolveLocalWindowsAgentStartupShell } from '../../../../../../shared/windows-terminal-shell'
+import { resolveLocalWindowsAgentStartupShell } from '../../../../../../shared/shell/launch/windows-terminal-shell'
 import { resolveStartupShell } from '../../../../../../shared/agent-launch/startup/tui-agent-startup-shell'
 import { HostAgentLaunchSettings } from './HostAgentLaunchSettings'
 import { SettingsHostScopeUnavailableNotice } from '../../host-scope/SettingsHostScopePicker'
@@ -261,14 +261,8 @@ function LocalAgentLaunchSettings({
         updateSettings,
         saveEnvironment,
         customAgents: {
-          profiles: customAgentProfiles,
           defaultProfile: defaultCustomAgent,
           onSetBuiltInDefault: setBuiltInDefault,
-          onSetDefaultProfile: (profileId) =>
-            void updateSettings({
-              customAgentProfiles: setDefaultCustomAgentProfile(customAgentProfiles, profileId)
-            }),
-          onProfilesChange: (profiles) => updateSettingsOrThrow({ customAgentProfiles: profiles }),
           onDuplicateAsCustom: duplicateAsCustom,
           duplicateDisabled: customAgentProfiles.length >= CUSTOM_AGENT_PROFILES_MAX,
           afterDetectedAgents: (

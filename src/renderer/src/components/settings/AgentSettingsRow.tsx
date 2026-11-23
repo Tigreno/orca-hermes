@@ -146,7 +146,7 @@ export function AgentSettingsRow({
                     ? t('auto.components.settings.AgentsPane.d7625cf8b2', 'Default agent')
                     : t('auto.components.settings.AgentsPane.5f986a9b92', 'Set as default')
                 }
-                className="h-7 w-full justify-center gap-1 text-xs"
+                className="h-7 w-full justify-center"
               >
                 {isDefault ? <Check className="size-3" /> : null}
                 {isDefault

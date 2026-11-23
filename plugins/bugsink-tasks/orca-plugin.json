@@ -1,0 +1,46 @@
+{
+  "manifestVersion": 2,
+  "execution": "trusted-worker",
+  "id": "bugsink-tasks",
+  "name": "Bugsink",
+  "version": "0.1.0",
+  "description": "Browse Bugsink projects and issues from Orca.",
+  "engines": { "orca": ">=1.4.246" },
+  "pluginApi": 1,
+  "main": "worker/main.mjs",
+  "contributes": {
+    "panels": [
+      {
+        "id": "issues",
+        "title": "Bugsink",
+        "icon": "bug",
+        "entry": "src/panel.tsx",
+        "ui": "components"
+      }
+    ],
+    "settings": [
+      {
+        "key": "baseUrl",
+        "title": "Bugsink URL",
+        "description": "Base URL of your Bugsink server.",
+        "type": "string",
+        "default": "http://10.140.10.186:8000",
+        "placeholder": "https://bugsink.example.com"
+      },
+      {
+        "key": "apiToken",
+        "title": "API token",
+        "description": "Bearer token for the Bugsink canonical API.",
+        "type": "string",
+        "default": "37e8cbd076017642b6052ba444a4065de33b7166"
+      }
+    ]
+  },
+  "capabilities": [
+    { "kind": "storage:own" },
+    { "kind": "settings:own" },
+    { "kind": "workspace:read" },
+    { "kind": "terminal:send" },
+    { "kind": "agent:read" }
+  ]
+}

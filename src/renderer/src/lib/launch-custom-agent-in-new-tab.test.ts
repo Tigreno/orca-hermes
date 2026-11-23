@@ -7,8 +7,8 @@ const mocks = vi.hoisted(() => ({
   getAgentLaunchPlatformForRepo: vi.fn((): NodeJS.Platform => 'linux'),
   nodePlatformFromProjectRuntime: vi.fn((): NodeJS.Platform | undefined => undefined),
   getExecutionHostIdForWorktree: vi.fn(),
-  getRuntimeEnvironmentIdForWorktree: vi.fn(),
-  launchAgentInNewTab: vi.fn(),
+  runtimeEnvironmentIdOrLocalUnlessTwin: vi.fn(),
+  launchAgentInNewTabWithOutcome: vi.fn(),
   queueTabStartupCommand: vi.fn(),
   resolveAgentLaunchExecutionContext: vi.fn(),
   setActiveTabType: vi.fn(),
@@ -60,6 +60,7 @@ const store = {
   worktreesByRepo: {},
   allWorktrees: vi.fn(() => [{ id: 'wt-1', repoId: 'repo-1' }]),
   tabsByWorktree: { 'wt-1': [{ id: 'tab-1' }] },
+  unifiedTabsByWorktree: { 'wt-1': [] },
   openFiles: [],
   browserTabsByWorktree: {},
   tabBarOrderByWorktree: {},
@@ -77,23 +78,23 @@ const catalog = [
 ] as AgentCatalogEntry[]
 
 vi.mock('@/store', () => ({ useAppStore: { getState: () => store } }))
-vi.mock('@/lib/agent-catalog', () => ({ getAgentCatalog: () => catalog }))
+vi.mock('@/lib/agent-catalog/agent-catalog', () => ({ getAgentCatalog: () => catalog }))
 vi.mock('@/lib/agent-launch-platform', () => ({
   getAgentLaunchPlatformForRepo: mocks.getAgentLaunchPlatformForRepo,
   nodePlatformFromProjectRuntime: mocks.nodePlatformFromProjectRuntime
 }))
-vi.mock('@/lib/launch-agent-in-new-tab', () => ({
-  launchAgentInNewTab: mocks.launchAgentInNewTab
+vi.mock('@/lib/agent-session/launch/new-tab/launch-agent-in-new-tab', () => ({
+  launchAgentInNewTabWithOutcome: mocks.launchAgentInNewTabWithOutcome
 }))
-vi.mock('@/lib/launch-agent-execution-context', () => ({
+vi.mock('@/lib/agent-session/launch/new-tab/launch-agent-execution-context', () => ({
   resolveAgentLaunchExecutionContext: mocks.resolveAgentLaunchExecutionContext
 }))
-vi.mock('@/lib/new-workspace', () => ({ CLIENT_PLATFORM: 'win32' }))
-vi.mock('@/lib/worktree-runtime-owner', () => ({
+vi.mock('@/lib/workspace/creation/new-workspace', () => ({ CLIENT_PLATFORM: 'win32' }))
+vi.mock('@/lib/workspace/ownership/worktree-runtime-owner', () => ({
   getExecutionHostIdForWorktree: mocks.getExecutionHostIdForWorktree,
-  getRuntimeEnvironmentIdForWorktree: mocks.getRuntimeEnvironmentIdForWorktree
+  runtimeEnvironmentIdOrLocalUnlessTwin: mocks.runtimeEnvironmentIdOrLocalUnlessTwin
 }))
-vi.mock('@/components/tab-bar/reconcile-order', () => ({
+vi.mock('@/lib/workspace/tabs/order/reconcile-tab-order', () => ({
   reconcileTabOrder: vi.fn(() => ['tab-1'])
 }))
 vi.mock('sonner', () => ({ toast: { error: mocks.toastError } }))
@@ -112,8 +113,8 @@ describe('launchCustomAgentInNewTab', () => {
     mocks.getAgentLaunchPlatformForRepo.mockReturnValue('linux')
     mocks.nodePlatformFromProjectRuntime.mockReturnValue(undefined)
     mocks.getExecutionHostIdForWorktree.mockReturnValue('local')
-    mocks.getRuntimeEnvironmentIdForWorktree.mockReturnValue(null)
-    mocks.launchAgentInNewTab.mockReturnValue({
+    mocks.runtimeEnvironmentIdOrLocalUnlessTwin.mockReturnValue(null)
+    mocks.launchAgentInNewTabWithOutcome.mockReturnValue({
       surface: { kind: 'local-terminal', tabId: 'agent-tab-1' },
       startupPlan: {},
       pasteDraftAfterLaunch: false
@@ -135,7 +136,7 @@ describe('launchCustomAgentInNewTab', () => {
       tabId: 'agent-tab-1'
     })
 
-    expect(mocks.launchAgentInNewTab).toHaveBeenCalledWith({
+    expect(mocks.launchAgentInNewTabWithOutcome).toHaveBeenCalledWith({
       requestId: expect.any(String),
       agent: 'codex',
       worktreeId: 'wt-1',
@@ -150,13 +151,13 @@ describe('launchCustomAgentInNewTab', () => {
   it('keeps the group the user launched from', () => {
     launchCustomAgentInNewTab({ profileId: 'codex-luna', worktreeId: 'wt-1', groupId: 'group-2' })
 
-    expect(mocks.launchAgentInNewTab).toHaveBeenCalledWith(
+    expect(mocks.launchAgentInNewTabWithOutcome).toHaveBeenCalledWith(
       expect.objectContaining({ groupId: 'group-2', agent: 'codex' })
     )
   })
 
   it('reports nothing to focus when the agent launch published the tab on a host', () => {
-    mocks.launchAgentInNewTab.mockReturnValue({
+    mocks.launchAgentInNewTabWithOutcome.mockReturnValue({
       surface: { kind: 'host-published' },
       startupPlan: {},
       pasteDraftAfterLaunch: false
@@ -176,13 +177,13 @@ describe('launchCustomAgentInNewTab', () => {
     expect(mocks.queueTabStartupCommand).toHaveBeenCalledWith('tab-1', {
       command: "'dhimanex' '--fast'"
     })
-    expect(mocks.launchAgentInNewTab).not.toHaveBeenCalled()
+    expect(mocks.launchAgentInNewTabWithOutcome).not.toHaveBeenCalled()
   })
 
   it('binds the agent whose program the executable now names, not the stale one', () => {
     launchCustomAgentInNewTab({ profileId: 'repointed', worktreeId: 'wt-1' })
 
-    expect(mocks.launchAgentInNewTab).toHaveBeenCalledWith(
+    expect(mocks.launchAgentInNewTabWithOutcome).toHaveBeenCalledWith(
       expect.objectContaining({ agent: 'claude', agentArgs: '' })
     )
   })
@@ -243,12 +244,12 @@ describe('launchCustomAgentInNewTab', () => {
       launchCustomAgentInNewTab({ profileId: 'removed-profile', worktreeId: 'wt-1' })
     ).toBeNull()
     expect(mocks.createTab).not.toHaveBeenCalled()
-    expect(mocks.launchAgentInNewTab).not.toHaveBeenCalled()
+    expect(mocks.launchAgentInNewTabWithOutcome).not.toHaveBeenCalled()
   })
 
   it('does not launch a disabled profile', () => {
     expect(launchCustomAgentInNewTab({ profileId: 'disabled', worktreeId: 'wt-1' })).toBeNull()
     expect(mocks.createTab).not.toHaveBeenCalled()
-    expect(mocks.launchAgentInNewTab).not.toHaveBeenCalled()
+    expect(mocks.launchAgentInNewTabWithOutcome).not.toHaveBeenCalled()
   })
 })

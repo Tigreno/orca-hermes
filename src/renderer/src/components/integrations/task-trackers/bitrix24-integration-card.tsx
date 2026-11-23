@@ -9,7 +9,7 @@ import {
   useBitrix24ConnectionStatus
 } from '@/hooks/use-bitrix24-connection-status'
 import { bitrix24Disconnect, bitrix24TestConnection } from '@/runtime/runtime-bitrix24-client'
-import { getLocalExecutionHostLabel } from '../../../../../shared/execution-host'
+import { getLocalExecutionHostLabel } from '../../../../../shared/execution-host/execution-host'
 import { taskProviderErrorMessage } from '@/lib/work-items/task-provider-error-copy'
 import {
   IntegrationCardDetails,
@@ -21,12 +21,30 @@ import { useTranslate } from '@/i18n/use-translate'
 
 type VerificationResult = { state: 'ok' | 'error'; error?: string }
 
-async function readTestOutcome(): Promise<VerificationResult> {
+async function verifyBitrix24Connection(
+  mountedRef: React.RefObject<boolean>,
+  setTestResult: (result: VerificationResult | null) => void,
+  setTesting: (testing: boolean) => void
+): Promise<void> {
   try {
     const result = await bitrix24TestConnection()
-    return result.ok ? { state: 'ok' } : { state: 'error', error: taskProviderErrorMessage(result) }
+    if (!mountedRef.current) {
+      return
+    }
+    setTestResult(
+      result.ok ? { state: 'ok' } : { state: 'error', error: taskProviderErrorMessage(result) }
+    )
   } catch (error) {
-    return { state: 'error', error: error instanceof Error ? error.message : String(error) }
+    if (mountedRef.current) {
+      setTestResult({
+        state: 'error',
+        error: error instanceof Error ? error.message : String(error)
+      })
+    }
+  } finally {
+    if (mountedRef.current) {
+      setTesting(false)
+    }
   }
 }
 
@@ -46,11 +64,7 @@ export function Bitrix24IntegrationCard(): React.JSX.Element {
   const handleTest = async (): Promise<void> => {
     setTesting(true)
     setTestResult(null)
-    const outcome = await readTestOutcome()
-    if (mountedRef.current) {
-      setTestResult(outcome)
-      setTesting(false)
-    }
+    await verifyBitrix24Connection(mountedRef, setTestResult, setTesting)
   }
 
   const handleDisconnect = async (): Promise<void> => {

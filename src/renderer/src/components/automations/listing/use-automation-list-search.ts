@@ -1,5 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useRef } from 'react'
-import type { Repo } from '../../../../../shared/repo-types'
+import type { Repo } from '../../../../../shared/repository/repo-types'
+import { useAppStore } from '@/store/index'
 import { resolveAutomationListSearchQuery } from './automation-list-search-query'
 import type { AutomationListRow } from './automation-list-row-identity'
 import {
@@ -13,7 +14,6 @@ import {
   type AutomationWorkspaceNameLookup
 } from './automation-list-search-rows'
 import type { ExternalAutomationListEntry } from '../external/external-automation-list-entries'
-import { useAppStore } from '@/store'
 
 /** Counts the empty-state view consumes, so it never recomputes what search already knows. */
 export type AutomationListSearchCounts = {
