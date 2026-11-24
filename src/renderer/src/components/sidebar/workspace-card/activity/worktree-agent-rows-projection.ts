@@ -8,6 +8,7 @@ import type { DashboardAgentRow } from '@/components/dashboard/rows/dashboard-ag
 import { applyAgentRowLineage } from '@/components/dashboard/rows/agent-row-lineage'
 import type { AppState } from '@/store/types'
 
+import { structuredAgentSessionIdOfTab } from '../../../../../../shared/agent-session/view/structured-agent-session-tab'
 import type { ExecutionHostId } from '../../../../../../shared/execution-host/execution-host'
 import { getAgentPaneExecutionHost } from '@/store/slices/agent-status/pane-authority/agent-pane-execution-host'
 import { recordChangeReaches } from '@/store/record-transitions/keyed-record-change-reads'
@@ -41,13 +42,12 @@ function rowBelongsToHost(
 ): boolean {
   const paneKey = row.activationPaneKey ?? row.paneKey
   const entry = state.agentStatusByPaneKey.get(paneKey) ?? row.entry
-  const paneHost = getAgentPaneExecutionHost(
-    state,
-    paneKey,
-    entry,
-    row.tab.ptyId,
-    stampedHosts.get(row.tab.id)
-  )
+  const structuredTabId = parsePaneKey(paneKey)?.tabId ?? entry?.tabId
+  // A structured row can arrive before its chat tab; the card's stamp is its only host evidence.
+  const fallbackHostId =
+    stampedHosts.get(row.tab.id) ??
+    (structuredTabId && structuredAgentSessionIdOfTab(structuredTabId) ? hostId : undefined)
+  const paneHost = getAgentPaneExecutionHost(state, paneKey, entry, row.tab.ptyId, fallbackHostId)
   return (
     paneHost === hostId ||
     Boolean(

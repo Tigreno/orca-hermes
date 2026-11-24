@@ -202,8 +202,11 @@ export function buildMirroredAgentStatusPatch(
     ) {
       continue
     }
-    // Host omission cannot prove OSC-driven exit. Retain owned rows through staleness so wake decays them like local panes instead of erasing them (STA-3107).
-    if (isClientOwnedAgentStatus(paneKey, state.agentStatusByPaneKey.get(paneKey))) {
+    // Host omission cannot prove an exit: a fresh mirrored row may still be the live status while the host's next graph frame lags (STA-3107).
+    if (
+      (existing.mirroredEvidenceReceivedAt !== undefined && isAgentStatusFresh(existing, now)) ||
+      isClientOwnedAgentStatus(paneKey, existing)
+    ) {
       continue
     }
     nextAgentStatusByPaneKey = nextAgentStatusByPaneKey.replace([[paneKey, null]])
